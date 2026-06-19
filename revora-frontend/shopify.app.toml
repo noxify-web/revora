@@ -2,7 +2,7 @@
 
 client_id = "8306c32501330f9312ff84788895ca36"
 name = "revora"
-application_url = "http://localhost:3000"
+application_url = "https://reissue-irritable-slider.ngrok-free.dev"
 embedded = true
 
 [build]
@@ -11,16 +11,65 @@ dev_store_url = "noxify-dvgwvtrt.myshopify.com"
 include_config_on_deploy = true
 
 [access_scopes]
-scopes = "read_products,write_products"
+scopes = "read_products,write_products,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects"
 use_legacy_install_flow = false
+
+[metaobjects.app.revora_review]
+name = "Revora Review"
+access.admin = "merchant_read_write"
+access.storefront = "public_read"
+
+[metaobjects.app.revora_review.fields.author_name]
+name = "Author"
+type = "single_line_text_field"
+
+[metaobjects.app.revora_review.fields.comment]
+name = "Comment"
+type = "multi_line_text_field"
+
+[metaobjects.app.revora_review.fields.score]
+name = "Score"
+type = "number_integer"
+
+[metaobjects.app.revora_review.fields.review_date]
+name = "Review date"
+type = "date"
+
+[metaobjects.app.revora_review.fields.temu_review_id]
+name = "Temu review ID"
+type = "single_line_text_field"
+
+[metaobjects.app.revora_review.fields.pictures]
+name = "Pictures"
+type = "list.single_line_text_field"
+
+[product.metafields.app.revora_reviews]
+type = "list.metaobject_reference<$app:revora_review>"
+name = "Revora Reviews"
+access.admin = "merchant_read_write"
+access.storefront = "public_read"
+
+[product.metafields.app.revora_review_count]
+type = "number_integer"
+name = "Revora review count"
+access.storefront = "public_read"
+
+[product.metafields.app.revora_average_rating]
+type = "number_decimal"
+name = "Revora average rating"
+access.storefront = "public_read"
 
 [auth]
 redirect_urls = [
-  "http://localhost:3000/api/auth/callback"
+  "https://reissue-irritable-slider.ngrok-free.dev/api/auth/callback"
 ]
 
 [webhooks]
 api_version = "2025-01"
+
+[[webhooks.subscriptions]]
+topics = ["app_subscriptions/update"]
+uri = "/api/webhooks/app-subscriptions"
 
 [pos]
 embedded = false

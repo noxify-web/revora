@@ -27,14 +27,17 @@ export function getShopify() {
 
     if (!apiKey) {
       throw new Error(
-        "Missing SHOPIFY_API_KEY. Add your Revora Client ID to .env.local.",
+        "Missing SHOPIFY_API_KEY. Add your Revora Client ID to .env.local."
       )
     }
 
     shopifyClient = shopifyApi({
       apiKey,
       apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-      scopes: (process.env.SCOPES || "read_products,write_products").split(","),
+      scopes: (
+        process.env.SCOPES ||
+        "read_products,write_products,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects"
+      ).split(","),
       hostName,
       hostScheme,
       apiVersion: ApiVersion.January25,

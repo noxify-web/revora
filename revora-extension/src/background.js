@@ -1,163 +1,43 @@
-import { decodePairingCode, encodePairingCode } from "./pairing.js"
+import { DEFAULT_DEV_URL } from "./config.js";
+import {
+  enrichConnection,
+  fetchRevora,
+  persistApiBaseUrl,
+  persistConnection,
+  readConnectionState,
+} from "./api-transport.js";
 
-async function getStoredSettings() {
-  return chrome.storage.sync.get([
-    "pairingCode",
-    "pairingToken",
-    "apiBaseUrl",
-  ])
-}
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.storage.sync.get(["stableDevUrl", "apiBaseUrl"]).then((stored) => {
+    const updates = {};
 
-async function getSettings() {
-  const stored = await getStoredSettings()
-
-  if (stored.pairingToken) {
-    return {
-      apiBaseUrl: (stored.apiBaseUrl || "").replace(/\/$/, ""),
-      pairingToken: stored.pairingToken,
-    }
-  }
-
-  if (stored.pairingCode) {
-    const decoded = decodePairingCode(stored.pairingCode)
-
-    return {
-      apiBaseUrl: (stored.apiBaseUrl || decoded.apiBaseUrl || "").replace(
-        /\/$/,
-        "",
-      ),
-      pairingToken: decoded.pairingToken,
-    }
-  }
-
-  return {
-    apiBaseUrl: "",
-    pairingToken: "",
-  }
-}
-
-async function ensureHostPermission(apiBaseUrl) {
-  try {
-    const origin = `${new URL(apiBaseUrl).origin}/*`
-    const hasPermission = await chrome.permissions.contains({ origins: [origin] })
-
-    if (!hasPermission) {
-      await chrome.permissions.request({ origins: [origin] })
-    }
-  } catch {
-    // Ignore invalid URLs during permission checks.
-  }
-}
-
-async function persistApiBaseUrl(apiBaseUrl) {
-  const normalized = apiBaseUrl.replace(/\/$/, "")
-  const stored = await getStoredSettings()
-  const updates = { apiBaseUrl: normalized }
-
-  const pairingToken =
-    stored.pairingToken ||
-    (stored.pairingCode
-      ? decodePairingCode(stored.pairingCode).pairingToken
-      : "")
-
-  if (pairingToken) {
-    updates.pairingToken = pairingToken
-    updates.pairingCode = encodePairingCode({
-      apiUrl: normalized,
-      token: pairingToken,
-    })
-  }
-
-  await chrome.storage.sync.set(updates)
-  await ensureHostPermission(normalized)
-
-  return normalized
-}
-
-async function syncApiUrlFromHealth(apiBaseUrl) {
-  const response = await fetch(`${apiBaseUrl}/api/extension/health`)
-
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok || !data.apiUrl) {
-    return apiBaseUrl
-  }
-
-  const nextUrl = data.apiUrl.replace(/\/$/, "")
-  if (nextUrl !== apiBaseUrl) {
-    return persistApiBaseUrl(nextUrl)
-  }
-
-  return apiBaseUrl
-}
-
-async function apiRequest(path, init = {}) {
-  let { apiBaseUrl, pairingToken } = await getSettings()
-
-  if (!pairingToken) {
-    throw new Error("Paste your pairing code in the extension popup")
-  }
-
-  if (!apiBaseUrl) {
-    throw new Error(
-      "Server URL missing. Open Revora in Shopify admin and click Sync URL in the extension popup.",
-    )
-  }
-
-  const headers = new Headers(init.headers || {})
-  headers.set("Authorization", `Bearer ${pairingToken}`)
-
-  if (init.body) {
-    headers.set("Content-Type", "application/json")
-  }
-
-  const attemptRequest = async (baseUrl) => {
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      headers,
-    })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      throw new Error(data.error || `Request failed (${response.status})`)
+    if (!stored.stableDevUrl) {
+      updates.stableDevUrl = DEFAULT_DEV_URL;
     }
 
-    return data
-  }
-
-  try {
-    const data = await attemptRequest(apiBaseUrl)
-
-    if (data.apiUrl && data.apiUrl.replace(/\/$/, "") !== apiBaseUrl) {
-      apiBaseUrl = await persistApiBaseUrl(data.apiUrl)
+    if (!stored.apiBaseUrl) {
+      updates.apiBaseUrl = DEFAULT_DEV_URL;
     }
 
-    return data
-  } catch (error) {
-    const stored = await getStoredSettings()
-    const refreshedUrl = stored.apiBaseUrl?.replace(/\/$/, "")
-
-    if (
-      refreshedUrl &&
-      refreshedUrl !== apiBaseUrl &&
-      error instanceof TypeError
-    ) {
-      apiBaseUrl = await persistApiBaseUrl(refreshedUrl)
-      return attemptRequest(apiBaseUrl)
+    if (Object.keys(updates).length > 0) {
+      return chrome.storage.sync.set(updates);
     }
-
-    if (error instanceof TypeError) {
-      throw new Error(
-        `Cannot reach Revora at ${apiBaseUrl}. Keep "shopify app dev" running, open Revora in Shopify admin, then click Sync URL in the extension popup.`,
-      )
-    }
-
-    throw error
-  }
-}
+  });
+});
 
 function mapReview(review) {
+  const pictures = Array.isArray(review.pictures)
+    ? review.pictures
+        .map((item) => {
+          if (typeof item === "string") return item.trim();
+          if (item && typeof item === "object" && item.url) {
+            return String(item.url).trim();
+          }
+          return null;
+        })
+        .filter(Boolean)
+    : [];
+
   return {
     temuReviewId: String(review.review_id),
     comment: review.comment || "",
@@ -165,8 +45,8 @@ function mapReview(review) {
     score: review.score ?? null,
     authorName: review.name || "",
     reviewTime: review.time ?? null,
-    pictures: Array.isArray(review.pictures) ? review.pictures : [],
-  }
+    pictures,
+  };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -178,31 +58,57 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ok: false,
           error: error instanceof Error ? error.message : "Failed to save URL",
         }),
+      );
+    return true;
+  }
+
+  if (message?.type === "REVORA_CONNECT_EXCHANGE") {
+    fetchRevora("/api/extension/connect/exchange", {
+      method: "POST",
+      body: { code: message.code },
+      auth: false,
+    })
+      .then(async (data) => {
+        await persistConnection(data);
+        return data;
+      })
+      .then((data) => sendResponse({ ok: true, data }))
+      .catch((error) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "Connect failed",
+        }),
+      );
+    return true;
+  }
+
+  if (message?.type === "REVORA_GET_PLAN") {
+    readConnectionState()
+      .then((stored) =>
+        fetchRevora("/api/extension/plan").then((data) =>
+          enrichConnection(data, stored),
+        ),
       )
-    return true
+      .then((data) => sendResponse({ ok: true, data }))
+      .catch((error) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "Failed to load plan",
+        }),
+      );
+    return true;
   }
 
   if (message?.type === "REVORA_VERIFY") {
-    getSettings()
-      .then(async ({ apiBaseUrl, pairingToken }) => {
-        if (!pairingToken) {
-          throw new Error("Paste your pairing code in the extension popup")
+    readConnectionState()
+      .then((stored) => {
+        if (!stored.pairingToken) {
+          throw new Error("Connect the extension from the popup first.");
         }
 
-        if (!apiBaseUrl) {
-          throw new Error(
-            "Server URL missing. Open Revora in Shopify admin and click Sync URL.",
-          )
-        }
-
-        const syncedUrl = await syncApiUrlFromHealth(apiBaseUrl)
-        const health = await apiRequest("/api/extension/health")
-        const data = await apiRequest("/api/extension/verify")
-
-        return {
-          ...data,
-          apiUrl: health.apiUrl || syncedUrl,
-        }
+        return fetchRevora("/api/extension/verify").then((data) =>
+          enrichConnection(data, stored),
+        );
       })
       .then((data) => sendResponse({ ok: true, data }))
       .catch((error) =>
@@ -210,29 +116,33 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ok: false,
           error: error instanceof Error ? error.message : "Verification failed",
         }),
-      )
-    return true
+      );
+    return true;
   }
 
   if (message?.type === "REVORA_GET_PRODUCTS") {
-    const search = message.search ? `?search=${encodeURIComponent(message.search)}` : ""
-    apiRequest(`/api/products${search}`)
+    const search = message.search
+      ? `?search=${encodeURIComponent(message.search)}`
+      : "";
+
+    fetchRevora(`/api/products${search}`)
       .then((data) => sendResponse({ ok: true, data }))
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: error instanceof Error ? error.message : "Failed to load products",
+          error:
+            error instanceof Error ? error.message : "Failed to load products",
         }),
-      )
-    return true
+      );
+    return true;
   }
 
   if (message?.type === "REVORA_UPLOAD_BATCH") {
-    const reviews = (message.reviews || []).map(mapReview)
+    const reviews = (message.reviews || []).map(mapReview);
 
-    apiRequest("/api/reviews/import", {
+    fetchRevora("/api/reviews/import", {
       method: "POST",
-      body: JSON.stringify({
+      body: {
         importId: message.importId,
         temuGoodsId: message.temuGoodsId,
         temuProductUrl: message.temuProductUrl,
@@ -243,7 +153,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         batchIndex: message.batchIndex,
         isFinal: message.isFinal,
         reviews,
-      }),
+      },
     })
       .then((data) => sendResponse({ ok: true, data }))
       .catch((error) =>
@@ -251,9 +161,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           ok: false,
           error: error instanceof Error ? error.message : "Upload failed",
         }),
-      )
-    return true
+      );
+    return true;
   }
 
-  return false
-})
+  return false;
+});

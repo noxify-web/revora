@@ -30,7 +30,7 @@ export async function authenticateExtensionToken(authorization: string | null) {
   const record = await db.query.extensionTokens.findFirst({
     where: and(
       eq(extensionTokens.tokenHash, tokenHash),
-      isNull(extensionTokens.revokedAt),
+      isNull(extensionTokens.revokedAt)
     ),
   })
 
@@ -44,4 +44,15 @@ export async function authenticateExtensionToken(authorization: string | null) {
     .where(eq(extensionTokens.id, record.id))
 
   return record
+}
+
+export async function revokeShopExtensionTokens(shop: string) {
+  const now = new Date().toISOString()
+
+  await db
+    .update(extensionTokens)
+    .set({ revokedAt: now })
+    .where(
+      and(eq(extensionTokens.shop, shop), isNull(extensionTokens.revokedAt))
+    )
 }

@@ -1,0 +1,12 @@
+{
+  "blocks": {
+    "reviews": {
+      "name": "Revora reviews",
+      "settings": {
+        "max_reviews": {
+          "label": "Maximum reviews to show"
+        }
+      }
+    }
+  }
+}

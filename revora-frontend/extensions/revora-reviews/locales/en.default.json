@@ -1,0 +1,9 @@
+{
+  "revora": {
+    "reviews_count": "{{ count }} reviews",
+    "no_reviews": "No reviews published yet. Import and publish from Revora.",
+    "customer": "Customer",
+    "review_photo_alt": "Review photo",
+    "stars_aria_label": "{{ rating }} out of 5 stars"
+  }
+}

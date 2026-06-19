@@ -3,11 +3,15 @@
   "name": "Revora — Temu Review Importer",
   "version": "0.1.0",
   "description": "Import Temu product reviews into your Shopify store via Revora.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
     "*://*.temu.com/*",
     "https://admin.shopify.com/*",
     "https://*.trycloudflare.com/*",
+    "https://*.ngrok-free.app/*",
+    "https://*.ngrok-free.dev/*",
+    "https://*.ngrok.io/*",
+    "https://*.ngrok.app/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
@@ -40,6 +44,7 @@
     {
       "matches": ["*://*.temu.com/*"],
       "js": ["src/content.js"],
+      "type": "module",
       "run_at": "document_idle"
     },
     {

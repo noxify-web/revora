@@ -14,10 +14,10 @@ export type ImportReviewInput = {
   temuReviewId: string
   comment?: string
   translatedComment?: string
-  score?: number
+  score?: number | null
   authorName?: string
-  reviewTime?: number
-  pictures?: string[]
+  reviewTime?: number | null
+  pictures?: unknown[]
 }
 
 export type ImportBatchRequest = {

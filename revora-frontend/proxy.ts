@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 
 import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers"
 
-export function middleware(request: NextRequest) {
+export function proxy(_request: NextRequest) {
   return applyEmbeddedAppHeaders(NextResponse.next())
 }
 

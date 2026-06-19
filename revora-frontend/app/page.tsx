@@ -1,4 +1,6 @@
-import { ExtensionPairing } from "@/components/extension-pairing"
+import { BillingCard } from "@/components/billing-card"
+import { ConnectExtension } from "@/components/connect-extension"
+import { ImportsManager } from "@/components/imports-manager"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -8,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { authenticateAdmin } from "@/lib/shopify/authenticate-admin"
+import { ensureShopPlan } from "@/lib/shopify/plan-store"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -17,10 +20,11 @@ type PageProps = {
 }
 
 const gettingStartedSteps = [
-  "Install the Revora Chrome extension (load unpacked from revora-extension/)",
-  "Generate a pairing code below and paste it in the extension popup",
-  "Open a Temu product page and click Import reviews",
-  "Map reviews to a Shopify product and wait for the import to finish",
+  "Install the Revora Chrome extension",
+  "Generate a connect code below and enter it in the extension popup",
+  "Open a Temu product page and import reviews into a Shopify product",
+  "Return here and click Publish to storefront",
+  "Add the Revora Reviews block in your theme editor",
 ]
 
 export default async function Page({ searchParams }: PageProps) {
@@ -34,53 +38,65 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   const { shop } = await authenticateAdmin(query)
+  await ensureShopPlan(shop)
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-      <div className="space-y-1">
-        <h1 className="text-lg font-semibold tracking-tight">Revora</h1>
-        <p className="text-sm text-muted-foreground">
-          Import Temu product reviews into your Shopify store.
-        </p>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
+      <div className="rounded-2xl border border-[#FFD8B8] bg-[#FFF4EB] p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-[#E56B00]">Revora</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-[#1A1A1A]">
+              Temu reviews for Shopify dropshippers
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Import Temu product reviews and publish them to your Shopify
+              storefront.
+            </p>
+          </div>
+          <Badge className="bg-[#FB7701] text-white hover:bg-[#E56B00]">
+            {shop}
+          </Badge>
+        </div>
       </div>
+
+      <BillingCard />
 
       <Card>
         <CardHeader>
-          <CardTitle>Connected store</CardTitle>
+          <CardTitle>Connect Chrome extension</CardTitle>
           <CardDescription>
-            Reviews imported through the Chrome extension are saved to this
-            store.
+            Link the Revora extension to this store with a short connect code.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Badge variant="secondary">{shop}</Badge>
+          <ConnectExtension />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Chrome extension pairing</CardTitle>
+          <CardTitle>Imports</CardTitle>
           <CardDescription>
-            Link the Revora Chrome extension to this Shopify store.
+            Review imports from Temu and publish them to mapped Shopify
+            products.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExtensionPairing />
+          <ImportsManager />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Getting started</CardTitle>
-          <CardDescription>
-            Follow these steps to run your first import.
-          </CardDescription>
+          <CardDescription>First-time setup for your store.</CardDescription>
         </CardHeader>
         <CardContent>
           <ol className="space-y-3 text-sm text-muted-foreground">
             {gettingStartedSteps.map((step, index) => (
               <li key={step} className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#FFF4EB] text-xs font-medium text-[#FB7701]">
                   {index + 1}
                 </span>
                 <span className="pt-0.5">{step}</span>

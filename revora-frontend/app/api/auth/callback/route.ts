@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 export const runtime = "nodejs"
 
 import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers"
+import { ensureShopPlan } from "@/lib/shopify/plan-store"
 import { getShopify, sessionStorage } from "@/lib/shopify/shopify"
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
   })
 
   await sessionStorage.storeSession(callbackResponse.session)
+  await ensureShopPlan(callbackResponse.session.shop)
 
   const appUrl =
     process.env.HOST?.trim() ||

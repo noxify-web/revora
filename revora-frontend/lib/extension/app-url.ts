@@ -10,35 +10,55 @@ export function getAppBaseUrlFromEnv() {
   return null
 }
 
+function getForwardedOrigin(
+  forwardedHost: string | null,
+  forwardedProto: string | null,
+  fallbackHost?: string | null
+) {
+  if (forwardedHost) {
+    const proto = forwardedProto || "https"
+    return `${proto}://${forwardedHost}`.replace(/\/$/, "")
+  }
+
+  if (fallbackHost) {
+    const proto = fallbackHost.includes("localhost") ? "http" : "https"
+    return `${proto}://${fallbackHost}`.replace(/\/$/, "")
+  }
+
+  return null
+}
+
 export async function getAppBaseUrl(request?: Request) {
+  if (request) {
+    const forwarded = getForwardedOrigin(
+      request.headers.get("x-forwarded-host"),
+      request.headers.get("x-forwarded-proto"),
+      new URL(request.url).host
+    )
+
+    if (forwarded) {
+      return forwarded
+    }
+  }
+
   const fromEnv = getAppBaseUrlFromEnv()
   if (fromEnv) {
     return fromEnv
   }
 
   if (request) {
-    const forwardedHost = request.headers.get("x-forwarded-host")
-    const forwardedProto = request.headers.get("x-forwarded-proto") || "https"
-
-    if (forwardedHost) {
-      return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "")
-    }
-
     return new URL(request.url).origin
   }
 
   const headerStore = await headers()
-  const forwardedHost = headerStore.get("x-forwarded-host")
-  const forwardedProto = headerStore.get("x-forwarded-proto") || "https"
+  const forwarded = getForwardedOrigin(
+    headerStore.get("x-forwarded-host"),
+    headerStore.get("x-forwarded-proto"),
+    headerStore.get("host")
+  )
 
-  if (forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`.replace(/\/$/, "")
-  }
-
-  const host = headerStore.get("host")
-  if (host) {
-    const proto = host.includes("localhost") ? "http" : "https"
-    return `${proto}://${host}`.replace(/\/$/, "")
+  if (forwarded) {
+    return forwarded
   }
 
   return "http://localhost:3000"

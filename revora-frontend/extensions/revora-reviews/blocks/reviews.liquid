@@ -1,0 +1,147 @@
+{% assign review_refs = product.metafields.app.revora_reviews.value %}
+{% assign average_rating = product.metafields.app.revora_average_rating.value | default: 0 %}
+{% assign review_count = product.metafields.app.revora_review_count.value | default: 0 %}
+{% assign max_reviews = block.settings.max_reviews | default: 10 %}
+
+<div class="revora-reviews" id="revora-reviews-{{ block.id }}">
+  <div class="revora-reviews__header">
+    <div class="revora-reviews__score">
+      <span class="revora-reviews__average">{{ average_rating }}</span>
+      <div class="revora-reviews__stars" aria-label="{{ 'revora.stars_aria_label' | t: rating: average_rating }}">
+        {% for i in (1..5) %}
+          <span class="revora-reviews__star{% if i <= average_rating %} is-filled{% endif %}">★</span>
+        {% endfor %}
+      </div>
+    </div>
+    <p class="revora-reviews__count">{{ 'revora.reviews_count' | t: count: review_count }}</p>
+  </div>
+
+  {% if review_refs != blank %}
+    <div class="revora-reviews__list">
+      {% for review in review_refs limit: max_reviews %}
+        <article class="revora-reviews__item">
+          <div class="revora-reviews__item-head">
+            <strong>{{ review.author_name.value | default: 'revora.customer' | t }}</strong>
+            <span class="revora-reviews__item-score">
+              {% assign score = review.score.value | default: 5 %}
+              {% for i in (1..5) %}
+                <span class="revora-reviews__star{% if i <= score %} is-filled{% endif %}">★</span>
+              {% endfor %}
+            </span>
+          </div>
+          {% if review.review_date.value != blank %}
+            <p class="revora-reviews__date">{{ review.review_date.value }}</p>
+          {% endif %}
+          <p class="revora-reviews__comment">{{ review.comment.value }}</p>
+          {% assign pictures = review.pictures.value %}
+          {% if pictures != blank %}
+            <div class="revora-reviews__photos">
+              {% for picture in pictures %}
+                <img src="{{ picture }}" alt="{{ 'revora.review_photo_alt' | t }}" loading="lazy" width="72" height="72">
+              {% endfor %}
+            </div>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="revora-reviews__empty">{{ 'revora.no_reviews' | t }}</p>
+  {% endif %}
+</div>
+
+<style>
+  .revora-reviews {
+    border: 1px solid #f0e4d8;
+    border-radius: 14px;
+    padding: 20px;
+    background: #fff;
+    color: #1a1a1a;
+  }
+  .revora-reviews__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .revora-reviews__score {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .revora-reviews__average {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fb7701;
+  }
+  .revora-reviews__stars,
+  .revora-reviews__item-score {
+    display: inline-flex;
+    gap: 2px;
+  }
+  .revora-reviews__star {
+    color: #e8e8e8;
+    font-size: 14px;
+  }
+  .revora-reviews__star.is-filled {
+    color: #fb7701;
+  }
+  .revora-reviews__count,
+  .revora-reviews__date,
+  .revora-reviews__empty {
+    color: #5c5c5c;
+    font-size: 14px;
+  }
+  .revora-reviews__list {
+    display: grid;
+    gap: 14px;
+  }
+  .revora-reviews__item {
+    border-top: 1px solid #f5efe8;
+    padding-top: 14px;
+  }
+  .revora-reviews__item-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .revora-reviews__comment {
+    margin: 8px 0 0;
+    line-height: 1.5;
+  }
+  .revora-reviews__photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .revora-reviews__photos img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #f0e4d8;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "t:blocks.reviews.name",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product"]
+  },
+  "settings": [
+    {
+      "type": "range",
+      "id": "max_reviews",
+      "label": "t:blocks.reviews.settings.max_reviews.label",
+      "min": 3,
+      "max": 30,
+      "step": 1,
+      "default": 10
+    }
+  ]
+}
+{% endschema %}

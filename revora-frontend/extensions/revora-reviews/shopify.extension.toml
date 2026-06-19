@@ -1,0 +1,5 @@
+api_version = "2025-01"
+name = "Revora Reviews"
+handle = "revora-reviews"
+type = "theme"
+uid = "revora-reviews-theme-block"
