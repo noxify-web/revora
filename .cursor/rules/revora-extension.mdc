@@ -1,0 +1,15 @@
+---
+description: Chrome extension conventions for Temu import
+globs: revora-extension/**
+alwaysApply: false
+---
+
+# revora-extension
+
+- MV3 extension: `inject.js` (MAIN world API intercept), `content.js` (panel + scroll), `background.js` (API uploads)
+- Temu flow: click exact **"See all reviews"** → wait for `role=dialog` + "Item reviews" → scroll `div[data-scroll="true"]`
+- Photos filter: click `Photos/Videos(...)` tab (`div._3bWZAd8u`) inside the dialog
+- Review filters: `withText` (comment or translation), `withPictures` (pictures array + photos tab)
+- Panel uses Shadow DOM for style isolation on `*.temu.com`
+- `admin-bridge.js` on `admin.shopify.com` syncs Cloudflare tunnel URL to extension storage
+- Reload extension at `chrome://extensions` after code changes; no bundler — plain ES modules

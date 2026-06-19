@@ -1,0 +1,15 @@
+---
+description: Shopify app conventions for revora-frontend
+globs: revora-frontend/**
+alwaysApply: false
+---
+
+# revora-frontend
+
+- Next.js 16 App Router + TypeScript
+- Admin UI uses **shadcn/ui**, not Polaris web components
+- DB: Turso/libSQL via Drizzle (`src/db/schema.ts`, `src/db/index.ts`)
+- Shopify auth: `@shopify/shopify-api`, sessions in Turso, embedded app via App Bridge
+- Extension APIs under `app/api/extension/*` — use `extensionJsonResponse` + CORS helpers
+- App base URL: prefer `HOST` env from Shopify CLI (`lib/extension/app-url.ts`)
+- Run locally: `shopify app dev` from `revora-frontend/`

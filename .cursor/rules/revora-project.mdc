@@ -1,0 +1,14 @@
+---
+description: Revora monorepo conventions — always apply
+alwaysApply: true
+---
+
+# Revora project rules
+
+- Monorepo: `revora-frontend/` (Shopify app), `revora-extension/` (Chrome extension)
+- Use **Bun** only (`bun install`, `bun run`). Never npm/yarn/pnpm
+- Keep changes focused; no drive-by refactors or unsolicited markdown docs
+- Never commit secrets (`.env.local`, Turso tokens, Shopify secrets)
+- API changes must update frontend routes **and** extension `background.js`
+- Pairing code format: `REVORA1.<base64>` — keep `pairing-code.ts` and `pairing.js` aligned
+- Dev tunnel URLs change on restart; extension syncs URL from Shopify admin, not a fixed host
