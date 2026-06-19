@@ -1,0 +1,32 @@
+# HTTP Toolkit captures (may contain live cookies/tokens)
+get.txt
+next.txt
+responce.txt
+
+# Env and local secrets
+.env
+.env.local
+**/.env.local
+
+# Dependencies
+node_modules/
+
+# Next.js / build output
+.next/
+out/
+build/
+dist/
+
+# Shopify CLI
+.shopify/
+
+# Local databases
+**/prisma/dev.db
+**/prisma/dev.db-*
+
+# OS / editor
+.DS_Store
+*.pem
+
+# Logs
+*.log

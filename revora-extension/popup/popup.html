@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Revora</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Revora</h1>
+      <p class="muted">
+        Paste your pairing code from the Revora Shopify app. The server URL
+        auto-syncs when Revora admin is open — use Sync URL after restarting
+        <code>shopify app dev</code>.
+      </p>
+
+      <label for="pairing-code">Pairing code</label>
+      <textarea
+        id="pairing-code"
+        rows="4"
+        placeholder="REVORA1.... or rvr_..."
+        spellcheck="false"
+      ></textarea>
+      <p class="hint">
+        Token-only codes work — the server URL is synced separately.
+      </p>
+
+      <label for="server-url">Server URL</label>
+      <div class="inline-actions">
+        <input
+          id="server-url"
+          type="text"
+          placeholder="https://....trycloudflare.com"
+          spellcheck="false"
+        />
+        <button id="sync-url-btn" type="button" class="secondary compact">
+          Sync URL
+        </button>
+      </div>
+      <p class="hint">
+        Open Revora in Shopify admin, then click Sync URL to pick up the current
+        Cloudflare tunnel.
+      </p>
+
+      <label for="reviews-selector">Temu "See all reviews" override (optional)</label>
+      <input
+        id="reviews-selector"
+        type="text"
+        placeholder="Auto-detects role=button + See all reviews"
+        spellcheck="false"
+      />
+      <p class="hint">
+        Leave blank to auto-click the See all reviews button. Only set this if
+        Temu changes their layout.
+      </p>
+
+      <div class="actions">
+        <button id="save-btn" type="button">Save</button>
+        <button id="verify-btn" type="button" class="secondary">Verify</button>
+      </div>
+
+      <p id="status" class="status">Not verified yet.</p>
+    </main>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

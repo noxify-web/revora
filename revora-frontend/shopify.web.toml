@@ -1,0 +1,6 @@
+name = "revora"
+roles = ["frontend", "backend"]
+
+[commands]
+dev = "bun run dev"
+build = "bun run build"

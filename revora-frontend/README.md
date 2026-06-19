@@ -1,15 +1,21 @@
-# Revora Frontend
+# Next.js template
 
-Frontend for the Revora Shopify app.
+This is a Next.js template with shadcn/ui.
 
-## Overview
+## Adding components
 
-This folder contains the frontend application.
+To add components to your app, run the following command:
 
-## Getting Started
+```bash
+bunx shadcn@latest add button
+```
 
-(Add setup and run instructions here)
+This will place the ui components in the `components` directory.
 
-## Tech Stack
+## Using components
 
-(To be documented)
+To use the components in your app, import them as follows:
+
+```tsx
+import { Button } from "@/components/ui/button";
+```

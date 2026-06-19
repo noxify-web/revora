@@ -1,0 +1,7 @@
+{
+  "name": "revora-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "cd revora-frontend && shopify app dev"
+  }
+}

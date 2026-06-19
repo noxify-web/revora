@@ -1,0 +1,26 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "8306c32501330f9312ff84788895ca36"
+name = "revora"
+application_url = "http://localhost:3000"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "noxify-dvgwvtrt.myshopify.com"
+include_config_on_deploy = true
+
+[access_scopes]
+scopes = "read_products,write_products"
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "http://localhost:3000/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+[pos]
+embedded = false
