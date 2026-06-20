@@ -9,7 +9,7 @@ export default defineConfig({
     version: "0.2.0",
     description:
       "Import Temu product reviews into your Shopify store via Revora.",
-    permissions: ["storage", "activeTab", "scripting"],
+    permissions: ["storage", "activeTab", "scripting", "identity"],
     host_permissions: [
       "*://*.temu.com/*",
       "https://admin.shopify.com/*",

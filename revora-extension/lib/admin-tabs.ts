@@ -73,17 +73,23 @@ export async function readApiBaseUrlFromAdmin(): Promise<string | null> {
   return response?.apiBaseUrl?.replace(/\/$/, "") || null
 }
 
-export async function readConnectCodeFromAdmin(): Promise<{
-  code: string | null
+export async function readConnectTokenFromAdmin(): Promise<{
+  token: string | null
   apiUrl: string | null
-  expiresAt: string | null
+  shop: string | null
+  plan: string | null
+  planName: string | null
+  reviewLimit: number | null
 } | null> {
   const response = await sendAdminBridgeMessage<{
-    code: string | null
+    token: string | null
     apiUrl: string | null
-    expiresAt: string | null
+    shop: string | null
+    plan: string | null
+    planName: string | null
+    reviewLimit: number | null
   }>({
-    type: "REVORA_GET_CONNECT_CODE",
+    type: "REVORA_GET_CONNECT_TOKEN",
   })
 
   return response

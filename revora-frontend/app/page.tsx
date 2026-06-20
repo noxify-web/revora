@@ -21,7 +21,7 @@ type PageProps = {
 
 const gettingStartedSteps = [
   "Install the Revora Chrome extension",
-  "Generate a connect code below and enter it in the extension popup",
+  "Click Connect extension below, or sign in from the extension popup",
   "Open a Temu product page and import reviews into a Shopify product",
   "Return here and click Publish to storefront",
   "Add the Revora Reviews block in your theme editor",
@@ -66,7 +66,7 @@ export default async function Page({ searchParams }: PageProps) {
         <CardHeader>
           <CardTitle>Connect Chrome extension</CardTitle>
           <CardDescription>
-            Link the Revora extension to this store with a short connect code.
+            Link the Revora Chrome extension to this store in one click.
           </CardDescription>
         </CardHeader>
         <CardContent>

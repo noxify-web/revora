@@ -17,25 +17,16 @@
       </header>
 
       <section class="card">
-        <label for="connect-code">Connect code</label>
-        <input
-          id="connect-code"
-          type="text"
-          maxlength="6"
-          placeholder="ABC123"
-          spellcheck="false"
-          autocomplete="off"
-        />
         <p class="hint">
-          Generate a code in Revora admin, paste it here, or click
-          <strong>Fill from admin</strong>. Server:
+          Open Revora in Shopify admin and click <strong>Connect extension</strong>,
+          or sign in below. Server:
           <span id="server-label" class="server-label">Not synced yet</span>
         </p>
         <div class="actions">
-          <button id="connect-btn" type="button">Connect</button>
-          <button id="fill-admin-btn" type="button" class="secondary">
-            Fill from admin
+          <button id="sync-admin-btn" type="button" class="secondary">
+            Sync from admin
           </button>
+          <button id="sign-in-btn" type="button">Sign in with Revora</button>
         </div>
       </section>
 

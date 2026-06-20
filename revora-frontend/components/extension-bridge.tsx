@@ -2,6 +2,11 @@
 
 import { useEffect } from "react"
 
+import type {
+  ConnectTokenBroadcast,
+  ConnectTokenRequest,
+} from "@revora/shared/extension-messages"
+
 const ALLOWED_PROXY_PREFIXES = [
   "/api/extension/",
   "/api/products",
@@ -17,65 +22,86 @@ type ProxyRequest = {
   headers?: Record<string, string>
 }
 
-type ConnectCodeRequest = {
-  type: "REVORA_REQUEST_CONNECT_CODE"
-  requestId: string
+type ConnectTokenPayload = {
+  token: string
+  apiUrl: string
+  shop: string
+  plan?: string | null
+  planName?: string | null
+  reviewLimit?: number | null
 }
 
 function isAllowedProxyPath(path: string) {
   return ALLOWED_PROXY_PREFIXES.some((prefix) => path.startsWith(prefix))
 }
 
-function readConnectCodeFromDom() {
-  const code = document.documentElement.dataset.revoraConnectCode?.trim()
+function readConnectTokenFromDom(): ConnectTokenPayload | null {
+  const token = document.documentElement.dataset.revoraConnectToken?.trim()
   const apiUrl = document.documentElement.dataset.revoraApiUrl?.trim()
-  const expiresAt =
-    document.documentElement.dataset.revoraConnectExpires?.trim()
+  const shop = document.documentElement.dataset.revoraShop?.trim()
 
-  if (!code) {
+  if (!token || !apiUrl || !shop) {
     return null
   }
 
   return {
-    code,
-    apiUrl: apiUrl || null,
-    expiresAt: expiresAt || null,
+    token,
+    apiUrl,
+    shop,
+    plan: document.documentElement.dataset.revoraPlan?.trim() || null,
+    planName: document.documentElement.dataset.revoraPlanName?.trim() || null,
+    reviewLimit: document.documentElement.dataset.revoraReviewLimit
+      ? Number(document.documentElement.dataset.revoraReviewLimit)
+      : null,
   }
 }
 
-function broadcastConnectCode(payload: {
-  code: string
-  apiUrl?: string | null
-  expiresAt?: string | null
-}) {
-  document.documentElement.dataset.revoraConnectCode = payload.code
-  if (payload.apiUrl) {
-    document.documentElement.dataset.revoraApiUrl = payload.apiUrl
+function writeConnectTokenToDom(payload: ConnectTokenPayload) {
+  document.documentElement.dataset.revoraConnectToken = payload.token
+  document.documentElement.dataset.revoraApiUrl = payload.apiUrl
+  document.documentElement.dataset.revoraShop = payload.shop
+
+  if (payload.plan) {
+    document.documentElement.dataset.revoraPlan = payload.plan
   }
-  if (payload.expiresAt) {
-    document.documentElement.dataset.revoraConnectExpires = payload.expiresAt
+
+  if (payload.planName) {
+    document.documentElement.dataset.revoraPlanName = payload.planName
   }
+
+  if (payload.reviewLimit != null) {
+    document.documentElement.dataset.revoraReviewLimit = String(
+      payload.reviewLimit
+    )
+  }
+}
+
+function broadcastConnectToken(payload: ConnectTokenPayload) {
+  writeConnectTokenToDom(payload)
 
   window.parent.postMessage(
     {
-      type: "REVORA_CONNECT_CODE",
-      code: payload.code,
+      type: "REVORA_CONNECT_TOKEN",
+      token: payload.token,
       apiUrl: payload.apiUrl,
-      expiresAt: payload.expiresAt,
-    },
+      shop: payload.shop,
+      plan: payload.plan,
+      planName: payload.planName,
+      reviewLimit: payload.reviewLimit,
+    } satisfies ConnectTokenBroadcast,
     "https://admin.shopify.com"
   )
 }
 
 export function ExtensionBridge() {
   useEffect(() => {
-    const existing = readConnectCodeFromDom()
-    if (existing) {
-      broadcastConnectCode(existing)
+    const existingToken = readConnectTokenFromDom()
+    if (existingToken) {
+      broadcastConnectToken(existingToken)
     }
 
     function handleMessage(
-      event: MessageEvent<ProxyRequest | ConnectCodeRequest>
+      event: MessageEvent<ProxyRequest | ConnectTokenRequest>
     ) {
       if (event.source !== window.parent) {
         return
@@ -85,15 +111,18 @@ export function ExtensionBridge() {
         return
       }
 
-      if (event.data?.type === "REVORA_REQUEST_CONNECT_CODE") {
-        const payload = readConnectCodeFromDom()
+      if (event.data?.type === "REVORA_REQUEST_CONNECT_TOKEN") {
+        const payload = readConnectTokenFromDom()
         window.parent.postMessage(
           {
-            type: "REVORA_CONNECT_CODE_RESPONSE",
+            type: "REVORA_CONNECT_TOKEN_RESPONSE",
             requestId: event.data.requestId,
-            code: payload?.code || null,
+            token: payload?.token || null,
             apiUrl: payload?.apiUrl || null,
-            expiresAt: payload?.expiresAt || null,
+            shop: payload?.shop || null,
+            plan: payload?.plan || null,
+            planName: payload?.planName || null,
+            reviewLimit: payload?.reviewLimit ?? null,
           },
           event.origin
         )
@@ -174,4 +203,4 @@ export function ExtensionBridge() {
   return null
 }
 
-export { broadcastConnectCode }
+export { broadcastConnectToken }

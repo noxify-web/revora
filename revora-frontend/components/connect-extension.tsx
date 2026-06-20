@@ -1,90 +1,142 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
+import type { ConnectTokenResponse } from "@revora/shared/extension-types"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { broadcastConnectCode } from "@/components/extension-bridge"
+import { broadcastConnectToken } from "@/components/extension-bridge"
 import { adminFetch } from "@/lib/admin-fetch"
 
-type ConnectPayload = {
-  code: string
-  expiresAt: string
-  apiUrl: string
+type ExtensionToken = {
+  id: string
+  label: string
+  createdAt: string
+  lastUsedAt: string | null
 }
 
 export function ConnectExtension() {
-  const [payload, setPayload] = useState<ConnectPayload | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [tokens, setTokens] = useState<ExtensionToken[]>([])
+  const [connectPayload, setConnectPayload] =
+    useState<ConnectTokenResponse | null>(null)
+  const [connecting, setConnecting] = useState(false)
+  const [loadingTokens, setLoadingTokens] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function createCode() {
-    setCreating(true)
+  const loadTokens = useCallback(async () => {
+    setLoadingTokens(true)
     setError(null)
-    setCopied(false)
 
     try {
-      const response = await adminFetch("/api/extension/connect", {
-        method: "POST",
-      })
-
+      const response = await adminFetch("/api/extension/token")
       if (!response.ok) {
-        throw new Error("Failed to create connect code")
+        throw new Error("Failed to load extension status")
       }
 
       const data = await response.json()
-      setPayload(data)
-
-      broadcastConnectCode({
-        code: data.code,
-        apiUrl: data.apiUrl,
-        expiresAt: data.expiresAt,
-      })
-    } catch (createError) {
+      setTokens(data.tokens ?? [])
+    } catch (loadError) {
       setError(
-        createError instanceof Error
-          ? createError.message
-          : "Failed to create connect code"
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load extension status"
       )
     } finally {
-      setCreating(false)
+      setLoadingTokens(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadTokens()
+  }, [loadTokens])
+
+  async function connectExtension() {
+    setConnecting(true)
+    setError(null)
+    setConnectPayload(null)
+
+    try {
+      const response = await adminFetch("/api/extension/token", {
+        method: "POST",
+        body: JSON.stringify({ label: "Chrome extension" }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to connect extension")
+      }
+
+      const data = (await response.json()) as ConnectTokenResponse
+      setConnectPayload(data)
+
+      broadcastConnectToken({
+        token: data.token,
+        apiUrl: data.apiUrl,
+        shop: data.shop,
+        plan: data.plan,
+        planName: data.planName,
+        reviewLimit: data.reviewLimit,
+      })
+
+      await loadTokens()
+    } catch (connectError) {
+      setError(
+        connectError instanceof Error
+          ? connectError.message
+          : "Failed to connect extension"
+      )
+    } finally {
+      setConnecting(false)
     }
   }
 
-  async function copyCode() {
-    if (!payload?.code) return
-    await navigator.clipboard.writeText(payload.code)
-    setCopied(true)
-  }
+  const activeToken = tokens[0]
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Generate a code, paste it in the Chrome extension popup (or click{" "}
-        <strong>Fill from admin</strong>), then click <strong>Connect</strong>.
-        Keep this Revora tab open while using the extension.
+        Click <strong>Connect extension</strong> while Revora is open here.
+        The Chrome extension pairs automatically. Keep this tab open while
+        importing from Temu.
       </p>
 
-      <Button onClick={() => void createCode()} disabled={creating}>
-        {creating ? "Generating..." : "Generate connect code"}
-      </Button>
+      <div className="flex flex-col items-start gap-2">
+        <Button
+          className="bg-[#FB7701] text-white hover:bg-[#E56B00]"
+          onClick={() => void connectExtension()}
+          disabled={connecting}
+        >
+          {connecting ? "Connecting..." : "Connect extension"}
+        </Button>
 
-      {payload ? (
+        <p className="text-sm text-muted-foreground">
+          If automatic pairing does not work, open the extension popup and click{" "}
+          <strong>Sign in with Revora</strong>.
+        </p>
+      </div>
+
+      {connectPayload ? (
         <Alert className="border-[#FFD8B8] bg-[#FFF4EB]">
-          <AlertTitle className="text-[#E56B00]">Connect code</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <p className="text-3xl font-bold tracking-[0.3em] text-[#FB7701]">
-              {payload.code}
+          <AlertTitle className="text-[#E56B00]">Extension connected</AlertTitle>
+          <AlertDescription className="space-y-1 text-sm">
+            <p>
+              Linked to <strong>{connectPayload.shop}</strong> on the{" "}
+              {connectPayload.planName} plan.
             </p>
-            <p className="text-sm text-muted-foreground">
-              Expires {new Date(payload.expiresAt).toLocaleTimeString()}.
+            <p className="text-muted-foreground">
+              Open the extension popup on Temu to confirm the status shows
+              connected.
             </p>
-            <Button variant="outline" size="sm" onClick={() => void copyCode()}>
-              {copied ? "Copied code" : "Copy code"}
-            </Button>
           </AlertDescription>
         </Alert>
+      ) : null}
+
+      {!loadingTokens && activeToken ? (
+        <p className="text-sm text-muted-foreground">
+          Active link: {activeToken.label}
+          {activeToken.lastUsedAt
+            ? ` · last used ${new Date(activeToken.lastUsedAt).toLocaleString()}`
+            : " · not used yet"}
+        </p>
       ) : null}
 
       {error ? (

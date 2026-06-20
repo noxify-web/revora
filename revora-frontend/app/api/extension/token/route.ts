@@ -4,7 +4,11 @@ import { headers } from "next/headers"
 
 import { authenticateAdmin } from "@/lib/shopify/authenticate-admin"
 import { getAppBaseUrl } from "@/lib/extension/app-url"
-import { generateExtensionToken } from "@/lib/extension/auth"
+import {
+  generateExtensionToken,
+  revokeShopExtensionTokens,
+} from "@/lib/extension/auth"
+import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
 import {
   extensionCorsHeaders,
   extensionJsonResponse,
@@ -28,8 +32,11 @@ export async function POST(request: Request) {
   const { shop } = await authenticateAdmin(url.searchParams)
 
   const body = (await request.json().catch(() => ({}))) as { label?: string }
+  await revokeShopExtensionTokens(shop)
+
   const { token, tokenHash } = generateExtensionToken()
   const now = new Date().toISOString()
+  const resolved = await resolveShopPlan(shop)
 
   await db.insert(extensionTokens).values({
     id: randomUUID(),
@@ -46,6 +53,9 @@ export async function POST(request: Request) {
       token,
       apiUrl,
       shop,
+      plan: resolved.plan,
+      planName: resolved.planName,
+      reviewLimit: resolved.reviewLimit,
       label: body.label?.trim() || "Chrome extension",
       createdAt: now,
     },

@@ -1,25 +1,19 @@
-import { encodePairingCode } from "@revora/shared/pairing-code"
 import type {
-  BackgroundConnectResponse,
+  BackgroundBrowserConnectResponse,
+  BackgroundDirectConnectResponse,
   BackgroundPlanResponse,
 } from "@revora/shared/extension-messages"
-import type { ConnectExchangeResponse } from "@revora/shared/extension-types"
-import { readConnectCodeFromAdmin } from "../../lib/admin-tabs"
-import {
-  persistApiBaseUrl,
-  resolveApiBaseUrlForConnect,
-} from "../../lib/api-transport"
+import type { ConnectTokenResponse } from "@revora/shared/extension-types"
+import { readConnectTokenFromAdmin } from "../../lib/admin-tabs"
+import { resolveApiBaseUrlForConnect } from "../../lib/api-transport"
 
-const connectCodeInput = document.getElementById(
-  "connect-code",
-) as HTMLInputElement
 const reviewsSelectorInput = document.getElementById(
   "reviews-selector",
 ) as HTMLInputElement
-const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement
-const fillAdminBtn = document.getElementById(
-  "fill-admin-btn",
+const syncAdminBtn = document.getElementById(
+  "sync-admin-btn",
 ) as HTMLButtonElement
+const signInBtn = document.getElementById("sign-in-btn") as HTMLButtonElement
 const saveBtn = document.getElementById("save-btn") as HTMLButtonElement
 const planBadge = document.getElementById("plan-badge") as HTMLSpanElement
 const statusNode = document.getElementById("status") as HTMLParagraphElement
@@ -34,134 +28,107 @@ function setPlanBadge(planName = "Free") {
   planBadge.textContent = planName
 }
 
-function normalizeCode(code: string) {
-  return code.trim().toUpperCase()
-}
-
-async function requestHostPermission(apiBaseUrl: string) {
-  const origin = `${new URL(apiBaseUrl).origin}/*`
-  const granted = await chrome.permissions.request({ origins: [origin] })
-
-  if (!granted) {
-    throw new Error("Chrome blocked access to the Revora server URL")
-  }
-}
-
 async function updateServerLabel() {
   const apiBaseUrl = await resolveApiBaseUrlForConnect()
   serverLabel.textContent = apiBaseUrl || "Open Revora in Shopify admin to sync"
   return apiBaseUrl
 }
 
-async function persistConnection(data: ConnectExchangeResponse) {
-  const apiBaseUrl =
-    data.apiUrl?.replace(/\/$/, "") ||
-    (await resolveApiBaseUrlForConnect()) ||
-    ""
-
-  if (!apiBaseUrl) {
-    throw new Error(
-      "Connect succeeded but no server URL was returned. Open Revora in Shopify admin and try again.",
-    )
-  }
-
-  await requestHostPermission(apiBaseUrl)
-  await persistApiBaseUrl(apiBaseUrl)
-
-  await chrome.storage.sync.set({
-    pairingToken: data.token,
-    apiBaseUrl,
-    pairingCode: encodePairingCode({ apiUrl: apiBaseUrl, token: data.token }),
-    shop: data.shop,
-    plan: data.plan || "free",
-    planName: data.planName || "Free",
-    temuAllReviewsSelector: reviewsSelectorInput.value.trim(),
-  })
-
+function applyConnection(data: ConnectTokenResponse) {
   setPlanBadge(data.planName || "Free")
-  serverLabel.textContent = apiBaseUrl
+  serverLabel.textContent = data.apiUrl.replace(/\/$/, "")
+  setStatus(`Connected to ${data.shop}`, "ok")
 }
 
-async function resolveConnectPayload() {
-  const manualCode = normalizeCode(connectCodeInput.value)
-  const adminPayload = await readConnectCodeFromAdmin()
-  const apiBaseUrl = await resolveApiBaseUrlForConnect()
+async function connectFromAdminToken() {
+  const payload = await readConnectTokenFromAdmin()
 
-  return {
-    code: manualCode || adminPayload?.code || null,
-    apiBaseUrl,
+  if (!payload?.token || !payload.apiUrl || !payload.shop) {
+    return false
   }
-}
 
-async function connectWithCode(code: string) {
   const response = (await chrome.runtime.sendMessage({
-    type: "REVORA_CONNECT_EXCHANGE",
-    code: normalizeCode(code),
-  })) as BackgroundConnectResponse
+    type: "REVORA_CONNECT_DIRECT",
+    token: payload.token,
+    apiUrl: payload.apiUrl,
+    shop: payload.shop,
+    plan: payload.plan || undefined,
+    planName: payload.planName || undefined,
+    reviewLimit: payload.reviewLimit,
+  })) as BackgroundDirectConnectResponse
 
   if (!response?.ok || !response.data) {
     const message =
-      response && "error" in response ? response.error : "Failed to connect"
-    throw new Error(message || "Failed to connect")
+      response && "error" in response ? response.error : "Connection failed"
+    throw new Error(message || "Connection failed")
   }
 
-  await persistConnection(response.data)
-
-  const shop =
-    response.data.shop ||
-    (await chrome.storage.sync.get(["shop"])).shop ||
-    "your store"
-
-  setStatus(`Connected to ${shop}`, "ok")
+  applyConnection(response.data)
+  return true
 }
 
-async function handleConnect() {
-  setStatus("Connecting...")
-
-  const payload = await resolveConnectPayload()
+async function handleSyncFromAdmin() {
+  setStatus("Syncing from Shopify admin...")
   await updateServerLabel()
-
-  if (payload.apiBaseUrl) {
-    serverLabel.textContent = payload.apiBaseUrl
-  }
-
-  if (!payload.code) {
-    setStatus("Enter a connect code from Revora admin.", "error")
-    return
-  }
-
-  connectCodeInput.value = payload.code
 
   try {
-    await connectWithCode(payload.code)
+    const connected = await connectFromAdminToken()
+
+    if (!connected) {
+      setStatus(
+        "Open Revora in Shopify admin and click Connect extension, then try again.",
+        "error",
+      )
+    }
   } catch (error) {
     setStatus(
-      error instanceof Error ? error.message : "Connect failed",
+      error instanceof Error ? error.message : "Sync failed",
       "error",
     )
   }
 }
 
-connectBtn.addEventListener("click", () => {
-  void handleConnect()
-})
-
-fillAdminBtn.addEventListener("click", async () => {
-  setStatus("Reading code from Shopify admin...")
-
-  const payload = await readConnectCodeFromAdmin()
+async function handleSignIn() {
+  setStatus("Opening Revora sign-in...")
   await updateServerLabel()
 
-  if (!payload?.code) {
+  const apiBaseUrl = await resolveApiBaseUrlForConnect()
+
+  if (!apiBaseUrl) {
     setStatus(
-      "Open Revora in Shopify admin, generate a connect code, then try again.",
+      "Open Revora in Shopify admin first so the extension can find the server URL.",
       "error",
     )
     return
   }
 
-  connectCodeInput.value = normalizeCode(payload.code)
-  setStatus("Code filled from admin. Click Connect.", "ok")
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: "REVORA_CONNECT_BROWSER",
+      apiBaseUrl,
+    })) as BackgroundBrowserConnectResponse
+
+    if (!response?.ok || !response.data) {
+      const message =
+        response && "error" in response ? response.error : "Sign-in failed"
+      throw new Error(message || "Sign-in failed")
+    }
+
+    applyConnection(response.data)
+  } catch (error) {
+    setStatus(
+      error instanceof Error ? error.message : "Sign-in failed",
+      "error",
+    )
+  }
+}
+
+syncAdminBtn.addEventListener("click", () => {
+  void handleSyncFromAdmin()
+})
+
+signInBtn.addEventListener("click", () => {
+  void handleSignIn()
 })
 
 saveBtn.addEventListener("click", async () => {
@@ -171,13 +138,6 @@ saveBtn.addEventListener("click", async () => {
   setStatus("Settings saved", "ok")
 })
 
-connectCodeInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault()
-    void handleConnect()
-  }
-})
-
 async function loadSettings() {
   await updateServerLabel()
 
@@ -185,6 +145,7 @@ async function loadSettings() {
     "planName",
     "temuAllReviewsSelector",
     "shop",
+    "pairingToken",
   ])
 
   reviewsSelectorInput.value = (stored.temuAllReviewsSelector as string) || ""
@@ -192,6 +153,17 @@ async function loadSettings() {
 
   if (stored.shop) {
     setStatus(`Connected to ${stored.shop}`, "ok")
+  }
+
+  if (!stored.pairingToken) {
+    try {
+      const connected = await connectFromAdminToken()
+      if (connected) {
+        return
+      }
+    } catch {
+      // Admin token may be stale or verification may fail until permissions are granted.
+    }
   }
 
   try {

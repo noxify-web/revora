@@ -40,14 +40,18 @@ export type ShopifyProductSummary = {
   imageUrl: string | null
 }
 
-export type ConnectExchangeResponse = {
+export type ExtensionConnectPayload = {
   shop: string
   apiUrl: string
   token: string
-  pairingCode: string
   plan: string
   planName: string
   reviewLimit: number | null
+}
+
+export type ConnectTokenResponse = ExtensionConnectPayload & {
+  label?: string
+  createdAt?: string
 }
 
 export type VerifyResponse = {

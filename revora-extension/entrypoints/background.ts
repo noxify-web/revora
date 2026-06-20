@@ -2,14 +2,14 @@ import type {
   BackgroundRequest,
   BackgroundResponse,
 } from "@revora/shared/extension-messages"
-import { connectExchangeSchema } from "@revora/shared/extension-schemas"
-import type { ConnectExchangeResponse } from "@revora/shared/extension-types"
+import type { ConnectTokenResponse } from "@revora/shared/extension-types"
+import { connectViaBrowser } from "../lib/connect-browser"
 import {
   enrichConnection,
   fetchRevora,
   persistApiBaseUrl,
-  persistConnection,
   readConnectionState,
+  verifyAndPersistConnection,
 } from "../lib/api-transport"
 import { mapTemuReview } from "../lib/review-mapper"
 
@@ -38,19 +38,25 @@ async function handleMessage(
     return { ok: true, apiBaseUrl }
   }
 
-  if (message.type === "REVORA_CONNECT_EXCHANGE") {
-    connectExchangeSchema.parse({ code: message.code })
+  if (message.type === "REVORA_CONNECT_DIRECT") {
+    const data: ConnectTokenResponse = {
+      token: message.token,
+      apiUrl: message.apiUrl,
+      shop: message.shop,
+      plan: message.plan || "free",
+      planName: message.planName || "Free",
+      reviewLimit: message.reviewLimit ?? null,
+    }
 
-    const data = await fetchRevora<ConnectExchangeResponse>(
-      "/api/extension/connect/exchange",
-      {
-        method: "POST",
-        body: { code: message.code },
-        auth: false,
-      },
-    )
+    await persistApiBaseUrl(data.apiUrl, { requestPermission: false })
+    await verifyAndPersistConnection(data)
+    return { ok: true, data }
+  }
 
-    await persistConnection(data)
+  if (message.type === "REVORA_CONNECT_BROWSER") {
+    await persistApiBaseUrl(message.apiBaseUrl, { requestPermission: true })
+    const data = await connectViaBrowser(message.apiBaseUrl)
+    await verifyAndPersistConnection(data)
     return { ok: true, data }
   }
 

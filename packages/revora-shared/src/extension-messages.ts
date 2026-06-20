@@ -1,5 +1,5 @@
 import type {
-  ConnectExchangeResponse,
+  ConnectTokenResponse,
   EnrichedConnection,
   ImportBatchRequest,
   ImportBatchResponse,
@@ -11,7 +11,16 @@ import type {
 
 export type BackgroundRequest =
   | { type: "REVORA_SET_API_URL"; apiBaseUrl: string }
-  | { type: "REVORA_CONNECT_EXCHANGE"; code: string }
+  | {
+      type: "REVORA_CONNECT_DIRECT"
+      token: string
+      apiUrl: string
+      shop: string
+      plan?: string
+      planName?: string
+      reviewLimit?: number | null
+    }
+  | { type: "REVORA_CONNECT_BROWSER"; apiBaseUrl: string }
   | { type: "REVORA_GET_PLAN" }
   | { type: "REVORA_VERIFY" }
   | { type: "REVORA_GET_PRODUCTS"; search?: string }
@@ -33,7 +42,10 @@ export type BackgroundResponse<T = unknown> =
   | { ok: true; data?: T; apiBaseUrl?: string }
   | { ok: false; error: string }
 
-export type BackgroundConnectResponse = BackgroundResponse<ConnectExchangeResponse>
+export type BackgroundDirectConnectResponse =
+  BackgroundResponse<ConnectTokenResponse>
+export type BackgroundBrowserConnectResponse =
+  BackgroundResponse<ConnectTokenResponse>
 export type BackgroundPlanResponse = BackgroundResponse<PlanResponse>
 export type BackgroundVerifyResponse = BackgroundResponse<VerifyResponse & EnrichedConnection>
 export type BackgroundProductsResponse = BackgroundResponse<ProductsResponse>
@@ -49,16 +61,19 @@ export type AdminBridgeRequest =
       headers?: Record<string, string>
     }
   | { type: "REVORA_GET_API_URL" }
-  | { type: "REVORA_GET_CONNECT_CODE" }
+  | { type: "REVORA_GET_CONNECT_TOKEN" }
 
 export type AdminBridgeResponse<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; error: string; unavailable?: boolean }
   | { apiBaseUrl: string | null }
   | {
-      code: string | null
+      token: string | null
       apiUrl: string | null
-      expiresAt: string | null
+      shop: string | null
+      plan: string | null
+      planName: string | null
+      reviewLimit: number | null
     }
 
 export type AdminProxyRequest = {
@@ -79,24 +94,30 @@ export type AdminProxyResponse = {
   error?: string
 }
 
-export type ConnectCodeRequest = {
-  type: "REVORA_REQUEST_CONNECT_CODE"
+export type ConnectTokenRequest = {
+  type: "REVORA_REQUEST_CONNECT_TOKEN"
   requestId: string
 }
 
-export type ConnectCodeResponse = {
-  type: "REVORA_CONNECT_CODE_RESPONSE"
+export type ConnectTokenPullResponse = {
+  type: "REVORA_CONNECT_TOKEN_RESPONSE"
   requestId: string
-  code: string | null
+  token: string | null
   apiUrl: string | null
-  expiresAt: string | null
+  shop: string | null
+  plan: string | null
+  planName: string | null
+  reviewLimit: number | null
 }
 
-export type ConnectCodeBroadcast = {
-  type: "REVORA_CONNECT_CODE"
-  code: string
-  apiUrl?: string | null
-  expiresAt?: string | null
+export type ConnectTokenBroadcast = {
+  type: "REVORA_CONNECT_TOKEN"
+  token: string
+  apiUrl: string
+  shop: string
+  plan?: string | null
+  planName?: string | null
+  reviewLimit?: number | null
 }
 
 export const TEMU_REVIEWS_MESSAGE_TYPE = "REVORA_TEMU_REVIEWS" as const

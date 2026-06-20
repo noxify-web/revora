@@ -23,6 +23,3 @@ export const importBatchSchema = z.object({
   reviews: z.array(importReviewSchema),
 })
 
-export const connectExchangeSchema = z.object({
-  code: z.string().min(4).max(12),
-})

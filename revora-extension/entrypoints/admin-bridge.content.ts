@@ -2,41 +2,76 @@ import { REVORA_CLIENT_ID } from "@revora/shared/constants"
 import type {
   AdminBridgeRequest,
   AdminProxyResponse,
-  ConnectCodeBroadcast,
-  ConnectCodeRequest,
-  ConnectCodeResponse,
+  ConnectTokenBroadcast,
+  ConnectTokenRequest,
+  ConnectTokenPullResponse,
 } from "@revora/shared/extension-messages"
 
 const PROXY_TIMEOUT_MS = 30_000
+const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000
 
-type ConnectPayload = {
-  code: string
-  apiUrl: string | null
-  expiresAt: string | null
+type ConnectTokenPayload = {
+  token: string
+  apiUrl: string
+  shop: string
+  plan: string | null
+  planName: string | null
+  reviewLimit: number | null
 }
 
-let latestConnectPayload: ConnectPayload | null = null
+let latestConnectToken: ConnectTokenPayload | null = null
+let latestConnectTokenCreatedAt = 0
 
-function isConnectPayloadExpired(payload: ConnectPayload | null) {
-  if (!payload?.expiresAt) {
-    return false
-  }
-
-  const expiresAt = Date.parse(payload.expiresAt)
-  return Number.isFinite(expiresAt) && expiresAt <= Date.now()
+function clearConnectTokenCache() {
+  latestConnectToken = null
+  latestConnectTokenCreatedAt = 0
 }
 
-function getFreshConnectPayload() {
-  if (!latestConnectPayload?.code) {
+function getFreshConnectToken() {
+  if (!latestConnectToken?.token) {
     return null
   }
 
-  if (isConnectPayloadExpired(latestConnectPayload)) {
-    latestConnectPayload = null
+  if (Date.now() - latestConnectTokenCreatedAt > CONNECT_TOKEN_CACHE_TTL_MS) {
+    clearConnectTokenCache()
     return null
   }
 
-  return latestConnectPayload
+  return latestConnectToken
+}
+
+function cacheConnectToken(payload: ConnectTokenPayload) {
+  if (latestConnectToken?.token !== payload.token) {
+    latestConnectToken = payload
+    latestConnectTokenCreatedAt = Date.now()
+    return
+  }
+
+  latestConnectToken = payload
+  latestConnectTokenCreatedAt = Date.now()
+}
+
+function persistConnectToken(payload: ConnectTokenPayload) {
+  cacheConnectToken(payload)
+
+  chrome.runtime
+    .sendMessage({
+      type: "REVORA_CONNECT_DIRECT",
+      token: payload.token,
+      apiUrl: payload.apiUrl,
+      shop: payload.shop,
+      plan: payload.plan || undefined,
+      planName: payload.planName || undefined,
+      reviewLimit: payload.reviewLimit,
+    })
+    .catch(() => {})
+
+  chrome.runtime
+    .sendMessage({
+      type: "REVORA_SET_API_URL",
+      apiBaseUrl: payload.apiUrl,
+    })
+    .catch(() => {})
 }
 
 function isRevoraAppPage() {
@@ -156,14 +191,8 @@ function proxyToRevoraApp({
   })
 }
 
-function requestConnectCodeFromIframe() {
-  return new Promise<ConnectPayload | null>((resolve) => {
-    const cached = getFreshConnectPayload()
-    if (cached) {
-      resolve(cached)
-      return
-    }
-
+function requestConnectTokenFromIframe() {
+  return new Promise<ConnectTokenPayload | null>((resolve) => {
     const match = findRevoraIframe()
     const iframeWindow = match?.iframe.contentWindow
 
@@ -176,25 +205,25 @@ function requestConnectCodeFromIframe() {
     const requestId = crypto.randomUUID()
     let settled = false
 
-    const finish = (payload: ConnectPayload | null) => {
+    const finish = (payload: ConnectTokenPayload | null) => {
       if (settled) return
       settled = true
       window.removeEventListener("message", onResponse)
       clearTimeout(timer)
 
-      if (payload?.code) {
-        latestConnectPayload = payload
+      if (payload?.token) {
+        cacheConnectToken(payload)
       }
 
       resolve(payload)
     }
 
-    function onResponse(event: MessageEvent<ConnectCodeResponse>) {
+    function onResponse(event: MessageEvent<ConnectTokenPullResponse>) {
       if (event.origin !== origin) {
         return
       }
 
-      if (event.data?.type !== "REVORA_CONNECT_CODE_RESPONSE") {
+      if (event.data?.type !== "REVORA_CONNECT_TOKEN_RESPONSE") {
         return
       }
 
@@ -202,24 +231,32 @@ function requestConnectCodeFromIframe() {
         return
       }
 
+      if (!event.data.token || !event.data.apiUrl || !event.data.shop) {
+        finish(null)
+        return
+      }
+
       finish({
-        code: event.data.code ? String(event.data.code) : "",
-        apiUrl: event.data.apiUrl ? String(event.data.apiUrl) : null,
-        expiresAt: event.data.expiresAt || null,
+        token: String(event.data.token),
+        apiUrl: String(event.data.apiUrl),
+        shop: String(event.data.shop),
+        plan: event.data.plan ? String(event.data.plan) : null,
+        planName: event.data.planName ? String(event.data.planName) : null,
+        reviewLimit: event.data.reviewLimit ?? null,
       })
     }
 
     window.addEventListener("message", onResponse)
 
     const timer = window.setTimeout(() => {
-      finish(getFreshConnectPayload())
+      finish(getFreshConnectToken())
     }, 2500)
 
     iframeWindow.postMessage(
       {
-        type: "REVORA_REQUEST_CONNECT_CODE",
+        type: "REVORA_REQUEST_CONNECT_TOKEN",
         requestId,
-      } satisfies ConnectCodeRequest,
+      } satisfies ConnectTokenRequest,
       origin,
     )
   })
@@ -243,30 +280,32 @@ export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
   runAt: "document_idle",
   main() {
-    window.addEventListener("message", (event: MessageEvent<ConnectCodeBroadcast>) => {
-      if (event.data?.type !== "REVORA_CONNECT_CODE") {
-        return
-      }
+    window.addEventListener(
+      "message",
+      (event: MessageEvent<ConnectTokenBroadcast>) => {
+        if (event.data?.type !== "REVORA_CONNECT_TOKEN") {
+          return
+        }
 
-      if (!event.data.code) {
-        return
-      }
+        const revoraOrigin = findRevoraIframeOrigin()
+        if (!revoraOrigin || event.origin !== revoraOrigin) {
+          return
+        }
 
-      latestConnectPayload = {
-        code: String(event.data.code),
-        apiUrl: event.data.apiUrl ? String(event.data.apiUrl) : null,
-        expiresAt: event.data.expiresAt || null,
-      }
+        if (!event.data.token || !event.data.apiUrl || !event.data.shop) {
+          return
+        }
 
-      if (latestConnectPayload.apiUrl) {
-        chrome.runtime
-          .sendMessage({
-            type: "REVORA_SET_API_URL",
-            apiBaseUrl: latestConnectPayload.apiUrl,
-          })
-          .catch(() => {})
-      }
-    })
+        persistConnectToken({
+          token: String(event.data.token),
+          apiUrl: String(event.data.apiUrl).replace(/\/$/, ""),
+          shop: String(event.data.shop),
+          plan: event.data.plan ? String(event.data.plan) : null,
+          planName: event.data.planName ? String(event.data.planName) : null,
+          reviewLimit: event.data.reviewLimit ?? null,
+        })
+      },
+    )
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const request = message as AdminBridgeRequest
@@ -299,26 +338,36 @@ export default defineContentScript({
       if (request.type === "REVORA_GET_API_URL") {
         sendResponse({
           apiBaseUrl:
-            findRevoraIframeOrigin() || latestConnectPayload?.apiUrl || null,
+            findRevoraIframeOrigin() || latestConnectToken?.apiUrl || null,
         })
         return
       }
 
-      if (request.type === "REVORA_GET_CONNECT_CODE") {
-        requestConnectCodeFromIframe()
-          .then((payload) =>
+      if (request.type === "REVORA_GET_CONNECT_TOKEN") {
+        requestConnectTokenFromIframe()
+          .then((payload) => {
+            if (payload?.token) {
+              persistConnectToken(payload)
+            }
+
             sendResponse({
-              code: payload?.code || null,
+              token: payload?.token || null,
               apiUrl: payload?.apiUrl || findRevoraIframeOrigin() || null,
-              expiresAt: payload?.expiresAt || null,
-            }),
-          )
+              shop: payload?.shop || null,
+              plan: payload?.plan || null,
+              planName: payload?.planName || null,
+              reviewLimit: payload?.reviewLimit ?? null,
+            })
+          })
           .catch(() => {
-            const cached = getFreshConnectPayload()
+            const cached = getFreshConnectToken()
             sendResponse({
-              code: cached?.code || null,
+              token: cached?.token || null,
               apiUrl: cached?.apiUrl || findRevoraIframeOrigin() || null,
-              expiresAt: cached?.expiresAt || null,
+              shop: cached?.shop || null,
+              plan: cached?.plan || null,
+              planName: cached?.planName || null,
+              reviewLimit: cached?.reviewLimit ?? null,
             })
           })
         return true

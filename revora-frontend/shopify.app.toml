@@ -61,7 +61,8 @@ access.storefront = "public_read"
 
 [auth]
 redirect_urls = [
-  "https://reissue-irritable-slider.ngrok-free.dev/api/auth/callback"
+  "https://reissue-irritable-slider.ngrok-free.dev/api/auth/callback",
+  "https://reissue-irritable-slider.ngrok-free.dev/api/extension/connect/callback"
 ]
 
 [webhooks]

@@ -30,13 +30,10 @@ Built with **WXT**, **TypeScript**, and shared types from `@revora/shared`.
    bun run dev
    ```
 
-4. In Shopify admin, open Revora and generate a connect code.
-5. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**.
-6. Select `revora-extension/.output/chrome-mv3` (created by WXT after `dev` or `build`).
-7. Open the extension popup:
-   - Click **Fill from admin** or paste the 6-character connect code
-   - Confirm the synced server URL is shown
-   - Click **Connect**
+4. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**.
+5. Select `revora-extension/.output/chrome-mv3` (created by WXT after `dev` or `build`).
+6. In Shopify admin, open Revora and click **Connect extension** (pairs automatically).
+7. If needed, open the extension popup and click **Sync from admin** or **Sign in with Revora**.
 8. Open a Temu product page — the Revora panel appears in the bottom-right corner.
 
 ## Usage

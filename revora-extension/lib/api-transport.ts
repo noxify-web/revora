@@ -1,8 +1,9 @@
 import { encodePairingCode, decodePairingCode } from "@revora/shared/pairing-code"
 import type {
-  ConnectExchangeResponse,
+  ConnectTokenResponse,
   ConnectionState,
   EnrichedConnection,
+  ExtensionConnectPayload,
 } from "@revora/shared/extension-types"
 import {
   readApiBaseUrlFromAdmin,
@@ -237,7 +238,68 @@ export async function persistApiBaseUrl(
   return normalized
 }
 
-export async function persistConnection(data: ConnectExchangeResponse) {
+export async function verifyConnectionPayload(
+  data: Pick<ConnectTokenResponse, "token" | "apiUrl" | "shop">,
+) {
+  const apiBaseUrl = normalizeApiBaseUrl(data.apiUrl)
+
+  if (!apiBaseUrl) {
+    throw new Error("Missing Revora server URL")
+  }
+
+  const verifyHeaders = {
+    Authorization: `Bearer ${data.token}`,
+  }
+
+  let verified: { shop: string; paired: boolean } | null = null
+
+  try {
+    verified = await directApiRequest<{ shop: string; paired: boolean }>(
+      apiBaseUrl,
+      "/api/extension/verify",
+      {
+        headers: verifyHeaders,
+      },
+    )
+  } catch (error) {
+    if (!isNetworkError(error)) {
+      throw error
+    }
+  }
+
+  if (!verified) {
+    const proxyResult = await requestViaAdminProxy<{
+      shop: string
+      paired: boolean
+    }>({
+      path: "/api/extension/verify",
+      headers: verifyHeaders,
+    })
+
+    if (!proxyResult.ok) {
+      throw new Error(proxyResult.error || "Extension token verification failed")
+    }
+
+    verified = proxyResult.data
+  }
+
+  if (!verified.paired || verified.shop !== data.shop) {
+    throw new Error("Extension token verification failed")
+  }
+
+  return verified
+}
+
+export async function verifyAndPersistConnection(
+  data: ExtensionConnectPayload | ConnectTokenResponse,
+) {
+  await verifyConnectionPayload(data)
+  await persistConnection(data)
+}
+
+export async function persistConnection(
+  data: ExtensionConnectPayload | ConnectTokenResponse,
+) {
   const apiBaseUrl =
     normalizeApiBaseUrl(data.apiUrl) || (await readConnectionState()).apiBaseUrl
 

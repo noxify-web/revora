@@ -32,4 +32,4 @@ Update **both** `revora-frontend` extension routes and `revora-extension/entrypo
 
 ## Dev tunnel URLs
 
-`shopify app dev` uses a changing Cloudflare URL. Extension pairing uses token + separate server URL with auto-sync from Shopify admin (`admin-bridge.js`). Do not hardcode tunnel URLs.
+`shopify app dev` uses a changing Cloudflare URL. Extension pairing: one-click connect from Revora admin (session-token broadcast via `admin-bridge`), or `chrome.identity.launchWebAuthFlow` to `/api/extension/connect/browser` from the popup. Do not hardcode tunnel URLs.
