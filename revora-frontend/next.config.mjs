@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ["@revora/shared"],
   allowedDevOrigins: [
     "*.trycloudflare.com",
     "*.ngrok-free.app",

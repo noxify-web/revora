@@ -1,27 +1,34 @@
+import type {
+  ImportFilter,
+  TemuReviewPayload,
+  TemuReviewsInterceptPayload,
+} from "@revora/shared/extension-types"
 import {
   DIALOG_WAIT_MS,
   state,
   sleep,
-} from "./temu-shared.js"
-import { getImportFilter, setProgress, setStatus } from "./temu-panel.js"
+} from "./shared"
 
-export function getFilterLabel(filter) {
+export function getFilterLabel(filter: ImportFilter) {
   if (filter === "withText") return "with text"
   if (filter === "withPictures") return "with photos/videos"
   return "reviews"
 }
 
-export function reviewHasText(review) {
+export function reviewHasText(review: TemuReviewPayload) {
   const comment = (review.comment || "").trim()
   const translated = (review.review_lang?.translate_comment || "").trim()
   return comment.length > 0 || translated.length > 0
 }
 
-export function reviewHasPictures(review) {
+export function reviewHasPictures(review: TemuReviewPayload) {
   return Array.isArray(review.pictures) && review.pictures.length > 0
 }
 
-export function reviewMatchesFilter(review, filter = getImportFilter()) {
+export function reviewMatchesFilter(
+  review: TemuReviewPayload,
+  filter: ImportFilter,
+) {
   if (filter === "withText") {
     return reviewHasText(review)
   }
@@ -45,12 +52,14 @@ export function resetCollection() {
   state.limitReached = false
 }
 
-export function ingestPayload(payload) {
+export function ingestPayload(
+  payload: TemuReviewsInterceptPayload | null | undefined,
+  filter: ImportFilter,
+  onProgress: (current: number, total: number, status: string) => void,
+) {
   if (!payload?.reviews?.length) {
     return
   }
-
-  const filter = getImportFilter()
 
   for (const review of payload.reviews) {
     if (!review?.review_id) continue
@@ -69,19 +78,11 @@ export function ingestPayload(payload) {
   state.idleRounds = 0
 
   const label = getFilterLabel(filter)
-  const total =
-    state.reviewLimit || state.maxListSize || state.reviews.size
-  setProgress(state.reviews.size, total)
-  const limitSuffix =
-    state.reviewLimit != null
-      ? ` / ${state.reviewLimit}`
-      : state.maxListSize
-        ? ` / ${state.maxListSize}`
-        : ""
-  setStatus(`Collected ${state.reviews.size}${limitSuffix} ${label}`)
+  const total = state.reviewLimit || state.maxListSize || state.reviews.size
+  onProgress(state.reviews.size, total, `Collected ${state.reviews.size} ${label}`)
 }
 
-export function resolveReviewsSelector(input) {
+export function resolveReviewsSelector(input: string | undefined | null) {
   const trimmed = (input || "").trim()
   if (!trimmed) return null
 
@@ -98,18 +99,18 @@ export function resolveReviewsSelector(input) {
 
 export async function getReviewsButtonSelector() {
   const stored = await chrome.storage.sync.get(["temuAllReviewsSelector"])
-  return resolveReviewsSelector(stored.temuAllReviewsSelector)
+  return resolveReviewsSelector(stored.temuAllReviewsSelector as string | undefined)
 }
 
-export function normalizeText(value) {
+export function normalizeText(value: string | undefined | null) {
   return (value || "").replace(/\s+/g, " ").trim()
 }
 
-function isInsideReviewsDialog(node) {
+function isInsideReviewsDialog(node: Element | null) {
   return Boolean(node?.closest('[role="dialog"][aria-modal="true"]'))
 }
 
-function isSeeAllReviewsLabel(text) {
+export function isSeeAllReviewsLabel(text: string | undefined | null) {
   const normalized = normalizeText(text)
   return (
     normalized === "See all reviews" ||
@@ -118,7 +119,7 @@ function isSeeAllReviewsLabel(text) {
   )
 }
 
-function isExcludedReviewsText(text) {
+function isExcludedReviewsText(text: string | undefined | null) {
   const normalized = normalizeText(text)
   if (!normalized) return true
   if (/verified purchases/i.test(normalized)) return true
@@ -133,18 +134,18 @@ export function findSeeAllReviewsButton() {
 
     const button = span.closest('[role="button"]')
     if (button && !isInsideReviewsDialog(button)) {
-      return button
+      return button as HTMLElement
     }
   }
 
   for (const button of document.querySelectorAll('div[role="button"].MONl7TFo')) {
     if (isInsideReviewsDialog(button)) continue
     if (isSeeAllReviewsLabel(button.textContent)) {
-      return button
+      return button as HTMLElement
     }
   }
 
-  let bestMatch = null
+  let bestMatch: HTMLElement | null = null
 
   for (const node of document.querySelectorAll(
     '[role="button"], button, a[href], div[tabindex="0"]',
@@ -160,27 +161,29 @@ export function findSeeAllReviewsButton() {
       !bestMatch ||
       text.length < normalizeText(bestMatch.textContent).length
     ) {
-      bestMatch = node
+      bestMatch = node as HTMLElement
     }
   }
 
   return bestMatch
 }
 
-export async function clickReviewEntryPoints() {
+export async function clickReviewEntryPoints(
+  onStatus: (message: string) => void,
+) {
   const selector = await getReviewsButtonSelector()
 
   if (selector) {
     const target = document.querySelector(selector)
 
-    if (target) {
+    if (target instanceof HTMLElement) {
       target.scrollIntoView({ block: "center", behavior: "instant" })
       await sleep(400)
       target.click()
       return true
     }
 
-    setStatus(`Reviews button not found: ${selector}`)
+    onStatus(`Reviews button not found: ${selector}`)
   }
 
   const seeAllButton = findSeeAllReviewsButton()
@@ -196,7 +199,9 @@ export async function clickReviewEntryPoints() {
 }
 
 export function findReviewsDialog() {
-  for (const dialog of document.querySelectorAll('[role="dialog"][aria-modal="true"]')) {
+  for (const dialog of document.querySelectorAll(
+    '[role="dialog"][aria-modal="true"]',
+  )) {
     const titleNode =
       dialog.querySelector("._39vL3TE4") ||
       Array.from(dialog.querySelectorAll("div")).find(
@@ -204,22 +209,23 @@ export function findReviewsDialog() {
       )
 
     if (titleNode) {
-      return dialog
+      return dialog as HTMLElement
     }
   }
 
   return null
 }
 
-function findScrollContainerInDialog(dialog) {
+function findScrollContainerInDialog(dialog: HTMLElement | null) {
   if (!dialog) return null
 
   const dataScroll = dialog.querySelector('[data-scroll="true"]')
-  if (dataScroll) {
+  if (dataScroll instanceof HTMLElement) {
     return dataScroll
   }
 
   const scrollable = Array.from(dialog.querySelectorAll("*")).find((node) => {
+    if (!(node instanceof HTMLElement)) return false
     const style = window.getComputedStyle(node)
     return (
       (style.overflowY === "auto" || style.overflowY === "scroll") &&
@@ -227,7 +233,7 @@ function findScrollContainerInDialog(dialog) {
     )
   })
 
-  return scrollable || null
+  return (scrollable as HTMLElement | undefined) || null
 }
 
 export function findScrollContainer() {
@@ -247,7 +253,7 @@ export function findScrollContainer() {
     document.querySelector(".modal") ||
     document.querySelector('[class*="review"]')
 
-  if (modal) {
+  if (modal instanceof HTMLElement) {
     const scrollable = findScrollContainerInDialog(modal)
     if (scrollable) {
       state.scrollContainer = scrollable
@@ -265,10 +271,10 @@ export async function waitForReviewsDialog(timeoutMs = DIALOG_WAIT_MS) {
     return existing
   }
 
-  return new Promise((resolve) => {
+  return new Promise<HTMLElement | null>((resolve) => {
     let settled = false
 
-    const finish = (dialog) => {
+    const finish = (dialog: HTMLElement | null) => {
       if (settled) return
       settled = true
       observer.disconnect()
@@ -303,14 +309,17 @@ export function scrollReviewsPanel() {
 
   const previousTop = container.scrollTop
   const step = Math.max(container.clientHeight * 0.85, 320)
-  container.scrollTop = Math.min(container.scrollTop + step, container.scrollHeight)
+  container.scrollTop = Math.min(
+    container.scrollTop + step,
+    container.scrollHeight,
+  )
 
   if (container.scrollTop === previousTop) {
     container.scrollTop = container.scrollHeight
   }
 }
 
-export function shouldStopCollecting(limit, filter = getImportFilter()) {
+export function shouldStopCollecting(limit: number | null, filter: ImportFilter) {
   const collected = state.reviews.size
 
   if (limit && collected >= limit) {
@@ -328,11 +337,11 @@ export function shouldStopCollecting(limit, filter = getImportFilter()) {
   return false
 }
 
-function isPhotosVideosLabel(text) {
+function isPhotosVideosLabel(text: string | undefined | null) {
   return /^Photos\/Videos/i.test(normalizeText(text))
 }
 
-export function findPhotosVideosTab(dialog = findReviewsDialog()) {
+export function findPhotosVideosTab(dialog: HTMLElement | null = findReviewsDialog()) {
   if (!dialog) {
     return null
   }
@@ -342,7 +351,7 @@ export function findPhotosVideosTab(dialog = findReviewsDialog()) {
       continue
     }
 
-    return node.closest('[role="button"]') || node
+    return (node.closest('[role="button"]') || node) as HTMLElement
   }
 
   for (const span of dialog.querySelectorAll("span")) {
@@ -351,31 +360,34 @@ export function findPhotosVideosTab(dialog = findReviewsDialog()) {
     }
 
     return (
-      span.closest('[role="button"]') ||
-      span.closest("div._3bWZAd8u") ||
-      span.parentElement
+      (span.closest('[role="button"]') ||
+        span.closest("div._3bWZAd8u") ||
+        span.parentElement) as HTMLElement | null
     )
   }
 
   return null
 }
 
-export async function waitForPhotosVideosTab(dialog, timeoutMs = 3000) {
+export async function waitForPhotosVideosTab(
+  dialog: HTMLElement | null,
+  timeoutMs = 3000,
+) {
   const existing = findPhotosVideosTab(dialog)
   if (existing) {
     return existing
   }
 
-  return new Promise((resolve) => {
+  return new Promise<HTMLElement | null>((resolve) => {
     let settled = false
     const root = dialog || findReviewsDialog()
 
-    const finish = (tab) => {
+    const finish = (tab: HTMLElement | null) => {
       if (settled) return
       settled = true
       observer.disconnect()
       clearTimeout(timer)
-      resolve(tab || null)
+      resolve(tab)
     }
 
     const observer = new MutationObserver(() => {
@@ -396,7 +408,7 @@ export async function waitForPhotosVideosTab(dialog, timeoutMs = 3000) {
   })
 }
 
-export async function activatePhotosVideosTab(dialog) {
+export async function activatePhotosVideosTab(dialog: HTMLElement | null) {
   const tab = await waitForPhotosVideosTab(dialog, 3000)
   if (!tab) {
     return false

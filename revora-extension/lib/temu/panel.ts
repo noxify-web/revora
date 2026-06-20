@@ -1,14 +1,25 @@
-import { REVORA_THEME } from "./theme.js"
+import type {
+  BackgroundPlanResponse,
+  BackgroundProductsResponse,
+  BackgroundVerifyResponse,
+} from "@revora/shared/extension-messages"
+import type { ImportFilter, ShopifyProductSummary } from "@revora/shared/extension-types"
+import { REVORA_THEME } from "../theme"
 import {
   PANEL_ID,
   extractGoodsId,
   panelRef,
-  sendMessage,
+  sendRuntimeMessage,
   state,
   $,
-} from "./temu-shared.js"
+} from "./shared"
 
-export function createPanel(onStart, onStop) {
+let productSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+export function createPanel(
+  onStart: () => void | Promise<void>,
+  onStop: (reason: string) => void,
+) {
   if (document.getElementById(PANEL_ID)) {
     return
   }
@@ -129,6 +140,7 @@ export function createPanel(onStart, onStop) {
         color: ${REVORA_THEME.text};
       }
 
+      input[type="search"],
       select,
       button.action {
         width: 100%;
@@ -137,6 +149,7 @@ export function createPanel(onStart, onStop) {
         line-height: 1.3;
       }
 
+      input[type="search"],
       select {
         height: 34px;
         padding: 0 10px;
@@ -224,6 +237,8 @@ export function createPanel(onStart, onStop) {
       <div id="revora-panel-content">
         <div class="muted" id="revora-goods-label">Waiting for Temu product page...</div>
         <div class="plan-note" id="revora-plan-note">Free plan: up to 100 reviews per import.</div>
+        <label for="revora-product-search">Search Shopify products</label>
+        <input id="revora-product-search" type="search" placeholder="Search by title..." />
         <label for="revora-product-select">Shopify product</label>
         <select id="revora-product-select">
           <option value="">Loading products...</option>
@@ -262,11 +277,14 @@ export function createPanel(onStart, onStop) {
       togglePanelCollapsed(false)
     }
   })
+  $("revora-product-search")?.addEventListener("input", () => {
+    scheduleProductSearch()
+  })
 
   void initializePanel()
 }
 
-export function togglePanelCollapsed(forceCollapsed) {
+export function togglePanelCollapsed(forceCollapsed?: boolean) {
   const panel = $("revora-panel-body")
   const content = $("revora-panel-content")
   const toggle = $("revora-toggle-btn")
@@ -298,12 +316,12 @@ export function togglePanelCollapsed(forceCollapsed) {
   panel.querySelector(".collapsed-label")?.remove()
 }
 
-export function setStatus(text) {
+export function setStatus(text: string) {
   const node = $("revora-status")
   if (node) node.textContent = text
 }
 
-export function setProgress(current, total) {
+export function setProgress(current: number, total: number) {
   const bar = $("revora-progress-bar")
   if (!bar) return
 
@@ -311,11 +329,71 @@ export function setProgress(current, total) {
   bar.style.width = `${pct}%`
 }
 
-export function setButtons(collecting) {
+export function setButtons(collecting: boolean) {
   const start = $("revora-start-btn")
   const stop = $("revora-stop-btn")
-  if (start) start.disabled = collecting
-  if (stop) stop.disabled = !collecting
+  if (start instanceof HTMLButtonElement) start.disabled = collecting
+  if (stop instanceof HTMLButtonElement) stop.disabled = !collecting
+}
+
+function scheduleProductSearch() {
+  if (productSearchTimer) {
+    clearTimeout(productSearchTimer)
+  }
+
+  productSearchTimer = setTimeout(() => {
+    void loadProducts(getProductSearchQuery())
+  }, 300)
+}
+
+function getProductSearchQuery() {
+  const input = $("revora-product-search")
+  return input instanceof HTMLInputElement ? input.value.trim() : ""
+}
+
+function renderProducts(
+  products: ShopifyProductSummary[],
+  selectedId = getSelectedProduct().id,
+) {
+  const select = $("revora-product-select")
+  if (!select) return
+
+  select.innerHTML =
+    `<option value="">Select a Shopify product</option>` +
+    products
+      .map(
+        (product) =>
+          `<option value="${escapeHtml(product.id)}" data-title="${escapeHtml(product.title)}"${product.id === selectedId ? " selected" : ""}>${escapeHtml(product.title)}</option>`,
+      )
+      .join("")
+}
+
+export async function loadProducts(search = "") {
+  const select = $("revora-product-select")
+  if (!select) return
+
+  const selectedId = getSelectedProduct().id
+  select.innerHTML = `<option value="">Loading products...</option>`
+
+  try {
+    const productsResponse = await sendRuntimeMessage<BackgroundProductsResponse>({
+      type: "REVORA_GET_PRODUCTS",
+      search: search || undefined,
+    })
+
+    if (!productsResponse.ok) {
+      select.innerHTML = `<option value="">Failed to load products</option>`
+      setStatus(productsResponse.error || "Failed to load Shopify products")
+      return
+    }
+
+    renderProducts(productsResponse.data?.products || [], selectedId)
+  } catch (error) {
+    select.innerHTML = `<option value="">Failed to load products</option>`
+    setStatus(
+      error instanceof Error ? error.message : "Failed to load Shopify products",
+    )
+  }
 }
 
 export async function initializePanel() {
@@ -326,46 +404,33 @@ export async function initializePanel() {
     label.textContent = `Temu product ${goodsId}`
   }
 
-  const verify = await sendMessage({ type: "REVORA_VERIFY" })
-  if (!verify?.ok) {
-    setStatus(verify?.error || "Extension is not connected yet")
-    return
+  try {
+    const verify = await sendRuntimeMessage<BackgroundVerifyResponse>({
+      type: "REVORA_VERIFY",
+    })
+
+    if (!verify.ok) {
+      setStatus(verify.error || "Extension is not connected yet")
+      return
+    }
+
+    await refreshPlan()
+
+    const shop =
+      verify.data?.shop ||
+      verify.data?.label ||
+      (await chrome.storage.sync.get(["shop"])).shop
+
+    setStatus(shop ? `Connected to ${shop}` : "Connected")
+    await loadProducts()
+  } catch (error) {
+    setStatus(
+      error instanceof Error ? error.message : "Extension is not connected yet",
+    )
   }
-
-  await refreshPlan()
-
-  const shop =
-    verify.data?.shop ||
-    verify.data?.label ||
-    (await chrome.storage.sync.get(["shop"])).shop
-
-  setStatus(shop ? `Connected to ${shop}` : "Connected")
-
-  const productsResponse = await sendMessage({ type: "REVORA_GET_PRODUCTS" })
-  const select = $("revora-product-select")
-
-  if (!select) return
-
-  select.innerHTML = ""
-
-  if (!productsResponse?.ok) {
-    select.innerHTML = `<option value="">Failed to load products</option>`
-    setStatus(productsResponse?.error || "Failed to load Shopify products")
-    return
-  }
-
-  const products = productsResponse.data.products || []
-  select.innerHTML =
-    `<option value="">Select a Shopify product</option>` +
-    products
-      .map(
-        (product) =>
-          `<option value="${product.id}" data-title="${escapeHtml(product.title)}">${escapeHtml(product.title)}</option>`,
-      )
-      .join("")
 }
 
-export function escapeHtml(value) {
+export function escapeHtml(value: string) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -375,15 +440,22 @@ export function escapeHtml(value) {
 
 export function getSelectedProduct() {
   const select = $("revora-product-select")
-  const option = select?.selectedOptions?.[0]
+  const option =
+    select instanceof HTMLSelectElement ? select.selectedOptions[0] : undefined
   return {
     id: option?.value || "",
-    title: option?.dataset?.title || option?.textContent || "",
+    title: option?.dataset.title || option?.textContent || "",
   }
 }
 
-export function getImportFilter() {
-  return $("revora-import-filter")?.value || "all"
+export function getImportFilter(): ImportFilter {
+  const filterSelect = $("revora-import-filter")
+  const value =
+    filterSelect instanceof HTMLSelectElement ? filterSelect.value : "all"
+  if (value === "withText" || value === "withPictures") {
+    return value
+  }
+  return "all"
 }
 
 export function getImportLimit() {
@@ -407,15 +479,21 @@ export function updatePlanUI() {
 }
 
 export async function refreshPlan() {
-  const planResponse = await sendMessage({ type: "REVORA_GET_PLAN" })
+  try {
+    const planResponse = await sendRuntimeMessage<BackgroundPlanResponse>({
+      type: "REVORA_GET_PLAN",
+    })
 
-  if (!planResponse?.ok) {
+    if (!planResponse.ok || !planResponse.data) {
+      return false
+    }
+
+    state.plan = planResponse.data.plan || "free"
+    state.planName = planResponse.data.planName || "Free"
+    state.reviewLimit = planResponse.data.reviewLimit ?? 100
+    updatePlanUI()
+    return true
+  } catch {
     return false
   }
-
-  state.plan = planResponse.data.plan || "free"
-  state.planName = planResponse.data.planName || "Free"
-  state.reviewLimit = planResponse.data.reviewLimit ?? 100
-  updatePlanUI()
-  return true
 }

@@ -8,4 +8,4 @@ export const REVORA_THEME = {
   border: "#F0E4D8",
   surface: "#FFFFFF",
   success: "#0F9D58",
-}
+} as const

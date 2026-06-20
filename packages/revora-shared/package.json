@@ -1,0 +1,17 @@
+{
+  "name": "@revora/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pairing-code": "./src/pairing-code.ts",
+    "./extension-types": "./src/extension-types.ts",
+    "./extension-messages": "./src/extension-messages.ts",
+    "./extension-schemas": "./src/extension-schemas.ts",
+    "./constants": "./src/constants.ts"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  }
+}

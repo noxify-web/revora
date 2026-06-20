@@ -13,10 +13,14 @@ Monorepo for importing Temu product reviews into Shopify.
 Use **Bun**, not npm:
 
 ```bash
-cd revora-frontend && bun install
-bun run dev          # from repo root
+bun install                              # from repo root (workspaces)
+bun run dev                              # Shopify app (stable tunnel)
+bun run extension:dev                    # WXT extension dev + HMR
+bun run extension:build                  # extension production build
 cd revora-frontend && shopify app dev
 ```
+
+Load unpacked extension from `revora-extension/.output/chrome-mv3` after `extension:dev` or `extension:build`.
 
 ## Secrets
 
@@ -24,7 +28,7 @@ Never commit `.env.local`, Turso tokens, Shopify API secrets, or HTTP capture fi
 
 ## When changing APIs
 
-Update **both** `revora-frontend` extension routes and `revora-extension/src/background.js` together. Pairing logic lives in `lib/extension/pairing-code.ts` (server) and `src/pairing.js` (extension) — keep in sync.
+Update **both** `revora-frontend` extension routes and `revora-extension/entrypoints/background.ts` together. Shared pairing logic, schemas, and message types live in `packages/revora-shared/` — keep frontend and extension in sync through that package.
 
 ## Dev tunnel URLs
 

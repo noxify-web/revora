@@ -1,3 +1,9 @@
+import type {
+  BackgroundUploadResponse,
+  BackgroundVerifyResponse,
+} from "@revora/shared/extension-messages"
+import { importBatchSchema } from "@revora/shared/extension-schemas"
+import { mapTemuReview } from "../review-mapper"
 import {
   BATCH_SIZE,
   DIALOG_WAIT_MS,
@@ -5,10 +11,10 @@ import {
   SCROLL_INTERVAL_MS,
   extractGoodsId,
   getProductTitle,
-  sendMessage,
+  sendRuntimeMessage,
   sleep,
   state,
-} from "./temu-shared.js"
+} from "./shared"
 import {
   getImportFilter,
   getImportLimit,
@@ -17,7 +23,7 @@ import {
   setButtons,
   setProgress,
   setStatus,
-} from "./temu-panel.js"
+} from "./panel"
 import {
   activatePhotosVideosTab,
   clickReviewEntryPoints,
@@ -26,9 +32,21 @@ import {
   scrollReviewsPanel,
   shouldStopCollecting,
   waitForReviewsDialog,
-} from "./temu-scraper.js"
+} from "./scraper"
 
-export async function flushUploads({ final = false, product, goodsId } = {}) {
+export async function flushUploads({
+  final = false,
+  product,
+  goodsId,
+}: {
+  final?: boolean
+  product: { id: string; title: string }
+  goodsId: string
+} = {
+  final: false,
+  product: { id: "", title: "" },
+  goodsId: "",
+}) {
   const allReviews = Array.from(state.reviews.values()).filter(
     (review) => !state.uploadedIds.has(String(review.review_id)),
   )
@@ -37,7 +55,7 @@ export async function flushUploads({ final = false, product, goodsId } = {}) {
     return
   }
 
-  const chunks = []
+  const chunks: (typeof allReviews)[] = []
   for (let i = 0; i < allReviews.length; i += BATCH_SIZE) {
     chunks.push(allReviews.slice(i, i + BATCH_SIZE))
   }
@@ -48,7 +66,23 @@ export async function flushUploads({ final = false, product, goodsId } = {}) {
 
   let batchIndex = 0
   for (const chunk of chunks) {
-    const response = await sendMessage({
+    const mappedReviews = chunk.map(mapTemuReview)
+    const body = {
+      importId: state.importId || undefined,
+      temuGoodsId: goodsId,
+      temuProductUrl: window.location.href,
+      temuProductTitle: getProductTitle(),
+      shopifyProductId: product.id,
+      shopifyProductTitle: product.title,
+      totalExpected: state.maxListSize || undefined,
+      batchIndex,
+      isFinal: final && batchIndex === chunks.length - 1,
+      reviews: mappedReviews,
+    }
+
+    importBatchSchema.parse(body)
+
+    const response = await sendRuntimeMessage<BackgroundUploadResponse>({
       type: "REVORA_UPLOAD_BATCH",
       importId: state.importId,
       temuGoodsId: goodsId,
@@ -66,21 +100,19 @@ export async function flushUploads({ final = false, product, goodsId } = {}) {
       throw new Error(response?.error || "Upload failed")
     }
 
-    state.importId = response.data.importId
+    state.importId = response.data?.importId || state.importId
 
     for (const review of chunk) {
       state.uploadedIds.add(String(review.review_id))
     }
 
-    if (response.data.limitReached) {
+    if (response.data?.limitReached) {
       state.limitReached = true
     }
 
     const limitSuffix =
       state.reviewLimit != null ? ` / ${state.reviewLimit}` : ""
-    setStatus(
-      `Uploaded ${state.uploadedIds.size}${limitSuffix} reviews`,
-    )
+    setStatus(`Uploaded ${state.uploadedIds.size}${limitSuffix} reviews`)
 
     if (state.limitReached) {
       break
@@ -105,9 +137,18 @@ export async function startImport() {
     return
   }
 
-  const verify = await sendMessage({ type: "REVORA_VERIFY" })
-  if (!verify?.ok) {
-    setStatus(verify?.error || "Extension is not paired")
+  let verify: BackgroundVerifyResponse
+  try {
+    verify = await sendRuntimeMessage<BackgroundVerifyResponse>({
+      type: "REVORA_VERIFY",
+    })
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Extension is not paired")
+    return
+  }
+
+  if (!verify.ok) {
+    setStatus(verify.error || "Extension is not paired")
     return
   }
 
@@ -117,8 +158,12 @@ export async function startImport() {
   setButtons(true)
   setStatus("Opening reviews and collecting...")
 
-  const opened = await clickReviewEntryPoints()
-  setStatus(opened ? "Waiting for reviews panel..." : "Looking for an open reviews panel...")
+  const opened = await clickReviewEntryPoints(setStatus)
+  setStatus(
+    opened
+      ? "Waiting for reviews panel..."
+      : "Looking for an open reviews panel...",
+  )
 
   const dialog = await waitForReviewsDialog(opened ? DIALOG_WAIT_MS : 2500)
   if (!dialog) {
@@ -155,7 +200,6 @@ export async function startImport() {
 
   while (state.collecting) {
     scrollReviewsPanel()
-
     await sleep(SCROLL_INTERVAL_MS)
 
     if (shouldStopCollecting(limit, filter)) {
@@ -212,7 +256,7 @@ export async function startImport() {
   }
 }
 
-export function stopImport(reason) {
+export function stopImport(reason: string) {
   state.collecting = false
   setButtons(false)
   setStatus(reason)

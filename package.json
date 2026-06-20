@@ -2,9 +2,18 @@
   "name": "revora-monorepo",
   "private": true,
   "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "revora-frontend",
+    "revora-extension",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "cd revora-frontend && bun run dev:stable",
     "dev:stable": "cd revora-frontend && bun run dev:stable",
-    "install:frontend": "cd revora-frontend && bun install"
+    "install:frontend": "cd revora-frontend && bun install",
+    "extension:dev": "cd revora-extension && bun run dev",
+    "extension:build": "cd revora-extension && bun run build",
+    "extension:test": "cd revora-extension && bun run test",
+    "extension:typecheck": "cd revora-extension && bun run typecheck"
   }
 }

@@ -17,6 +17,10 @@ out/
 build/
 dist/
 
+# WXT extension output
+revora-extension/.output/
+revora-extension/.wxt/
+
 # Shopify CLI
 .shopify/
 

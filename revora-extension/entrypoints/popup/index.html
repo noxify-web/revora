@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Revora</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Revora</p>
+          <h1>Connect your store</h1>
+        </div>
+        <span class="badge" id="plan-badge">Free</span>
+      </header>
+
+      <section class="card">
+        <label for="connect-code">Connect code</label>
+        <input
+          id="connect-code"
+          type="text"
+          maxlength="6"
+          placeholder="ABC123"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <p class="hint">
+          Generate a code in Revora admin, paste it here, or click
+          <strong>Fill from admin</strong>. Server:
+          <span id="server-label" class="server-label">Not synced yet</span>
+        </p>
+        <div class="actions">
+          <button id="connect-btn" type="button">Connect</button>
+          <button id="fill-admin-btn" type="button" class="secondary">
+            Fill from admin
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <label for="reviews-selector">Temu reviews override (optional)</label>
+        <input
+          id="reviews-selector"
+          type="text"
+          placeholder="Auto-detects See all reviews"
+          spellcheck="false"
+        />
+        <button id="save-btn" type="button" class="secondary full">
+          Save settings
+        </button>
+      </section>
+
+      <p id="status" class="status">Not connected yet.</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
