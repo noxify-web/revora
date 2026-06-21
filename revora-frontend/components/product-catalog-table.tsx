@@ -160,171 +160,162 @@ export function ProductCatalogTable({
     setSearch(target.value)
   }
 
+  const productSearchField = (
+    <s-text-field
+      label="Search products"
+      labelAccessibilityVisibility="exclusive"
+      icon="search"
+      placeholder="Search products"
+      value={search}
+      onInput={handleSearchInput}
+    />
+  )
+
   return (
     <s-section
       heading="Products"
       id={id}
-      padding="none"
       accessibilityLabel="Product catalog"
     >
       <s-stack gap="base">
         {message ? (
-          <s-box paddingInline="base" paddingBlockStart="base">
-            <s-banner heading="Published" tone="success" dismissible>
-              {message}
-            </s-banner>
-          </s-box>
+          <s-banner heading="Published" tone="success" dismissible>
+            {message}
+          </s-banner>
         ) : null}
 
         {error ? (
-          <s-box paddingInline="base" paddingBlockStart="base">
-            <s-banner heading="Error" tone="critical" dismissible>
-              {error}
-            </s-banner>
-          </s-box>
+          <s-banner heading="Error" tone="critical" dismissible>
+            {error}
+          </s-banner>
         ) : null}
 
         {importHintProduct ? (
-          <s-box paddingInline="base">
-            <s-banner heading="How to import" tone="info" dismissible>
-              <s-stack gap="small">
-                <s-paragraph>
-                  Open a Temu product page in Chrome, use the Revora extension,
-                  and map reviews to{" "}
-                  <s-text type="strong">{importHintProduct}</s-text>.
-                </s-paragraph>
-                <s-button
-                  variant="secondary"
-                  onClick={() => setImportHintProduct(null)}
-                >
-                  Got it
-                </s-button>
-              </s-stack>
-            </s-banner>
-          </s-box>
+          <s-banner heading="How to import" tone="info" dismissible>
+            <s-stack gap="small">
+              <s-paragraph>
+                Open a Temu product page in Chrome, use the Revora extension,
+                and map reviews to{" "}
+                <s-text type="strong">{importHintProduct}</s-text>.
+              </s-paragraph>
+              <s-button
+                variant="secondary"
+                onClick={() => setImportHintProduct(null)}
+              >
+                Got it
+              </s-button>
+            </s-stack>
+          </s-banner>
         ) : null}
 
         {loading ? (
-          <s-box padding="large">
-            <s-stack direction="inline" gap="small" alignItems="center">
-              <s-spinner accessibilityLabel="Loading products" />
-              <s-text color="subdued">Loading products...</s-text>
+          <s-stack direction="inline" gap="small" alignItems="center">
+            <s-spinner accessibilityLabel="Loading products" />
+            <s-text color="subdued">Loading products...</s-text>
+          </s-stack>
+        ) : products.length === 0 ? (
+          <s-grid gap="base" justifyItems="center" paddingBlock="large">
+            <s-box maxInlineSize="200px">
+              <s-image
+                aspectRatio="1/0.5"
+                src={EMPTY_STATE_IMAGE}
+                alt="No products illustration"
+              />
+            </s-box>
+            <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
+              <s-heading>No products yet</s-heading>
+              <s-paragraph color="subdued">
+                Import Temu reviews with the Revora Chrome extension and map
+                them to your Shopify products.
+              </s-paragraph>
             </s-stack>
-          </s-box>
-        ) : (
-          <>
-            {products.length > 0 ? (
-              <s-box padding="base" paddingBlockEnd="none">
-                <s-text-field
-                  label="Search products"
-                  labelAccessibilityVisibility="exclusive"
-                  icon="search"
-                  placeholder="Search products"
-                  value={search}
-                  onInput={handleSearchInput}
+          </s-grid>
+        ) : filteredProducts.length === 0 ? (
+          <s-stack gap="base">
+            {productSearchField}
+            <s-grid gap="base" justifyItems="center" paddingBlock="large">
+              <s-box maxInlineSize="200px">
+                <s-image
+                  aspectRatio="1/0.5"
+                  src={EMPTY_STATE_IMAGE}
+                  alt="No matching products illustration"
                 />
               </s-box>
-            ) : null}
+              <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
+                <s-heading>No matching products</s-heading>
+                <s-paragraph color="subdued">
+                  Try a different search term or import reviews from Temu using
+                  the Chrome extension.
+                </s-paragraph>
+              </s-stack>
+            </s-grid>
+          </s-stack>
+        ) : (
+          <s-table>
+            <s-grid
+              slot="filters"
+              gap="small-200"
+              gridTemplateColumns="1fr"
+            >
+              {productSearchField}
+            </s-grid>
+              <s-table-header-row>
+                <s-table-header listSlot="primary">
+                  Shopify product
+                </s-table-header>
+                <s-table-header format="numeric" listSlot="labeled">
+                  Reviews
+                </s-table-header>
+                <s-table-header format="numeric">Pictures</s-table-header>
+                <s-table-header listSlot="secondary">Actions</s-table-header>
+              </s-table-header-row>
+              <s-table-body>
+                {filteredProducts.map((product) => {
+                  const importRecord = product.importId
+                    ? imports.find((item) => item.id === product.importId)
+                    : importsByProductId.get(product.id)
+                  const showPublish = canPublish(product, importRecord)
 
-            {products.length === 0 ? (
-              <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
-                <s-box maxInlineSize="200px" maxBlockSize="200px">
-                  <s-image
-                    aspectRatio="1/0.5"
-                    src={EMPTY_STATE_IMAGE}
-                    alt="No products illustration"
-                  />
-                </s-box>
-                <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
-                  <s-stack alignItems="center">
-                    <s-heading>No products yet</s-heading>
-                    <s-paragraph>
-                      Import Temu reviews with the Revora Chrome extension and
-                      map them to your Shopify products.
-                    </s-paragraph>
-                  </s-stack>
-                </s-grid>
-              </s-grid>
-            ) : filteredProducts.length === 0 ? (
-              <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
-                <s-box maxInlineSize="200px" maxBlockSize="200px">
-                  <s-image
-                    aspectRatio="1/0.5"
-                    src={EMPTY_STATE_IMAGE}
-                    alt="No matching products illustration"
-                  />
-                </s-box>
-                <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
-                  <s-stack alignItems="center">
-                    <s-heading>No matching products</s-heading>
-                    <s-paragraph>
-                      Try a different search term or import reviews from Temu
-                      using the Chrome extension.
-                    </s-paragraph>
-                  </s-stack>
-                </s-grid>
-              </s-grid>
-            ) : (
-              <s-table>
-                <s-table-header-row>
-                  <s-table-header listSlot="primary">
-                    Shopify product
-                  </s-table-header>
-                  <s-table-header format="numeric" listSlot="labeled">
-                    Reviews
-                  </s-table-header>
-                  <s-table-header format="numeric">Pictures</s-table-header>
-                  <s-table-header listSlot="secondary">Actions</s-table-header>
-                </s-table-header-row>
-                <s-table-body>
-                  {filteredProducts.map((product) => {
-                    const importRecord = product.importId
-                      ? imports.find((item) => item.id === product.importId)
-                      : importsByProductId.get(product.id)
-                    const showPublish = canPublish(product, importRecord)
-
-                    return (
-                      <s-table-row key={product.id}>
-                        <s-table-cell>
-                          <s-link
-                            href={getProductAdminUrl(shop, product.id)}
-                            target="_blank"
+                  return (
+                    <s-table-row key={product.id}>
+                      <s-table-cell>
+                        <s-link
+                          href={getProductAdminUrl(shop, product.id)}
+                          target="_blank"
+                        >
+                          {product.title}
+                        </s-link>
+                      </s-table-cell>
+                      <s-table-cell>
+                        {importRecord?.totalImported ?? product.reviewCount}
+                      </s-table-cell>
+                      <s-table-cell>{product.pictureCount}</s-table-cell>
+                      <s-table-cell>
+                        <s-stack direction="inline" gap="small">
+                          <s-button
+                            variant="secondary"
+                            onClick={() => setImportHintProduct(product.title)}
                           >
-                            {product.title}
-                          </s-link>
-                        </s-table-cell>
-                        <s-table-cell>
-                          {importRecord?.totalImported ?? product.reviewCount}
-                        </s-table-cell>
-                        <s-table-cell>{product.pictureCount}</s-table-cell>
-                        <s-table-cell>
-                          <s-stack direction="inline" gap="small">
+                            Import
+                          </s-button>
+                          {showPublish && product.importId ? (
                             <s-button
-                              variant="secondary"
-                              onClick={() => setImportHintProduct(product.title)}
+                              variant="primary"
+                              loading={publishingId === product.importId}
+                              onClick={() =>
+                                void publishImport(product.importId!)
+                              }
                             >
-                              Import
+                              Publish
                             </s-button>
-                            {showPublish && product.importId ? (
-                              <s-button
-                                variant="primary"
-                                loading={publishingId === product.importId}
-                                onClick={() =>
-                                  void publishImport(product.importId!)
-                                }
-                              >
-                                Publish
-                              </s-button>
-                            ) : null}
-                          </s-stack>
-                        </s-table-cell>
-                      </s-table-row>
-                    )
-                  })}
-                </s-table-body>
-              </s-table>
-            )}
-          </>
+                          ) : null}
+                        </s-stack>
+                      </s-table-cell>
+                    </s-table-row>
+                  )
+                })}
+              </s-table-body>
+          </s-table>
         )}
       </s-stack>
     </s-section>
