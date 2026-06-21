@@ -192,11 +192,8 @@ function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
         <s-button variant="tertiary" onClick={onSkip}>
           Skip onboarding
         </s-button>
-        <s-button variant="primary" onClick={onContinue}>
-          <s-stack direction="inline" gap="small-200" alignItems="center">
-            <s-text>Continue</s-text>
-            <s-icon type="arrow-right" size="small" />
-          </s-stack>
+        <s-button variant="primary" icon="arrow-right" onClick={onContinue}>
+          Continue
         </s-button>
       </s-grid>
     </s-stack>
