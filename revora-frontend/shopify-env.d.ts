@@ -24,9 +24,11 @@ declare global {
           avatar_url?: string
           phone_number?: string
           company_name?: string
+          description?: string
         },
       ) => void
       setCustomAttributes: (attributes: Record<string, string | number>) => void
+      setLabel: (label: string) => void
       reset: () => void
       toggle: (state?: "open" | "close") => void
     }
