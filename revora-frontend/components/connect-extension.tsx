@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react"
 
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 import { broadcastConnectToken } from "@/components/extension-bridge"
 import { adminFetch } from "@/lib/admin-fetch"
 
@@ -92,59 +90,54 @@ export function ConnectExtension() {
   const activeToken = tokens[0]
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Click <strong>Connect extension</strong> while Revora is open here.
-        The Chrome extension pairs automatically. Keep this tab open while
-        importing from Temu.
-      </p>
+    <s-stack gap="base">
+      <s-paragraph color="subdued">
+        Click <s-text type="strong">Connect extension</s-text> while Revora is
+        open here. The Chrome extension pairs automatically. Keep this tab open
+        while importing from Temu.
+      </s-paragraph>
 
-      <div className="flex flex-col items-start gap-2">
-        <Button
-          className="bg-[#FB7701] text-white hover:bg-[#E56B00]"
+      <s-stack gap="small">
+        <s-button
+          variant="primary"
           onClick={() => void connectExtension()}
-          disabled={connecting}
+          loading={connecting}
         >
-          {connecting ? "Connecting..." : "Connect extension"}
-        </Button>
-
-        <p className="text-sm text-muted-foreground">
+          Connect extension
+        </s-button>
+        <s-paragraph color="subdued">
           If automatic pairing does not work, open the extension popup and click{" "}
-          <strong>Sign in with Revora</strong>.
-        </p>
-      </div>
+          <s-text type="strong">Sign in with Revora</s-text>.
+        </s-paragraph>
+      </s-stack>
 
       {connectPayload ? (
-        <Alert className="border-[#FFD8B8] bg-[#FFF4EB]">
-          <AlertTitle className="text-[#E56B00]">Extension connected</AlertTitle>
-          <AlertDescription className="space-y-1 text-sm">
-            <p>
-              Linked to <strong>{connectPayload.shop}</strong> on the{" "}
-              {connectPayload.planName} plan.
-            </p>
-            <p className="text-muted-foreground">
-              Open the extension popup on Temu to confirm the status shows
-              connected.
-            </p>
-          </AlertDescription>
-        </Alert>
+        <s-banner heading="Extension connected" tone="success">
+          <s-paragraph>
+            Linked to <s-text type="strong">{connectPayload.shop}</s-text> on
+            the {connectPayload.planName} plan.
+          </s-paragraph>
+          <s-paragraph color="subdued">
+            Open the extension popup on Temu to confirm the status shows
+            connected.
+          </s-paragraph>
+        </s-banner>
       ) : null}
 
       {!loadingTokens && activeToken ? (
-        <p className="text-sm text-muted-foreground">
+        <s-paragraph color="subdued">
           Active link: {activeToken.label}
           {activeToken.lastUsedAt
             ? ` · last used ${new Date(activeToken.lastUsedAt).toLocaleString()}`
             : " · not used yet"}
-        </p>
+        </s-paragraph>
       ) : null}
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Connection error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <s-banner heading="Connection error" tone="critical">
+          {error}
+        </s-banner>
       ) : null}
-    </div>
+    </s-stack>
   )
 }

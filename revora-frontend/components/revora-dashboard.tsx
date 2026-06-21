@@ -7,13 +7,6 @@ import { DisplayWidgetCard } from "@/components/display-widget-card"
 import { ImportActivityLog } from "@/components/import-activity-log"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
 import { SetupGuide } from "@/components/setup-guide"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { adminFetch } from "@/lib/admin-fetch"
 
 const AUTO_IMPORT_STORAGE_KEY = "revora-auto-import"
@@ -54,8 +47,9 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     void loadImports()
   }, [loadImports])
 
-  function toggleAutoImport() {
-    const nextValue = !autoImportEnabled
+  function handleAutoImportChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement
+    const nextValue = target.checked
     setAutoImportEnabled(nextValue)
     window.localStorage.setItem(AUTO_IMPORT_STORAGE_KEY, String(nextValue))
   }
@@ -76,7 +70,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     1 + Number(hasImportedReviews) + Number(hasPublishedReviews)
 
   return (
-    <div className="flex flex-col gap-6">
+    <s-page heading="Revora" inlineSize="large">
       <SetupGuide
         completedTasks={completedTasks}
         hasImportedReviews={hasImportedReviews}
@@ -85,38 +79,24 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         onScrollToDisplay={scrollToDisplay}
       />
 
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border/60">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-semibold">Auto-import</CardTitle>
-            <CardDescription>
-              Automatically queue imports when the extension detects new Temu
-              reviews. (UI preview — coming soon)
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={autoImportEnabled}
-              aria-label="Toggle auto-import"
-              onClick={toggleAutoImport}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                autoImportEnabled ? "bg-[#FB7701]" : "bg-muted"
-              }`}
-            >
-              <span
-                className={`inline-block size-4 rounded-full bg-white shadow transition-transform ${
-                  autoImportEnabled ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-            <Button size="sm" variant="outline" disabled>
+      <s-section heading="Auto-import">
+        <s-stack gap="base">
+          <s-paragraph color="subdued">
+            Automatically queue imports when the extension detects new Temu
+            reviews. (UI preview — coming soon)
+          </s-paragraph>
+          <s-stack direction="inline" gap="base" alignItems="center">
+            <s-switch
+              label="Enable auto-import"
+              checked={autoImportEnabled}
+              onChange={handleAutoImportChange}
+            />
+            <s-button variant="secondary" disabled>
               Settings
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
+            </s-button>
+          </s-stack>
+        </s-stack>
+      </s-section>
 
       <div ref={productTableRef}>
         <ProductCatalogTable
@@ -128,26 +108,19 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <s-grid
+        gridTemplateColumns="repeat(auto-fit, minmax(320px, 1fr))"
+        gap="base"
+      >
         <div ref={displayWidgetRef}>
           <DisplayWidgetCard shop={shop} shopifyApiKey={shopifyApiKey} />
         </div>
         <ImportActivityLog refreshToken={refreshToken} />
-      </div>
+      </s-grid>
 
-      <details className="group rounded-lg border border-border/80 bg-card shadow-sm">
-        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium marker:content-none [&::-webkit-details-marker]:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <span>Plan & billing</span>
-            <span className="text-xs text-muted-foreground group-open:hidden">
-              Expand
-            </span>
-          </div>
-        </summary>
-        <div className="border-t border-border/60 px-2 pb-2">
-          <BillingCard />
-        </div>
-      </details>
-    </div>
+      <s-section heading="Plan & billing">
+        <BillingCard />
+      </s-section>
+    </s-page>
   )
 }

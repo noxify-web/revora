@@ -2,16 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { adminFetch } from "@/lib/admin-fetch"
 
 type BillingStatus = {
@@ -78,68 +68,75 @@ export function BillingCard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Plan</CardTitle>
-            <CardDescription>
-              Free imports up to 100 reviews per product. Premium is unlimited.
-            </CardDescription>
-          </div>
-          {status ? (
-            <Badge variant={status.plan === "premium" ? "default" : "secondary"}>
-              {status.planName}
-            </Badge>
-          ) : null}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading plan...</p>
-        ) : status ? (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border bg-muted/40 p-4">
-                <p className="text-sm font-medium">Free</p>
-                <p className="mt-1 text-2xl font-semibold">$0</p>
-                <p className="mt-2 text-sm text-muted-foreground">
+    <s-stack gap="base">
+      <s-grid gridTemplateColumns="1fr auto" gap="small" alignItems="start">
+        <s-paragraph color="subdued">
+          Free imports up to 100 reviews per product. Premium is unlimited.
+        </s-paragraph>
+        {status ? (
+          <s-badge tone={status.plan === "premium" ? "success" : "info"}>
+            {status.planName}
+          </s-badge>
+        ) : null}
+      </s-grid>
+
+      {loading ? (
+        <s-paragraph color="subdued">Loading plan...</s-paragraph>
+      ) : status ? (
+        <s-stack gap="base">
+          <s-grid
+            gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))"
+            gap="base"
+          >
+            <s-box padding="base" border="base" borderRadius="base">
+              <s-stack gap="small">
+                <s-text type="strong">Free</s-text>
+                <s-heading>$0</s-heading>
+                <s-paragraph color="subdued">
                   Up to 100 reviews per import
-                </p>
-              </div>
-              <div className="rounded-lg border border-[#FFD8B8] bg-[#FFF4EB] p-4">
-                <p className="text-sm font-medium text-[#E56B00]">Premium</p>
-                <p className="mt-1 text-2xl font-semibold text-[#FB7701]">
+                </s-paragraph>
+              </s-stack>
+            </s-box>
+            <s-box
+              padding="base"
+              border="base"
+              borderRadius="base"
+              background="subdued"
+            >
+              <s-stack gap="small">
+                <s-text type="strong">Premium</s-text>
+                <s-heading>
                   ${status.premiumPrice}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    /mo
-                  </span>
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
+                  <s-text color="subdued">/mo</s-text>
+                </s-heading>
+                <s-paragraph color="subdued">
                   Unlimited reviews per import
-                </p>
-              </div>
-            </div>
+                </s-paragraph>
+              </s-stack>
+            </s-box>
+          </s-grid>
 
-            {status.plan === "free" ? (
-              <Button onClick={() => void upgrade()} disabled={upgrading}>
-                {upgrading ? "Opening checkout..." : "Upgrade to Premium"}
-              </Button>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Premium is active on this store.
-              </p>
-            )}
-          </>
-        ) : null}
+          {status.plan === "free" ? (
+            <s-button
+              variant="primary"
+              onClick={() => void upgrade()}
+              loading={upgrading}
+            >
+              Upgrade to Premium
+            </s-button>
+          ) : (
+            <s-paragraph color="subdued">
+              Premium is active on this store.
+            </s-paragraph>
+          )}
+        </s-stack>
+      ) : null}
 
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Billing error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-      </CardContent>
-    </Card>
+      {error ? (
+        <s-banner heading="Billing error" tone="critical">
+          {error}
+        </s-banner>
+      ) : null}
+    </s-stack>
   )
 }

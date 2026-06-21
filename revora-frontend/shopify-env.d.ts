@@ -1,3 +1,5 @@
+/// <reference types="@shopify/polaris-types" />
+
 export {}
 
 declare global {

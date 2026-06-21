@@ -1,14 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-
 type DisplayWidgetCardProps = {
   shop: string
   shopifyApiKey: string
@@ -38,28 +29,26 @@ export function DisplayWidgetCard({
   const themeEditorUrl = getThemeEditorUrl(shop, shopifyApiKey)
 
   return (
-    <Card id={id} className="border-border/80 shadow-sm">
-      <CardHeader className="border-b border-border/60">
-        <CardTitle className="text-base font-semibold">
-          Step 2. Display your reviews
-        </CardTitle>
-        <CardDescription>
+    <s-section heading="Step 2. Display your reviews" id={id}>
+      <s-stack gap="base">
+        <s-paragraph color="subdued">
           Enable the Revora Reviews widget in your theme editor to show imported
           reviews on product pages.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-4">
-        <p className="text-sm text-muted-foreground">
-          Open the theme editor, go to <strong>App embeds</strong>, enable{" "}
-          <strong>Revora Reviews Widget</strong>, and save your theme.
-        </p>
-        <Button
-          className="bg-[#FB7701] text-white hover:bg-[#E56B00]"
-          onClick={() => window.open(themeEditorUrl, "_blank", "noopener,noreferrer")}
+        </s-paragraph>
+        <s-paragraph color="subdued">
+          Open the theme editor, go to <s-text type="strong">App embeds</s-text>
+          , enable <s-text type="strong">Revora Reviews Widget</s-text>, and
+          save your theme.
+        </s-paragraph>
+        <s-button
+          variant="primary"
+          onClick={() =>
+            window.open(themeEditorUrl, "_blank", "noopener,noreferrer")
+          }
         >
           Open theme editor
-        </Button>
-      </CardContent>
-    </Card>
+        </s-button>
+      </s-stack>
+    </s-section>
   )
 }
