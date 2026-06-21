@@ -15,10 +15,13 @@ const signInBtn = document.getElementById("sign-in-btn") as HTMLButtonElement
 const saveBtn = document.getElementById("save-btn") as HTMLButtonElement
 const statusNode = document.getElementById("status") as HTMLParagraphElement
 const statusDot = document.getElementById("status-dot") as HTMLSpanElement
+const statusRow = document.getElementById("status-row") as HTMLDivElement
+const statusHint = document.getElementById("status-hint") as HTMLParagraphElement
 
 function setStatus(text: string, tone = "") {
   statusNode.textContent = text
   statusDot.className = `status-dot ${tone}`.trim()
+  statusRow.className = `status-row ${tone}`.trim()
 }
 
 function setConnecting(connecting: boolean) {
@@ -26,8 +29,13 @@ function setConnecting(connecting: boolean) {
   connectBtn.textContent = connecting ? "Connecting..." : "Connect store"
 }
 
+function formatShopLabel(shop: string) {
+  return shop.replace(/\.myshopify\.com$/i, "")
+}
+
 function setConnected(shop: string) {
-  setStatus(shop, "ok")
+  setStatus(`Connected to ${formatShopLabel(shop)}`, "ok")
+  statusHint.hidden = true
   connectBtn.hidden = true
   signInBtn.hidden = true
 }
@@ -69,7 +77,7 @@ async function handleConnect() {
 
     if (!connected) {
       setStatus(
-        "Open Revora in Shopify admin, then click Connect store again",
+        "Open Revora in Shopify admin, then try again",
         "error",
       )
     }

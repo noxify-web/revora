@@ -9,10 +9,28 @@ import { OnboardingFooter } from "@/components/onboarding-footer"
 import { OnboardingGuide } from "@/components/onboarding-guide"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
 import {
-  clearRevoraClientStorage,
   hydrateOnboardingFlowComplete,
   ONBOARDING_STORAGE_KEYS,
+  resetOnboardingForDev,
+  resetOnboardingWizardState,
 } from "@/lib/onboarding"
+
+function consumeWizardResetCookie() {
+  if (typeof document === "undefined") {
+    return false
+  }
+
+  const hasCookie = document.cookie
+    .split(";")
+    .some((entry) => entry.trim().startsWith("revora_wizard_reset=1"))
+
+  if (!hasCookie) {
+    return false
+  }
+
+  document.cookie = "revora_wizard_reset=; Max-Age=0; path=/"
+  return true
+}
 import { adminFetch } from "@/lib/admin-fetch"
 
 const AUTO_IMPORT_STORAGE_KEY = "revora-auto-import"
@@ -68,20 +86,23 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
     let nextOnboardingDismissed =
       window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true"
-    let nextFlowComplete = hydrateOnboardingFlowComplete()
+    let nextFlowComplete = false
 
-    if (process.env.NODE_ENV === "development") {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get("reset") === "1") {
-        clearRevoraClientStorage()
-        nextOnboardingDismissed = false
-        nextFlowComplete = false
-        nextAutoImport = false
-        params.delete("reset")
-        const nextQuery = params.toString()
-        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
-        window.history.replaceState({}, "", nextUrl)
-      }
+    const params = new URLSearchParams(window.location.search)
+    const shouldReset =
+      process.env.NODE_ENV === "development" &&
+      (params.get("reset") === "1" || consumeWizardResetCookie())
+
+    if (shouldReset) {
+      resetOnboardingForDev()
+      nextOnboardingDismissed = false
+      nextAutoImport = false
+      params.delete("reset")
+      const nextQuery = params.toString()
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
+      window.history.replaceState({}, "", nextUrl)
+    } else {
+      nextFlowComplete = hydrateOnboardingFlowComplete()
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate dashboard prefs on mount
@@ -94,6 +115,13 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }, [loadImports, loadExtensionStatus])
 
   useEffect(() => {
+    window.revoraRestartOnboarding = () => {
+      resetOnboardingWizardState()
+      setFlowComplete(false)
+      setOnboardingDismissed(false)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+
     function handleOnboardingReopen() {
       setOnboardingDismissed(false)
     }
@@ -173,7 +201,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
 
   if (!flowHydrated) {
     return (
-      <s-page heading="Revora" inlineSize="small">
+      <s-page inlineSize="small">
         <s-section>
           <s-stack direction="inline" gap="small" alignItems="center">
             <s-spinner accessibilityLabel="Loading Revora" />
@@ -195,7 +223,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }
 
   return (
-    <s-page heading="Revora" inlineSize="large">
+    <s-page inlineSize="large">
       <OnboardingGuide
         hasConnectedExtension={hasConnectedExtension}
         hasImportedReviews={hasImportedReviews}

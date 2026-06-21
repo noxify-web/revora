@@ -9,7 +9,8 @@
     "./extension-types": "./src/extension-types.ts",
     "./extension-messages": "./src/extension-messages.ts",
     "./extension-schemas": "./src/extension-schemas.ts",
-    "./constants": "./src/constants.ts"
+    "./constants": "./src/constants.ts",
+    "./shopify-admin": "./src/shopify-admin.ts"
   },
   "dependencies": {
     "zod": "^4.1.12"

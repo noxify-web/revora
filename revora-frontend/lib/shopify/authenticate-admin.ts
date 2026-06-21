@@ -4,8 +4,26 @@ import {
 } from "@shopify/shopify-api"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import type { NextResponse } from "next/server"
 
 import { getShopify, sessionStorage } from "./shopify"
+
+export type AuthenticatedAdmin = {
+  shop: string
+  session: Session
+  admin: InstanceType<ReturnType<typeof getShopify>["clients"]["Graphql"]>
+}
+
+export class AdminAuthenticationError extends Error {
+  readonly status = 401
+
+  constructor(
+    message = "Session expired. Reload Revora from Shopify admin.",
+  ) {
+    super(message)
+    this.name = "AdminAuthenticationError"
+  }
+}
 
 function getSessionToken(
   authorizationHeader: string | null,
@@ -31,7 +49,9 @@ function buildBounceRedirectUrl(pathname: string, searchParams: URLSearchParams)
   return `/session-token-bounce?${params.toString()}`
 }
 
-export async function authenticateAdmin(searchParams: URLSearchParams) {
+async function resolveAuthenticatedAdmin(
+  searchParams: URLSearchParams,
+): Promise<AuthenticatedAdmin> {
   const headerStore = await headers()
   const sessionToken = getSessionToken(
     headerStore.get("authorization"),
@@ -39,12 +59,7 @@ export async function authenticateAdmin(searchParams: URLSearchParams) {
   )
 
   if (!sessionToken) {
-    redirect(
-      buildBounceRedirectUrl(
-        "/",
-        searchParams,
-      ),
-    )
+    throw new AdminAuthenticationError()
   }
 
   try {
@@ -73,12 +88,33 @@ export async function authenticateAdmin(searchParams: URLSearchParams) {
     }
   } catch (error) {
     console.error("Revora authenticateAdmin failed", error)
-
-    redirect(
-      buildBounceRedirectUrl(
-        "/",
-        searchParams,
-      ),
-    )
+    throw new AdminAuthenticationError()
   }
+}
+
+export async function authenticateAdmin(searchParams: URLSearchParams) {
+  try {
+    return await resolveAuthenticatedAdmin(searchParams)
+  } catch (error) {
+    if (error instanceof AdminAuthenticationError) {
+      redirect(buildBounceRedirectUrl("/", searchParams))
+    }
+
+    throw error
+  }
+}
+
+export async function authenticateAdminApi(searchParams: URLSearchParams) {
+  return resolveAuthenticatedAdmin(searchParams)
+}
+
+export function adminAuthFailureResponse(
+  error: unknown,
+  respond: (body: unknown, status?: number) => NextResponse,
+): NextResponse | null {
+  if (error instanceof AdminAuthenticationError) {
+    return respond({ error: error.message }, error.status)
+  }
+
+  return null
 }

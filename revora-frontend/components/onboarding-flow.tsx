@@ -4,32 +4,30 @@ import { useCallback, useEffect, useState } from "react"
 
 import { ConnectExtension } from "@/components/connect-extension"
 import {
-  CHROME_WEB_STORE_URL,
+  ExtensionInstallActions,
+  OnboardingActions,
+  OnboardingCalloutImage,
+  OnboardingInstallDemoGif,
+  OnboardingJourneyList,
+  OnboardingProgress,
+  useExtensionInstallAck,
+} from "@/components/onboarding-shared"
+import {
   completeOnboardingFlow,
   consumeFlowRestarted,
   ONBOARDING_FLOW_STEPS,
-  ONBOARDING_STORAGE_KEYS,
   readOnboardingFlowStep,
   skipOnboardingFlow,
   writeOnboardingFlowStep,
   type OnboardingFlowStepId,
 } from "@/lib/onboarding"
 
+const CONNECT_SUCCESS_DELAY_MS = 3000
+
 type OnboardingFlowProps = {
   hasConnectedExtension: boolean
   onComplete: () => void
   onExtensionStatusChange?: () => void
-}
-
-function openChromeWebStore() {
-  window.open(CHROME_WEB_STORE_URL, "_blank", "noopener,noreferrer")
-}
-
-function acknowledgeExtensionInstall() {
-  window.localStorage.setItem(
-    ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-    "true",
-  )
 }
 
 function getStepIndex(step: OnboardingFlowStepId) {
@@ -50,8 +48,6 @@ type OnboardingFlowHeaderProps = {
   totalSteps: number
   title: string
   summary: string
-  showBack: boolean
-  onBack: () => void
 }
 
 function OnboardingFlowHeader({
@@ -59,32 +55,13 @@ function OnboardingFlowHeader({
   totalSteps,
   title,
   summary,
-  showBack,
-  onBack,
 }: OnboardingFlowHeaderProps) {
   return (
-    <s-grid
-      gridTemplateColumns={showBack ? "auto 1fr" : "1fr"}
-      gap="small"
-      alignItems="start"
-      paddingBlockEnd="base"
-    >
-      {showBack ? (
-        <s-button
-          variant="tertiary"
-          icon="chevron-left"
-          accessibilityLabel="Back"
-          onClick={onBack}
-        />
-      ) : null}
-      <s-stack gap="small-200">
-        <s-text color="subdued">
-          Step {stepIndex + 1} of {totalSteps}
-        </s-text>
-        <s-heading>{title}</s-heading>
-        <s-paragraph color="subdued">{summary}</s-paragraph>
-      </s-stack>
-    </s-grid>
+    <s-stack gap="small-200" paddingBlockEnd="small-200">
+      <OnboardingProgress current={stepIndex + 1} total={totalSteps} />
+      <s-heading>{title}</s-heading>
+      {summary ? <s-paragraph color="subdued">{summary}</s-paragraph> : null}
+    </s-stack>
   )
 }
 
@@ -96,6 +73,8 @@ export function OnboardingFlow({
   const [step, setStep] = useState<OnboardingFlowStepId>("welcome")
   const [hydrated, setHydrated] = useState(false)
   const [suppressAutoComplete, setSuppressAutoComplete] = useState(false)
+  const [connectCelebration, setConnectCelebration] = useState(false)
+  const { acknowledgeExtensionInstall } = useExtensionInstallAck()
 
   const goToStep = useCallback((nextStep: OnboardingFlowStepId) => {
     setStep(nextStep)
@@ -113,13 +92,37 @@ export function OnboardingFlow({
   }, [])
 
   useEffect(() => {
-    if (!hydrated || !hasConnectedExtension || suppressAutoComplete) {
+    if (
+      !hydrated ||
+      !hasConnectedExtension ||
+      suppressAutoComplete ||
+      connectCelebration
+    ) {
       return
     }
 
     completeOnboardingFlow()
     onComplete()
-  }, [hydrated, hasConnectedExtension, suppressAutoComplete, onComplete])
+  }, [
+    hydrated,
+    hasConnectedExtension,
+    suppressAutoComplete,
+    connectCelebration,
+    onComplete,
+  ])
+
+  useEffect(() => {
+    if (!connectCelebration) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      completeOnboardingFlow()
+      onComplete()
+    }, CONNECT_SUCCESS_DELAY_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [connectCelebration, onComplete])
 
   function handleSkip() {
     skipOnboardingFlow()
@@ -144,13 +147,12 @@ export function OnboardingFlow({
 
   function handleConnected() {
     onExtensionStatusChange?.()
-    completeOnboardingFlow()
-    onComplete()
+    setConnectCelebration(true)
   }
 
   if (!hydrated) {
     return (
-      <s-page heading="Welcome to Revora" inlineSize="small">
+      <s-page inlineSize="small">
         <s-stack direction="inline" gap="small" alignItems="center">
           <s-spinner accessibilityLabel="Loading onboarding" />
           <s-text color="subdued">Loading...</s-text>
@@ -161,138 +163,121 @@ export function OnboardingFlow({
 
   const stepIndex = getStepIndex(step)
   const stepMeta = ONBOARDING_FLOW_STEPS[stepIndex]
-  const previousStep = getPreviousStep(step)
+  const showBack = Boolean(getPreviousStep(step))
 
   return (
-    <s-page heading="Welcome to Revora" inlineSize="small">
-      <OnboardingFlowHeader
-        stepIndex={stepIndex}
-        totalSteps={ONBOARDING_FLOW_STEPS.length}
-        title={stepMeta.title}
-        summary={stepMeta.summary}
-        showBack={Boolean(previousStep)}
-        onBack={handleBack}
-      />
+    <s-page inlineSize="small">
+      <s-stack gap="small-200">
+        <OnboardingFlowHeader
+          stepIndex={stepIndex}
+          totalSteps={ONBOARDING_FLOW_STEPS.length}
+          title={
+            connectCelebration && step === "connect"
+              ? "You're connected"
+              : stepMeta.title
+          }
+          summary={
+            connectCelebration && step === "connect"
+              ? "Your Chrome extension is linked to this store."
+              : stepMeta.summary
+          }
+        />
 
-      <s-section accessibilityLabel="Revora onboarding step content">
-        {step === "welcome" ? <WelcomeStep /> : null}
-        {step === "install" ? <InstallStepContent /> : null}
-        {step === "connect" ? (
-          <ConnectStepContent
-            onConnected={handleConnected}
-            onExtensionStatusChange={onExtensionStatusChange}
+        <s-section accessibilityLabel="Revora onboarding step content">
+          {step === "welcome" ? <WelcomeStep /> : null}
+          {step === "install" ? <InstallStepContent /> : null}
+          {step === "connect" && connectCelebration ? (
+            <ConnectSuccessStep />
+          ) : null}
+          {step === "connect" && !connectCelebration ? (
+            <ConnectStepContent
+              onConnected={handleConnected}
+              onExtensionStatusChange={onExtensionStatusChange}
+            />
+          ) : null}
+        </s-section>
+
+        {step === "welcome" ? (
+          <OnboardingActions
+            compact
+            tertiary={
+              <s-button variant="tertiary" onClick={handleSkip}>
+                Skip onboarding
+              </s-button>
+            }
+            primary={
+              <s-button
+                variant="primary"
+                icon="arrow-right"
+                onClick={handleWelcomeContinue}
+              >
+                Continue
+              </s-button>
+            }
           />
         ) : null}
-      </s-section>
 
-      {step === "install" ? (
-        <s-grid
-          gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))"
-          gap="small"
-          paddingBlockStart="base"
-        >
-          <s-button
-            variant="primary"
-            icon="external"
-            onClick={() => {
-              acknowledgeExtensionInstall()
-              openChromeWebStore()
-            }}
-          >
-            Add to Chrome
-          </s-button>
-          <s-button
-            variant="secondary"
-            icon="check-circle"
-            onClick={handleInstallContinue}
-          >
-            I&apos;ve installed it
-          </s-button>
-        </s-grid>
-      ) : null}
+        {step === "install" ? (
+          <OnboardingActions
+            compact
+            tertiary={
+              showBack ? (
+                <s-button variant="tertiary" onClick={handleBack}>
+                  Back
+                </s-button>
+              ) : null
+            }
+            primary={
+              <ExtensionInstallActions
+                installComplete={false}
+                onAcknowledgeInstall={acknowledgeExtensionInstall}
+                onInstalledClick={handleInstallContinue}
+              />
+            }
+          />
+        ) : null}
 
-      {step === "welcome" ? (
-        <s-grid
-          gridTemplateColumns="1fr auto"
-          gap="base"
-          alignItems="center"
-          paddingBlockStart="base"
-        >
-          <s-button variant="tertiary" onClick={handleSkip}>
-            Skip onboarding
-          </s-button>
-          <s-button
-            variant="primary"
-            icon="arrow-right"
-            onClick={handleWelcomeContinue}
-          >
-            Continue
-          </s-button>
-        </s-grid>
-      ) : step === "connect" ? (
-        <s-box paddingBlockStart="base">
-          <s-button variant="tertiary" onClick={handleSkip}>
-            Skip onboarding
-          </s-button>
-        </s-box>
-      ) : null}
+        {step === "connect" && !connectCelebration ? (
+          <OnboardingActions
+            compact
+            tertiary={
+              <s-stack direction="inline" gap="small" alignItems="center">
+                {showBack ? (
+                  <s-button variant="tertiary" onClick={handleBack}>
+                    Back
+                  </s-button>
+                ) : null}
+                <s-button variant="tertiary" onClick={handleSkip}>
+                  Skip onboarding
+                </s-button>
+              </s-stack>
+            }
+          />
+        ) : null}
+      </s-stack>
     </s-page>
   )
 }
 
 function WelcomeStep() {
   return (
-    <s-stack gap="large">
-      <s-box
-        border="base"
-        borderRadius="base"
-        overflow="hidden"
-        background="subdued"
-      >
-        <s-grid
-          gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))"
-          gap="base"
-          padding="large"
-          alignItems="center"
-          justifyItems="center"
-        >
-          <s-box maxInlineSize="200px">
-            <s-image
-              src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
-              alt="Revora onboarding illustration"
-              aspectRatio="1/1"
-            />
-          </s-box>
-        </s-grid>
-      </s-box>
-
-      <s-ordered-list>
-        <s-list-item>Install the Revora Chrome extension</s-list-item>
-        <s-list-item>Connect it to this Shopify store</s-list-item>
-        <s-list-item>Import reviews from any Temu product page</s-list-item>
-      </s-ordered-list>
-    </s-stack>
+    <s-grid gridTemplateColumns="auto 1fr" gap="small" alignItems="start">
+      <OnboardingCalloutImage size="compact" alt="Revora onboarding illustration" />
+      <OnboardingJourneyList />
+    </s-grid>
   )
 }
 
 function InstallStepContent() {
   return (
-    <s-stack gap="base">
-      <s-stack direction="inline" gap="small" alignItems="center">
-        <s-icon type="app-extension" size="small" />
-        <s-heading>Why you need the Chrome extension</s-heading>
-      </s-stack>
-      <s-paragraph>
-        Temu reviews live on Temu product pages. Revora&apos;s extension runs in
-        Chrome, reads those reviews while you browse, and sends them securely to
-        this Shopify store.
-      </s-paragraph>
-      <s-unordered-list>
-        <s-list-item>Works on any Temu product listing you source</s-list-item>
-        <s-list-item>Scrolls and captures reviews automatically</s-list-item>
-        <s-list-item>Pairs with this admin app — no manual copy-paste</s-list-item>
-      </s-unordered-list>
-    </s-stack>
+    <s-grid gridTemplateColumns="3fr 2fr" gap="small" alignItems="start">
+      <OnboardingInstallDemoGif variant="split" />
+      <s-banner heading="Extension required" tone="info">
+        <s-paragraph>
+          The extension is required for Revora to import reviews from Temu.
+        </s-paragraph>
+      </s-banner>
+    </s-grid>
   )
 }
 
@@ -306,21 +291,26 @@ function ConnectStepContent({
   onExtensionStatusChange,
 }: ConnectStepContentProps) {
   return (
-    <s-stack gap="base">
-      <s-stack direction="inline" gap="small" alignItems="center">
-        <s-icon type="connect" size="small" />
-        <s-heading>Link extension to your store</s-heading>
+    <ConnectExtension
+      compact
+      checkStatusOnMount={false}
+      onConnected={() => {
+        onExtensionStatusChange?.()
+        onConnected()
+      }}
+    />
+  )
+}
+
+function ConnectSuccessStep() {
+  return (
+    <s-banner tone="success">
+      <s-stack gap="small-200">
+        <s-heading>Extension connected</s-heading>
+        <s-paragraph color="subdued">
+          Opening your Revora dashboard…
+        </s-paragraph>
       </s-stack>
-      <s-paragraph>
-        Keep this Revora admin tab open and click Connect. The extension pairs
-        automatically — no codes to copy.
-      </s-paragraph>
-      <ConnectExtension
-        onConnected={() => {
-          onExtensionStatusChange?.()
-          onConnected()
-        }}
-      />
-    </s-stack>
+    </s-banner>
   )
 }

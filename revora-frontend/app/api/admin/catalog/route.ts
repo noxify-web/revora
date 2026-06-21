@@ -5,7 +5,10 @@ import {
   extensionOptionsResponse,
 } from "@/lib/extension/cors"
 import { getProductCatalogWithStats } from "@/lib/reviews/catalog"
-import { authenticateAdmin } from "@/lib/shopify/authenticate-admin"
+import {
+  adminAuthFailureResponse,
+  authenticateAdminApi,
+} from "@/lib/shopify/authenticate-admin"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -21,10 +24,18 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
 
   try {
-    const { session } = await authenticateAdmin(url.searchParams)
+    const { session } = await authenticateAdminApi(url.searchParams)
     const catalog = await getProductCatalogWithStats(session)
     return extensionJsonResponse({ catalog }, origin)
   } catch (error) {
+    const authResponse = adminAuthFailureResponse(error, (body, status) =>
+      extensionJsonResponse(body, origin, { status }),
+    )
+
+    if (authResponse) {
+      return authResponse
+    }
+
     return extensionJsonResponse(
       {
         error:

@@ -8,21 +8,38 @@ export const ONBOARDING_STORAGE_KEYS = {
 
 const LEGACY_SETUP_GUIDE_DISMISSED = "revora-setup-guide-dismissed"
 
+export const ONBOARDING_CALLOUT_IMAGE =
+  "https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+
+const DEFAULT_ONBOARDING_INSTALL_DEMO_GIF =
+  "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzRnZGc1bHAxbHB3MzczNXd4OTR2bXZwdGljY3hmcjVzcHEwaDRxeiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1wR4V5Y0Wqjn0Jgh2k/giphy.gif"
+
+/** Placeholder install walkthrough GIF. Override with NEXT_PUBLIC_ONBOARDING_INSTALL_GIF. */
+export const ONBOARDING_INSTALL_DEMO_GIF =
+  process.env.NEXT_PUBLIC_ONBOARDING_INSTALL_GIF?.trim() ||
+  DEFAULT_ONBOARDING_INSTALL_DEMO_GIF
+
+export const ONBOARDING_JOURNEY_BULLETS = [
+  "Install the Revora Chrome extension",
+  "Connect it to this Shopify store",
+  "Import reviews from any Temu product page",
+] as const
+
 export const ONBOARDING_FLOW_STEPS = [
   {
     id: "welcome",
-    title: "Welcome",
-    summary: "See how Revora imports Temu reviews into Shopify.",
+    title: "Import Temu reviews into Shopify",
+    summary: "Three quick steps to get started.",
   },
   {
     id: "install",
     title: "Install extension",
-    summary: "Add the Chrome extension that reads reviews on Temu.",
+    summary: "Required for Revora to import reviews from Temu.",
   },
   {
     id: "connect",
     title: "Connect store",
-    summary: "Link the extension to this Shopify store.",
+    summary: "Keep this tab open and click Connect.",
   },
 ] as const
 
@@ -49,9 +66,21 @@ export function clearRevoraClientStorage() {
     window.localStorage.removeItem(key)
   }
 
-  window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
   window.dispatchEvent(new CustomEvent("revora:onboarding-flow-reset"))
+  window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
 }
+
+/** Clear all client onboarding state and reopen the 3-step wizard. */
+export function resetOnboardingWizardState() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  clearRevoraClientStorage()
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowRestarted, "true")
+}
+
+export const resetOnboardingForDev = resetOnboardingWizardState
 
 export function readOnboardingFlowStep(): OnboardingFlowStepId {
   if (typeof window === "undefined") {
@@ -89,6 +118,17 @@ export function isOnboardingFlowComplete() {
   )
 }
 
+function isFlowRestartPending() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  return (
+    window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.flowRestarted) ===
+    "true"
+  )
+}
+
 /** Hydrate flow-complete state and migrate legacy localStorage keys once. */
 export function hydrateOnboardingFlowComplete() {
   if (typeof window === "undefined") {
@@ -97,6 +137,10 @@ export function hydrateOnboardingFlowComplete() {
 
   if (isOnboardingFlowComplete()) {
     return true
+  }
+
+  if (isFlowRestartPending()) {
+    return false
   }
 
   if (
@@ -148,17 +192,7 @@ export function skipOnboardingFlow() {
 }
 
 export function restartOnboardingFlow() {
-  if (typeof window === "undefined") {
-    return
-  }
-
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowComplete)
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.dismissed)
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.extensionInstallAck)
-  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowRestarted, "true")
-  window.dispatchEvent(new CustomEvent("revora:onboarding-flow-reset"))
-  window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
+  resetOnboardingWizardState()
 }
 
 /**

@@ -10,5 +10,6 @@ declare global {
         show: (message: string) => void
       }
     }
+    revoraRestartOnboarding?: () => void
   }
 }

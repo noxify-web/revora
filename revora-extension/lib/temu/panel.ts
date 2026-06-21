@@ -3,7 +3,8 @@ import type {
   BackgroundVerifyResponse,
 } from "@revora/shared/extension-messages"
 import type { ImportFilter, ShopifyProductSummary } from "@revora/shared/extension-types"
-import { REVORA_THEME } from "../theme"
+import { getRevoraAdminAppUrl } from "@revora/shared"
+import { getPanelStyles } from "../ui-styles"
 import {
   PANEL_ID,
   extractGoodsId,
@@ -12,6 +13,8 @@ import {
   state,
   $,
 } from "./shared"
+
+let connectedShop: string | null = null
 
 export function createPanel(
   onStart: () => void | Promise<void>,
@@ -25,266 +28,60 @@ export function createPanel(
   host.id = PANEL_ID
   panelRef.shadow = host.attachShadow({ mode: "open" })
   panelRef.shadow.innerHTML = `
-    <style>
-      :host {
-        all: initial;
-        position: fixed;
-        right: 16px;
-        bottom: 16px;
-        z-index: 2147483646;
-        display: block;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      }
-
-      *, *::before, *::after {
-        box-sizing: border-box;
-      }
-
-      .panel {
-        width: 300px;
-        max-height: 70vh;
-        overflow: auto;
-        color: ${REVORA_THEME.text};
-        background: ${REVORA_THEME.surface};
-        border: 1px solid ${REVORA_THEME.border};
-        border-radius: 14px;
-        box-shadow: 0 10px 28px rgba(251, 119, 1, 0.18);
-        padding: 14px;
-        font-size: 12px;
-        line-height: 1.4;
-      }
-
-      .panel.collapsed {
-        width: auto;
-        max-height: none;
-        overflow: visible;
-        padding: 8px 12px;
-        cursor: pointer;
-        background: linear-gradient(180deg, ${REVORA_THEME.orangeLight}, ${REVORA_THEME.surface});
-      }
-
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 10px;
-      }
-
-      .title-wrap {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .title {
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1.2;
-        margin: 0;
-        color: ${REVORA_THEME.orangeDark};
-      }
-
-      .icon-btn {
-        width: 26px;
-        height: 26px;
-        border: 1px solid ${REVORA_THEME.border};
-        border-radius: 8px;
-        background: ${REVORA_THEME.orangeLight};
-        color: ${REVORA_THEME.orangeDark};
-        cursor: pointer;
-        font-size: 14px;
-        line-height: 1;
-        padding: 0;
-        flex-shrink: 0;
-      }
-
-      .muted {
-        color: ${REVORA_THEME.textMuted};
-        font-size: 11px;
-        margin-bottom: 10px;
-      }
-
-      label {
-        display: block;
-        font-size: 11px;
-        font-weight: 600;
-        margin-bottom: 4px;
-        color: ${REVORA_THEME.text};
-      }
-
-      select,
-      button.action {
-        width: 100%;
-        margin-bottom: 8px;
-        font-size: 12px;
-        line-height: 1.3;
-      }
-
-      select {
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 10px;
-        border: 1px solid ${REVORA_THEME.border};
-        background: #fff;
-        color: ${REVORA_THEME.text};
-      }
-
-      button.action {
-        border: 0;
-        border-radius: 10px;
-        padding: 9px 12px;
-        background: ${REVORA_THEME.orange};
-        color: #fff;
-        cursor: pointer;
-        font-weight: 700;
-      }
-
-      button.action:hover:not(:disabled) {
-        background: ${REVORA_THEME.orangeDark};
-      }
-
-      button.action.secondary {
-        background: #fff;
-        color: ${REVORA_THEME.orangeDark};
-        border: 1px solid ${REVORA_THEME.border};
-      }
-
-      button.action:disabled,
-      .icon-btn:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-
-      .setup.is-complete {
-        opacity: 0.55;
-        pointer-events: none;
-      }
-
-      .progress {
-        height: 7px;
-        background: ${REVORA_THEME.orangeLight};
-        border-radius: 999px;
-        overflow: hidden;
-        margin: 8px 0;
-      }
-
-      .progress > span {
-        display: block;
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, ${REVORA_THEME.orange}, ${REVORA_THEME.orangeDark});
-        transition: width 0.2s ease;
-      }
-
-      .panel.is-complete .progress > span {
-        background: ${REVORA_THEME.success};
-      }
-
-      .result-banner {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 10px;
-        padding: 12px;
-        border-radius: 12px;
-        background: #ecfdf3;
-        border: 1px solid #b7ebd0;
-      }
-
-      .result-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 999px;
-        background: ${REVORA_THEME.success};
-        color: #fff;
-        display: grid;
-        place-items: center;
-        font-size: 14px;
-        font-weight: 800;
-        flex-shrink: 0;
-      }
-
-      .result-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #0b6e40;
-        margin-bottom: 2px;
-      }
-
-      .result-detail {
-        font-size: 11px;
-        color: #166534;
-        line-height: 1.4;
-      }
-
-      .status {
-        font-size: 11px;
-        color: ${REVORA_THEME.textMuted};
-        min-height: 16px;
-        margin-bottom: 8px;
-        word-break: break-word;
-      }
-
-      .panel.is-running .status {
-        color: ${REVORA_THEME.orangeDark};
-        font-weight: 600;
-      }
-
-      .row {
-        display: flex;
-        gap: 8px;
-      }
-
-      .row button.action {
-        flex: 1;
-        margin-bottom: 0;
-      }
-
-      .collapsed-label {
-        font-size: 12px;
-        font-weight: 700;
-        white-space: nowrap;
-        color: ${REVORA_THEME.orangeDark};
-      }
-    </style>
+    <style>${getPanelStyles()}</style>
     <div class="panel" id="revora-panel-body">
       <div class="header">
-        <div class="title-wrap">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">R</span>
           <h3 class="title">Revora</h3>
         </div>
         <button class="icon-btn" id="revora-toggle-btn" type="button" title="Minimize">–</button>
       </div>
       <div id="revora-panel-content">
+        <div class="connection-badge" id="revora-connection-badge" hidden>
+          <span class="connection-dot" aria-hidden="true"></span>
+          <span id="revora-connection-label"></span>
+        </div>
         <div class="setup" id="revora-setup-section">
-          <div class="muted" id="revora-goods-label">Waiting for Temu product page...</div>
-          <label for="revora-product-select">Shopify product</label>
-          <select id="revora-product-select">
-            <option value="">Loading products...</option>
-          </select>
-          <label for="revora-import-filter">Review filter</label>
-          <select id="revora-import-filter">
-            <option value="all">All reviews</option>
-            <option value="withText">With text only</option>
-            <option value="withPictures">With photos/videos only</option>
-          </select>
+          <p class="context" id="revora-goods-label">Waiting for Temu product page...</p>
+          <div class="field">
+            <label for="revora-product-select">Shopify product</label>
+            <select id="revora-product-select">
+              <option value="">Loading products...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="revora-import-filter">Review filter</label>
+            <select id="revora-import-filter">
+              <option value="all">All reviews</option>
+              <option value="withText">With text only</option>
+              <option value="withPictures">With photos/videos only</option>
+            </select>
+          </div>
         </div>
         <div class="activity" id="revora-activity-section">
-          <div class="result-banner" id="revora-result-banner" hidden>
-            <div class="result-icon" aria-hidden="true">✓</div>
-            <div>
-              <div class="result-title" id="revora-result-title">Import complete</div>
-              <div class="result-detail" id="revora-result-detail"></div>
+          <div class="success-state" id="revora-success-state" hidden>
+            <div class="success-icon" aria-hidden="true">✓</div>
+            <p class="success-count" id="revora-success-count">Import complete</p>
+            <p class="success-detail" id="revora-success-detail"></p>
+            <div class="success-actions">
+              <button class="action" id="revora-view-shopify-btn" type="button">
+                View in Shopify
+              </button>
+              <button class="action secondary" id="revora-import-again-btn" type="button">
+                Import again
+              </button>
             </div>
           </div>
-          <div class="progress" id="revora-progress-wrap">
-            <span id="revora-progress-bar"></span>
-          </div>
-          <div class="status" id="revora-status">Connect the extension from the popup to begin.</div>
-          <div class="row">
-            <button class="action" id="revora-start-btn" type="button">Import reviews</button>
-            <button class="action secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+          <div class="working-state" id="revora-working-state">
+            <div class="progress" id="revora-progress-wrap">
+              <span id="revora-progress-bar"></span>
+            </div>
+            <p class="status" id="revora-status">Connect the extension from the popup to begin.</p>
+            <div class="row">
+              <button class="action" id="revora-start-btn" type="button">Import reviews</button>
+              <button class="action secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+            </div>
           </div>
         </div>
       </div>
@@ -299,6 +96,13 @@ export function createPanel(
   $("revora-stop-btn")?.addEventListener("click", () => {
     onStop("Stopped by user")
   })
+  $("revora-import-again-btn")?.addEventListener("click", () => {
+    clearImportResult()
+    setStatus("Select a product and click Import reviews.")
+  })
+  $("revora-view-shopify-btn")?.addEventListener("click", () => {
+    void openRevoraInShopify()
+  })
   $("revora-toggle-btn")?.addEventListener("click", (event) => {
     event.stopPropagation()
     togglePanelCollapsed()
@@ -310,6 +114,39 @@ export function createPanel(
     }
   })
   void initializePanel()
+}
+
+async function openRevoraInShopify() {
+  const shop =
+    connectedShop ||
+    (await chrome.storage.sync.get(["shop"])).shop ||
+    null
+
+  if (!shop || typeof shop !== "string") {
+    setStatus("Connect the extension from the popup first.")
+    return
+  }
+
+  window.open(getRevoraAdminAppUrl(shop), "_blank", "noopener,noreferrer")
+}
+
+function setConnectionBadge(shop: string | null) {
+  const badge = $("revora-connection-badge")
+  const label = $("revora-connection-label")
+
+  connectedShop = shop
+
+  if (!badge || !label) {
+    return
+  }
+
+  if (!shop) {
+    badge.setAttribute("hidden", "")
+    return
+  }
+
+  badge.removeAttribute("hidden")
+  label.textContent = shop.replace(/\.myshopify\.com$/i, "")
 }
 
 export function togglePanelCollapsed(forceCollapsed?: boolean) {
@@ -331,7 +168,7 @@ export function togglePanelCollapsed(forceCollapsed?: boolean) {
     if (!panel.querySelector(".collapsed-label")) {
       const label = document.createElement("span")
       label.className = "collapsed-label"
-      label.textContent = "Revora"
+      label.innerHTML = `<span class="collapsed-check" aria-hidden="true">✓</span><span>Revora</span>`
       panel.insertBefore(label, content)
     }
     return
@@ -346,7 +183,10 @@ export function togglePanelCollapsed(forceCollapsed?: boolean) {
 
 export function setStatus(text: string) {
   const node = $("revora-status")
-  if (!node) return
+  const working = $("revora-working-state")
+  if (!node || !working) return
+
+  working.removeAttribute("hidden")
   node.hidden = !text
   node.textContent = text
 }
@@ -359,43 +199,44 @@ export function setProgress(current: number, total: number) {
   bar.style.width = `${pct}%`
 }
 
-export function setButtons(collecting: boolean, complete = false) {
+export function setButtons(collecting: boolean) {
   const start = $("revora-start-btn")
   const stop = $("revora-stop-btn")
   if (start instanceof HTMLButtonElement) {
     start.disabled = collecting
-    start.textContent = complete
-      ? "Import again"
-      : collecting
-        ? "Importing..."
-        : "Import reviews"
+    start.textContent = collecting ? "Importing..." : "Import reviews"
   }
   if (stop instanceof HTMLButtonElement) {
     stop.disabled = !collecting
-    stop.hidden = complete || !collecting
+    stop.hidden = !collecting
   }
 }
 
-function updateCollapsedLabel(text: string) {
+function updateCollapsedLabel(text: string, showCheck = false) {
   const label = $("revora-panel-body")?.querySelector(".collapsed-label")
-  if (label) {
-    label.textContent = text
-  }
+  if (!label) return
+
+  label.innerHTML = showCheck
+    ? `<span class="collapsed-check" aria-hidden="true">✓</span><span>${escapeHtml(text)}</span>`
+    : `<span>${escapeHtml(text)}</span>`
 }
 
 export function setImportRunning() {
   const panel = $("revora-panel-body")
   const setup = $("revora-setup-section")
+  const successState = $("revora-success-state")
+  const workingState = $("revora-working-state")
   const progressWrap = $("revora-progress-wrap")
-  const resultBanner = $("revora-result-banner")
 
   panel?.classList.add("is-running")
   panel?.classList.remove("is-complete")
   setup?.classList.remove("is-complete")
+  successState?.setAttribute("hidden", "")
+  workingState?.removeAttribute("hidden")
   progressWrap?.removeAttribute("hidden")
-  resultBanner?.setAttribute("hidden", "")
   setButtons(true)
   updateCollapsedLabel("Importing...")
+  togglePanelCollapsed(false)
 }
 
 export function setImportComplete({
@@ -409,36 +250,43 @@ export function setImportComplete({
 }) {
   const panel = $("revora-panel-body")
   const setup = $("revora-setup-section")
-  const progressWrap = $("revora-progress-wrap")
-  const resultBanner = $("revora-result-banner")
-  const resultDetail = $("revora-result-detail")
+  const successState = $("revora-success-state")
+  const workingState = $("revora-working-state")
+  const successCount = $("revora-success-count")
+  const successDetail = $("revora-success-detail")
 
   panel?.classList.remove("is-running")
   panel?.classList.add("is-complete")
   setup?.classList.add("is-complete")
-  progressWrap?.setAttribute("hidden", "")
-  resultBanner?.removeAttribute("hidden")
+  successState?.removeAttribute("hidden")
+  workingState?.setAttribute("hidden", "")
   setProgress(count, count)
-  setStatus("")
 
-  if (resultDetail) {
-    resultDetail.textContent = `${count} reviews ${filterLabel} added to ${productTitle}.`
+  const reviewLabel = count === 1 ? "review" : "reviews"
+  if (successCount) {
+    successCount.textContent = `${count} ${reviewLabel} imported`
+  }
+  if (successDetail) {
+    successDetail.textContent = `${filterLabel} · ${productTitle}`
   }
 
-  setButtons(false, true)
-  updateCollapsedLabel(`Done · ${count} reviews`)
+  setButtons(false)
+  updateCollapsedLabel(`${count} imported`, true)
+  togglePanelCollapsed(false)
 }
 
 export function clearImportResult() {
   const panel = $("revora-panel-body")
   const setup = $("revora-setup-section")
+  const successState = $("revora-success-state")
+  const workingState = $("revora-working-state")
   const progressWrap = $("revora-progress-wrap")
-  const resultBanner = $("revora-result-banner")
 
   panel?.classList.remove("is-running", "is-complete")
   setup?.classList.remove("is-complete")
+  successState?.setAttribute("hidden", "")
+  workingState?.removeAttribute("hidden")
   progressWrap?.removeAttribute("hidden")
-  resultBanner?.setAttribute("hidden", "")
   setProgress(0, 0)
   setButtons(false)
   updateCollapsedLabel("Revora")
@@ -503,6 +351,7 @@ export async function initializePanel() {
     })
 
     if (!verify.ok) {
+      setConnectionBadge(null)
       setStatus(verify.error || "Extension is not connected yet")
       return
     }
@@ -512,9 +361,17 @@ export async function initializePanel() {
       verify.data?.label ||
       (await chrome.storage.sync.get(["shop"])).shop
 
-    setStatus(shop ? `Connected to ${shop}` : "Connected")
+    if (typeof shop === "string" && shop) {
+      setConnectionBadge(shop)
+      setStatus("Choose a product and import reviews.")
+    } else {
+      setConnectionBadge(null)
+      setStatus("Connected")
+    }
+
     await loadProducts()
   } catch (error) {
+    setConnectionBadge(null)
     setStatus(
       error instanceof Error ? error.message : "Extension is not connected yet",
     )
@@ -548,4 +405,3 @@ export function getImportFilter(): ImportFilter {
   }
   return "all"
 }
-

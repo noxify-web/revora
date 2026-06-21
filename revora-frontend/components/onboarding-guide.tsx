@@ -12,7 +12,13 @@ import {
 import { ConnectExtension } from "@/components/connect-extension"
 import { OnboardingVideo } from "@/components/onboarding-video"
 import {
-  CHROME_WEB_STORE_URL,
+  ExtensionInstallActions,
+  OnboardingCalloutImage,
+  OnboardingProgress,
+  openChromeWebStore,
+  useExtensionInstallAck,
+} from "@/components/onboarding-shared"
+import {
   ONBOARDING_STEPS,
   ONBOARDING_STORAGE_KEYS,
   type OnboardingStepId,
@@ -39,10 +45,6 @@ function getInitialExpanded(): ExpandedSteps {
   }
 }
 
-function openChromeWebStore() {
-  window.open(CHROME_WEB_STORE_URL, "_blank", "noopener,noreferrer")
-}
-
 export function OnboardingGuide({
   hasConnectedExtension,
   hasImportedReviews,
@@ -53,18 +55,13 @@ export function OnboardingGuide({
 }: OnboardingGuideProps) {
   const [visible, setVisible] = useState(false)
   const [expanded, setExpanded] = useState<ExpandedSteps>(getInitialExpanded)
-  const [installAcked, setInstallAcked] = useState(false)
+  const { installAcked, acknowledgeExtensionInstall } = useExtensionInstallAck()
 
   useEffect(() => {
     function syncFromStorage() {
       setVisible(
         window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) !==
           "true",
-      )
-      setInstallAcked(
-        window.localStorage.getItem(
-          ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-        ) === "true",
       )
     }
 
@@ -94,9 +91,6 @@ export function OnboardingGuide({
   ).length
 
   const allComplete = completedCount === ONBOARDING_STEPS.length
-  const progressPercent = Math.round(
-    (completedCount / ONBOARDING_STEPS.length) * 100,
-  )
 
   const focusNextIncompleteStep = useCallback(() => {
     const nextStep = ONBOARDING_STEPS.find(
@@ -141,14 +135,6 @@ export function OnboardingGuide({
     setVisible(false)
     window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.dismissed, "true")
     window.dispatchEvent(new CustomEvent("revora:onboarding-dismissed"))
-  }
-
-  function acknowledgeExtensionInstall() {
-    setInstallAcked(true)
-    window.localStorage.setItem(
-      ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-      "true",
-    )
   }
 
   function toggleStep(step: OnboardingStepId) {
@@ -208,10 +194,11 @@ export function OnboardingGuide({
             Follow these steps to import Temu reviews and display them on your
             storefront.
           </s-paragraph>
-          <s-paragraph color="subdued">
-            {completedCount} out of {ONBOARDING_STEPS.length} steps completed
-            {progressPercent > 0 ? ` · ${progressPercent}% done` : ""}
-          </s-paragraph>
+          <OnboardingProgress
+            current={completedCount}
+            total={ONBOARDING_STEPS.length}
+            variant="checklist"
+          />
         </s-grid>
 
         <s-box
@@ -275,13 +262,7 @@ export function OnboardingGuide({
                     </s-button>
                   </s-button-group>
                 </s-grid>
-                <s-box maxBlockSize="80px" maxInlineSize="80px">
-                  <s-image
-                    src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
-                    alt="Revora setup illustration"
-                    aspectRatio="1/1"
-                  />
-                </s-box>
+                <OnboardingCalloutImage size="compact" />
               </s-grid>
             </s-box>
           </s-grid>
@@ -301,28 +282,10 @@ export function OnboardingGuide({
                     Revora runs as a Chrome extension on Temu. Install it once,
                     then use it on any Temu product page you source from.
                   </s-paragraph>
-                  <s-stack direction="inline" gap="small">
-                    <s-button
-                      variant="primary"
-                      icon="external"
-                      onClick={() => {
-                        acknowledgeExtensionInstall()
-                        openChromeWebStore()
-                      }}
-                    >
-                      Add to Chrome
-                    </s-button>
-                    <s-button
-                      variant="secondary"
-                      icon={stepCompletion.install ? "check-circle" : "apps"}
-                      onClick={acknowledgeExtensionInstall}
-                      disabled={stepCompletion.install}
-                    >
-                      {stepCompletion.install
-                        ? "Extension ready"
-                        : "I've installed it"}
-                    </s-button>
-                  </s-stack>
+                  <ExtensionInstallActions
+                    installComplete={stepCompletion.install}
+                    onAcknowledgeInstall={acknowledgeExtensionInstall}
+                  />
                   <s-paragraph color="subdued">
                     After installing, pin Revora in Chrome&apos;s toolbar for
                     quick access. Return here for step 2.

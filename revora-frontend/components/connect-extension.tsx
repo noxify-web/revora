@@ -6,7 +6,7 @@ const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal"
 
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
 import { broadcastConnectToken } from "@/components/extension-bridge"
-import { adminFetch } from "@/lib/admin-fetch"
+import { adminFetch, readAdminJson } from "@/lib/admin-fetch"
 
 type ExtensionToken = {
   id: string
@@ -21,14 +21,20 @@ function showToast(message: string) {
 
 type ConnectExtensionProps = {
   onConnected?: () => void
+  compact?: boolean
+  checkStatusOnMount?: boolean
 }
 
-export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
+export function ConnectExtension({
+  onConnected,
+  compact = false,
+  checkStatusOnMount = true,
+}: ConnectExtensionProps) {
   const [tokens, setTokens] = useState<ExtensionToken[]>([])
   const [connectPayload, setConnectPayload] =
     useState<ConnectTokenResponse | null>(null)
   const [connecting, setConnecting] = useState(false)
-  const [loadingTokens, setLoadingTokens] = useState(true)
+  const [loadingTokens, setLoadingTokens] = useState(checkStatusOnMount)
   const [error, setError] = useState<string | null>(null)
 
   const loadTokens = useCallback(async () => {
@@ -37,11 +43,13 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
 
     try {
       const response = await adminFetch("/api/extension/token")
-      if (!response.ok) {
-        throw new Error("Failed to load extension status")
-      }
+      const data = await readAdminJson<{ tokens?: ExtensionToken[]; error?: string }>(
+        response,
+      )
 
-      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load extension status")
+      }
       setTokens(data.tokens ?? [])
     } catch (loadError) {
       setError(
@@ -55,9 +63,13 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   }, [])
 
   useEffect(() => {
+    if (!checkStatusOnMount) {
+      return
+    }
+
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch token status on mount
     void loadTokens()
-  }, [loadTokens])
+  }, [checkStatusOnMount, loadTokens])
 
   async function connectExtension() {
     setConnecting(true)
@@ -70,11 +82,13 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
         body: JSON.stringify({ label: "Chrome extension" }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to connect extension")
-      }
+      const data = await readAdminJson<ConnectTokenResponse & { error?: string }>(
+        response,
+      )
 
-      const data = (await response.json()) as ConnectTokenResponse
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to connect extension")
+      }
       setConnectPayload(data)
 
       broadcastConnectToken({
@@ -101,14 +115,20 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   const isConnected = Boolean(activeToken || connectPayload)
 
   return (
-    <s-stack gap="base">
-      <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+    <s-stack gap={compact ? "small-200" : "base"}>
+      <s-grid
+        gridTemplateColumns="1fr auto"
+        gap={compact ? "small" : "base"}
+        alignItems="center"
+      >
         <s-grid-item>
           <s-stack gap="small-200">
-            <s-stack direction="inline" gap="small" alignItems="center">
-              <s-icon type="app-extension" size="small" />
-              <s-heading>Revora Chrome extension</s-heading>
-            </s-stack>
+            {compact ? null : (
+              <s-stack direction="inline" gap="small" alignItems="center">
+                <s-icon type="app-extension" size="small" />
+                <s-heading>Revora Chrome extension</s-heading>
+              </s-stack>
+            )}
             <s-stack direction="inline" gap="small" alignItems="center">
               {!loadingTokens ? (
                 <s-icon
@@ -151,13 +171,23 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
         </s-grid-item>
       </s-grid>
 
-      <s-text color="subdued">
-        Keep this Revora admin tab open while importing from Temu. If automatic
-        pairing does not work, open the extension popup and click{" "}
-        <s-text type="strong">Sign in with Revora</s-text>.
-      </s-text>
+      {compact ? (
+        <s-banner heading="Connect your extension" tone="info">
+          <s-paragraph>
+            Click Connect to link the Chrome extension to this store.
+          </s-paragraph>
+        </s-banner>
+      ) : null}
 
-      {connectPayload ? (
+      {compact ? null : (
+        <s-text color="subdued">
+          Keep this Revora admin tab open while importing from Temu. If automatic
+          pairing does not work, open the extension popup and click{" "}
+          <s-text type="strong">Sign in with Revora</s-text>.
+        </s-text>
+      )}
+
+      {!compact && connectPayload ? (
         <s-banner heading="Extension connected" tone="success">
           <s-paragraph>
             Linked to <s-text type="strong">{connectPayload.shop}</s-text>.
@@ -165,7 +195,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
         </s-banner>
       ) : null}
 
-      {!loadingTokens && activeToken?.lastUsedAt ? (
+      {!compact && !loadingTokens && activeToken?.lastUsedAt ? (
         <s-text color="subdued">
           Last used {new Date(activeToken.lastUsedAt).toLocaleString()}
         </s-text>
@@ -173,7 +203,12 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
 
       {error ? (
         <s-banner heading="Connection error" tone="critical">
-          {error}
+          <s-stack gap="small">
+            <s-text>{error}</s-text>
+            <s-button variant="secondary" onClick={() => void loadTokens()}>
+              Try again
+            </s-button>
+          </s-stack>
         </s-banner>
       ) : null}
 
