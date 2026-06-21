@@ -29,26 +29,41 @@ export function DisplayWidgetCard({
   const themeEditorUrl = getThemeEditorUrl(shop, shopifyApiKey)
 
   return (
-    <s-section heading="Step 2. Display your reviews" id={id}>
-      <s-stack gap="base">
-        <s-paragraph color="subdued">
-          Enable the Revora Reviews widget in your theme editor to show imported
-          reviews on product pages.
-        </s-paragraph>
-        <s-paragraph color="subdued">
-          Open the theme editor, go to <s-text type="strong">App embeds</s-text>
-          , enable <s-text type="strong">Revora Reviews Widget</s-text>, and
-          save your theme.
-        </s-paragraph>
-        <s-button
-          variant="primary"
-          onClick={() =>
-            window.open(themeEditorUrl, "_blank", "noopener,noreferrer")
-          }
+    <s-section id={id}>
+      <s-grid gridTemplateColumns="1fr auto" gap="small-400" alignItems="start">
+        <s-grid
+          gridTemplateColumns="@container (inline-size <= 480px) 1fr, auto auto"
+          gap="base"
+          alignItems="center"
         >
-          Open theme editor
-        </s-button>
-      </s-stack>
+          <s-grid gap="small-200">
+            <s-heading>Display your reviews</s-heading>
+            <s-paragraph>
+              Enable the Revora Reviews widget in your theme editor so shoppers
+              can see imported reviews on product pages.
+            </s-paragraph>
+            <s-stack direction="inline" gap="small-200">
+              <s-button
+                variant="primary"
+                onClick={() =>
+                  window.open(themeEditorUrl, "_blank", "noopener,noreferrer")
+                }
+              >
+                Open theme editor
+              </s-button>
+            </s-stack>
+          </s-grid>
+          <s-stack alignItems="center">
+            <s-box maxInlineSize="200px" borderRadius="base" overflow="hidden">
+              <s-image
+                src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+                alt="Theme editor illustration"
+                aspectRatio="1/0.5"
+              />
+            </s-box>
+          </s-stack>
+        </s-grid>
+      </s-grid>
     </s-section>
   )
 }

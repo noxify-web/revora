@@ -17,6 +17,9 @@ type ImportRecord = {
   createdAt: string
 }
 
+const EMPTY_STATE_IMAGE =
+  "https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+
 function formatStatus(status: string) {
   if (status === "partial") return "Partial"
   return status.charAt(0).toUpperCase() + status.slice(1)
@@ -60,7 +63,10 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
   }, [loadImports, refreshToken])
 
   return (
-    <s-section heading="Reviews import log">
+    <s-section
+      heading="Reviews import log"
+      accessibilityLabel="Import activity log"
+    >
       {error ? (
         <s-banner heading="Error" tone="critical">
           {error}
@@ -71,12 +77,24 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
           <s-text color="subdued">Loading import log...</s-text>
         </s-stack>
       ) : imports.length === 0 ? (
-        <s-stack gap="base" alignItems="center">
-          <s-icon type="note" tone="neutral" />
-          <s-paragraph color="subdued">
-            You don&apos;t have any import logs yet.
-          </s-paragraph>
-        </s-stack>
+        <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
+          <s-box maxInlineSize="200px" maxBlockSize="200px">
+            <s-image
+              aspectRatio="1/0.5"
+              src={EMPTY_STATE_IMAGE}
+              alt="No import logs illustration"
+            />
+          </s-box>
+          <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
+            <s-stack alignItems="center">
+              <s-heading>No import logs yet</s-heading>
+              <s-paragraph>
+                Use the Revora Chrome extension on a Temu product page to import
+                reviews into your store.
+              </s-paragraph>
+            </s-stack>
+          </s-grid>
+        </s-grid>
       ) : (
         <s-stack gap="small">
           {imports.map((item) => (

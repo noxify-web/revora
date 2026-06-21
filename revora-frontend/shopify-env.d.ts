@@ -6,6 +6,9 @@ declare global {
   interface Window {
     shopify?: {
       idToken: () => Promise<string>
+      toast?: {
+        show: (message: string) => void
+      }
     }
   }
 }

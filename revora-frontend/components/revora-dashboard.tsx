@@ -25,6 +25,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   const productTableRef = useRef<HTMLDivElement>(null)
   const displayWidgetRef = useRef<HTMLDivElement>(null)
   const [imports, setImports] = useState<ImportRecord[]>([])
+  const [hasConnectedExtension, setHasConnectedExtension] = useState(false)
   const [autoImportEnabled, setAutoImportEnabled] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
 
@@ -39,13 +40,25 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     }
   }, [])
 
+  const loadExtensionStatus = useCallback(async () => {
+    try {
+      const response = await adminFetch("/api/extension/token")
+      if (!response.ok) return
+      const data = await response.json()
+      setHasConnectedExtension((data.tokens ?? []).length > 0)
+    } catch {
+      // Connection status is best-effort.
+    }
+  }, [])
+
   useEffect(() => {
     setAutoImportEnabled(
       window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true",
     )
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount for setup progress
     void loadImports()
-  }, [loadImports])
+    void loadExtensionStatus()
+  }, [loadImports, loadExtensionStatus])
 
   function handleAutoImportChange(event: Event) {
     const target = event.currentTarget as HTMLInputElement
@@ -66,17 +79,16 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   const hasPublishedReviews = imports.some(
     (item) => item.publishStatus === "published",
   )
-  const completedTasks =
-    1 + Number(hasImportedReviews) + Number(hasPublishedReviews)
 
   return (
     <s-page heading="Revora" inlineSize="large">
       <SetupGuide
-        completedTasks={completedTasks}
+        hasConnectedExtension={hasConnectedExtension}
         hasImportedReviews={hasImportedReviews}
         hasPublishedReviews={hasPublishedReviews}
         onScrollToProducts={scrollToProducts}
         onScrollToDisplay={scrollToDisplay}
+        onExtensionStatusChange={() => void loadExtensionStatus()}
       />
 
       <s-section heading="Auto-import">
@@ -103,6 +115,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
           shop={shop}
           onPublished={() => {
             void loadImports()
+            void loadExtensionStatus()
             setRefreshToken((value) => value + 1)
           }}
         />
@@ -120,6 +133,19 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
 
       <s-section heading="Plan & billing">
         <BillingCard />
+      </s-section>
+
+      <s-section>
+        <s-paragraph color="subdued">
+          Learn more about{" "}
+          <s-link
+            href="https://help.shopify.com/manual/online-store/themes/theme-structure/extend/apps"
+            target="_blank"
+          >
+            enabling app embeds in your theme
+          </s-link>
+          .
+        </s-paragraph>
       </s-section>
     </s-page>
   )

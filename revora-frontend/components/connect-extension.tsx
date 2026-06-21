@@ -13,7 +13,15 @@ type ExtensionToken = {
   lastUsedAt: string | null
 }
 
-export function ConnectExtension() {
+function showToast(message: string) {
+  window.shopify?.toast?.show(message)
+}
+
+type ConnectExtensionProps = {
+  onConnected?: () => void
+}
+
+export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   const [tokens, setTokens] = useState<ExtensionToken[]>([])
   const [connectPayload, setConnectPayload] =
     useState<ConnectTokenResponse | null>(null)
@@ -75,7 +83,9 @@ export function ConnectExtension() {
         reviewLimit: data.reviewLimit,
       })
 
+      showToast("Extension connected")
       await loadTokens()
+      onConnected?.()
     } catch (connectError) {
       setError(
         connectError instanceof Error
@@ -88,28 +98,35 @@ export function ConnectExtension() {
   }
 
   const activeToken = tokens[0]
+  const isConnected = Boolean(activeToken || connectPayload)
 
   return (
     <s-stack gap="base">
-      <s-paragraph color="subdued">
-        Click <s-text type="strong">Connect extension</s-text> while Revora is
-        open here. The Chrome extension pairs automatically. Keep this tab open
-        while importing from Temu.
-      </s-paragraph>
-
-      <s-stack gap="small">
+      <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+        <s-stack>
+          <s-heading>Revora Chrome extension</s-heading>
+          <s-text color="subdued">
+            {loadingTokens
+              ? "Checking connection..."
+              : isConnected
+                ? `Connected${activeToken ? ` · ${activeToken.label}` : ""}`
+                : "No account connected"}
+          </s-text>
+        </s-stack>
         <s-button
           variant="primary"
           onClick={() => void connectExtension()}
           loading={connecting}
         >
-          Connect extension
+          {isConnected ? "Reconnect" : "Connect"}
         </s-button>
-        <s-paragraph color="subdued">
-          If automatic pairing does not work, open the extension popup and click{" "}
-          <s-text type="strong">Sign in with Revora</s-text>.
-        </s-paragraph>
-      </s-stack>
+      </s-grid>
+
+      <s-text color="subdued">
+        Keep this Revora admin tab open while importing from Temu. If automatic
+        pairing does not work, open the extension popup and click{" "}
+        <s-text type="strong">Sign in with Revora</s-text>.
+      </s-text>
 
       {connectPayload ? (
         <s-banner heading="Extension connected" tone="success">
@@ -117,20 +134,13 @@ export function ConnectExtension() {
             Linked to <s-text type="strong">{connectPayload.shop}</s-text> on
             the {connectPayload.planName} plan.
           </s-paragraph>
-          <s-paragraph color="subdued">
-            Open the extension popup on Temu to confirm the status shows
-            connected.
-          </s-paragraph>
         </s-banner>
       ) : null}
 
-      {!loadingTokens && activeToken ? (
-        <s-paragraph color="subdued">
-          Active link: {activeToken.label}
-          {activeToken.lastUsedAt
-            ? ` · last used ${new Date(activeToken.lastUsedAt).toLocaleString()}`
-            : " · not used yet"}
-        </s-paragraph>
+      {!loadingTokens && activeToken?.lastUsedAt ? (
+        <s-text color="subdued">
+          Last used {new Date(activeToken.lastUsedAt).toLocaleString()}
+        </s-text>
       ) : null}
 
       {error ? (

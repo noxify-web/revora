@@ -28,6 +28,9 @@ type ProductCatalogTableProps = {
   onPublished?: () => void
 }
 
+const EMPTY_STATE_IMAGE =
+  "https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+
 function getShopSlug(shop: string) {
   return shop.replace(/\.myshopify\.com$/i, "")
 }
@@ -138,6 +141,7 @@ export function ProductCatalogTable({
       setMessage(
         `Published ${data.published ?? 0} reviews. Enable the Revora Reviews Widget in your theme to display them.`,
       )
+      window.shopify?.toast?.show(`Published ${data.published ?? 0} reviews`)
       await loadData()
       onPublished?.()
     } catch (publishError) {
@@ -158,23 +162,14 @@ export function ProductCatalogTable({
 
   return (
     <s-section
-      heading="Step 1. Import reviews to your products below"
+      heading="Products"
       id={id}
       padding="none"
+      accessibilityLabel="Product catalog"
     >
       <s-stack gap="base">
-        <s-box padding="base" paddingBlockEnd="none">
-          <s-search-field
-            label="Search products"
-            labelAccessibilityVisibility="exclusive"
-            placeholder="Search products"
-            value={search}
-            onInput={handleSearchInput}
-          />
-        </s-box>
-
         {message ? (
-          <s-box paddingInline="base">
+          <s-box paddingInline="base" paddingBlockStart="base">
             <s-banner heading="Published" tone="success" dismissible>
               {message}
             </s-banner>
@@ -182,7 +177,7 @@ export function ProductCatalogTable({
         ) : null}
 
         {error ? (
-          <s-box paddingInline="base">
+          <s-box paddingInline="base" paddingBlockStart="base">
             <s-banner heading="Error" tone="critical" dismissible>
               {error}
             </s-banner>
@@ -217,22 +212,54 @@ export function ProductCatalogTable({
             </s-stack>
           </s-box>
         ) : filteredProducts.length === 0 ? (
-          <s-box padding="large">
-            <s-paragraph color="subdued">
-              {search
-                ? "No products match your search."
-                : "No Shopify products found yet."}
-            </s-paragraph>
-          </s-box>
+          <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
+            <s-box maxInlineSize="200px" maxBlockSize="200px">
+              <s-image
+                aspectRatio="1/0.5"
+                src={EMPTY_STATE_IMAGE}
+                alt="No products illustration"
+              />
+            </s-box>
+            <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
+              <s-stack alignItems="center">
+                <s-heading>
+                  {search ? "No matching products" : "No products yet"}
+                </s-heading>
+                <s-paragraph>
+                  {search
+                    ? "Try a different search term or import reviews from Temu using the Chrome extension."
+                    : "Import Temu reviews with the Revora Chrome extension and map them to your Shopify products."}
+                </s-paragraph>
+              </s-stack>
+            </s-grid>
+          </s-grid>
         ) : (
           <s-table>
+            <s-grid
+              slot="filters"
+              gap="small-200"
+              gridTemplateColumns="1fr"
+              padding="base"
+              paddingBlockEnd="none"
+            >
+              <s-text-field
+                label="Search products"
+                labelAccessibilityVisibility="exclusive"
+                icon="search"
+                placeholder="Search products"
+                value={search}
+                onInput={handleSearchInput}
+              />
+            </s-grid>
             <s-table-header-row>
               <s-table-header listSlot="primary">
                 Shopify product
               </s-table-header>
-              <s-table-header format="numeric">Reviews</s-table-header>
+              <s-table-header format="numeric" listSlot="labeled">
+                Reviews
+              </s-table-header>
               <s-table-header format="numeric">Pictures</s-table-header>
-              <s-table-header>Actions</s-table-header>
+              <s-table-header listSlot="secondary">Actions</s-table-header>
             </s-table-header-row>
             <s-table-body>
               {filteredProducts.map((product) => {
