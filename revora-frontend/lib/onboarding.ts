@@ -107,6 +107,19 @@ export function skipOnboardingFlow() {
   window.dispatchEvent(new CustomEvent("revora:onboarding-dismissed"))
 }
 
+export function restartOnboardingFlow() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowComplete)
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.dismissed)
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.extensionInstallAck)
+  window.dispatchEvent(new CustomEvent("revora:onboarding-flow-reset"))
+  window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
+}
+
 /**
  * Replace with your Chrome Web Store listing URL before launch.
  * Set NEXT_PUBLIC_CHROME_WEB_STORE_URL in .env.local to override.

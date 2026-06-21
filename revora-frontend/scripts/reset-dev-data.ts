@@ -49,7 +49,7 @@ async function main() {
   console.log("")
   console.log("Browser (Revora admin in Shopify):")
   console.log(
-    "  Open the app with ?reset=1 in the URL while dev server is running,",
+    "  Use footer → Restart onboarding, or open the app with ?reset=1,",
   )
   console.log("  or run in DevTools console:")
   console.log(

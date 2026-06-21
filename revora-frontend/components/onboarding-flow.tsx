@@ -170,34 +170,23 @@ function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
           gap="base"
           padding="large"
           alignItems="center"
+          justifyItems="center"
         >
-          <s-stack gap="base">
-            <s-banner heading="Import Temu reviews in minutes" tone="info">
-              <s-paragraph>
-                Revora copies live Temu product reviews — text, ratings, and
-                photos — onto your Shopify products so shoppers see social proof
-                on your storefront.
-              </s-paragraph>
-            </s-banner>
-            <s-ordered-list>
-              <s-list-item>Install the Revora Chrome extension</s-list-item>
-              <s-list-item>Connect it to this Shopify store</s-list-item>
-              <s-list-item>
-                Import reviews from any Temu product page
-              </s-list-item>
-            </s-ordered-list>
-          </s-stack>
-          <s-grid justifyItems="center">
-            <s-box maxInlineSize="200px">
-              <s-image
-                src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
-                alt="Revora onboarding illustration"
-                aspectRatio="1/1"
-              />
-            </s-box>
-          </s-grid>
+          <s-box maxInlineSize="200px">
+            <s-image
+              src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+              alt="Revora onboarding illustration"
+              aspectRatio="1/1"
+            />
+          </s-box>
         </s-grid>
       </s-box>
+
+      <s-ordered-list>
+        <s-list-item>Install the Revora Chrome extension</s-list-item>
+        <s-list-item>Connect it to this Shopify store</s-list-item>
+        <s-list-item>Import reviews from any Temu product page</s-list-item>
+      </s-ordered-list>
 
       <s-button-group>
         <s-button

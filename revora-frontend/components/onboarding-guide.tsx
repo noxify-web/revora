@@ -162,14 +162,6 @@ export function OnboardingGuide({
   return (
     <s-section accessibilityLabel="Revora setup guide">
       <s-grid gap="base">
-        <s-banner heading="Import Temu reviews in minutes" tone="info">
-          <s-paragraph>
-            Revora copies live Temu product reviews — text, ratings, and photos
-            — onto your Shopify products. Complete the steps below to see
-            reviews on your storefront.
-          </s-paragraph>
-        </s-banner>
-
         {allComplete ? (
           <s-banner heading="You're all set!" tone="success">
             <s-stack gap="small">

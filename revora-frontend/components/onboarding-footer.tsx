@@ -1,6 +1,7 @@
 "use client"
 
 import { reopenOnboardingGuide } from "@/components/onboarding-guide"
+import { restartOnboardingFlow } from "@/lib/onboarding"
 
 export function OnboardingFooter() {
   return (
@@ -11,6 +12,17 @@ export function OnboardingFooter() {
         <s-button
           variant="tertiary"
           icon="replay"
+          onClick={() => {
+            restartOnboardingFlow()
+            window.scrollTo({ top: 0, behavior: "smooth" })
+          }}
+        >
+          Restart onboarding
+        </s-button>
+        <s-text color="subdued">·</s-text>
+        <s-button
+          variant="tertiary"
+          icon="list-bulleted"
           onClick={() => {
             reopenOnboardingGuide()
             window.scrollTo({ top: 0, behavior: "smooth" })
