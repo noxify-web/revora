@@ -31,18 +31,19 @@ export const CHROME_WEB_STORE_URL =
   process.env.NEXT_PUBLIC_CHROME_WEB_STORE_URL ??
   "https://chrome.google.com/webstore/detail/revora-temu-reviews/PLACEHOLDER_EXTENSION_ID"
 
+const DEFAULT_ONBOARDING_YOUTUBE_VIDEO_ID = "T-YyHx8kc9I"
+
 /**
- * Set NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID to a YouTube video ID (e.g. "dQw4w9WgXcQ")
- * to embed a walkthrough. Leave unset to show the placeholder card.
+ * Onboarding walkthrough embed. Override with NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID.
  */
 function sanitizeYoutubeVideoId(raw: string | undefined) {
   const trimmed = raw?.trim() ?? ""
   return /^[\w-]{6,32}$/.test(trimmed) ? trimmed : ""
 }
 
-export const ONBOARDING_YOUTUBE_VIDEO_ID = sanitizeYoutubeVideoId(
-  process.env.NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID,
-)
+export const ONBOARDING_YOUTUBE_VIDEO_ID =
+  sanitizeYoutubeVideoId(process.env.NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID) ||
+  DEFAULT_ONBOARDING_YOUTUBE_VIDEO_ID
 
 export const ONBOARDING_STEPS = [
   {
