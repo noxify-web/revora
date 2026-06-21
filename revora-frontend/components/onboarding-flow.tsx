@@ -44,40 +44,9 @@ function getPreviousStep(step: OnboardingFlowStepId): OnboardingFlowStepId | nul
   return ONBOARDING_FLOW_STEPS[index - 1]?.id ?? null
 }
 
-type OnboardingStepDotsProps = {
-  currentIndex: number
-  total: number
-}
-
-function OnboardingStepDots({ currentIndex, total }: OnboardingStepDotsProps) {
-  return (
-    <s-stack
-      direction="inline"
-      gap="small-200"
-      alignItems="center"
-      justifyContent="center"
-      paddingBlock="large"
-    >
-      {Array.from({ length: total }, (_, index) => {
-        const active = index === currentIndex
-
-        return (
-          <s-box
-            key={ONBOARDING_FLOW_STEPS[index]?.id ?? index}
-            borderRadius="large-200"
-            border="base"
-            background={active ? "base" : "transparent"}
-            inlineSize={active ? "20px" : "8px"}
-            blockSize="8px"
-            accessibilityLabel={`Step ${index + 1} of ${total}${active ? ", current step" : ""}`}
-          />
-        )
-      })}
-    </s-stack>
-  )
-}
-
 type OnboardingFlowHeaderProps = {
+  stepIndex: number
+  totalSteps: number
   title: string
   summary: string
   showBack: boolean
@@ -85,6 +54,8 @@ type OnboardingFlowHeaderProps = {
 }
 
 function OnboardingFlowHeader({
+  stepIndex,
+  totalSteps,
   title,
   summary,
   showBack,
@@ -106,6 +77,9 @@ function OnboardingFlowHeader({
         />
       ) : null}
       <s-stack gap="small-200">
+        <s-text color="subdued">
+          Step {stepIndex + 1} of {totalSteps}
+        </s-text>
         <s-heading>{title}</s-heading>
         <s-paragraph color="subdued">{summary}</s-paragraph>
       </s-stack>
@@ -197,6 +171,8 @@ export function OnboardingFlow({
   return (
     <s-page heading="Welcome to Revora" inlineSize="small">
       <OnboardingFlowHeader
+        stepIndex={stepIndex}
+        totalSteps={ONBOARDING_FLOW_STEPS.length}
         title={stepMeta.title}
         summary={stepMeta.summary}
         showBack={Boolean(previousStep)}
@@ -265,11 +241,6 @@ export function OnboardingFlow({
           </s-button>
         </s-box>
       ) : null}
-
-      <OnboardingStepDots
-        currentIndex={stepIndex}
-        total={ONBOARDING_FLOW_STEPS.length}
-      />
     </s-page>
   )
 }
