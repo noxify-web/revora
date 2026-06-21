@@ -257,10 +257,12 @@ export function OnboardingGuide({
                     <s-button
                       slot="secondary-actions"
                       variant="secondary"
-                      icon="arrow-right"
                       onClick={focusNextIncompleteStep}
                     >
-                      Continue setup
+                      <s-stack direction="inline" gap="small-200" alignItems="center">
+                        <s-text>Continue setup</s-text>
+                        <s-icon type="arrow-right" size="small" />
+                      </s-stack>
                     </s-button>
                     <s-button
                       slot="primary-action"
