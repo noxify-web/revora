@@ -65,7 +65,8 @@ function OnboardingStepDots({ currentIndex, total }: OnboardingStepDotsProps) {
           <s-box
             key={ONBOARDING_FLOW_STEPS[index]?.id ?? index}
             borderRadius="large-200"
-            background={active ? "strong" : "subdued"}
+            border="base"
+            background={active ? "base" : "transparent"}
             inlineSize={active ? "20px" : "8px"}
             blockSize="8px"
             accessibilityLabel={`Step ${index + 1} of ${total}${active ? ", current step" : ""}`}
