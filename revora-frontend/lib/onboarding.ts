@@ -1,12 +1,37 @@
 export const ONBOARDING_STORAGE_KEYS = {
   dismissed: "revora-onboarding-dismissed",
   extensionInstallAck: "revora-onboarding-extension-install-ack",
+  flowComplete: "revora-onboarding-flow-complete",
+  flowStep: "revora-onboarding-flow-step",
 } as const
+
+export const ONBOARDING_FLOW_STEPS = [
+  {
+    id: "welcome",
+    title: "Welcome",
+    summary: "See how Revora imports Temu reviews into Shopify.",
+  },
+  {
+    id: "install",
+    title: "Install extension",
+    summary: "Add the Chrome extension that reads reviews on Temu.",
+  },
+  {
+    id: "connect",
+    title: "Connect store",
+    summary: "Link the extension to this Shopify store.",
+  },
+] as const
+
+export type OnboardingFlowStepId =
+  (typeof ONBOARDING_FLOW_STEPS)[number]["id"]
 
 /** Legacy + dashboard keys cleared by ?reset=1 in development. */
 export const REVORA_CLIENT_STORAGE_KEYS = [
   ONBOARDING_STORAGE_KEYS.dismissed,
   ONBOARDING_STORAGE_KEYS.extensionInstallAck,
+  ONBOARDING_STORAGE_KEYS.flowComplete,
+  ONBOARDING_STORAGE_KEYS.flowStep,
   "revora-setup-guide-dismissed",
   "revora-auto-import",
 ] as const
@@ -21,6 +46,65 @@ export function clearRevoraClientStorage() {
   }
 
   window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
+  window.dispatchEvent(new CustomEvent("revora:onboarding-flow-reset"))
+}
+
+export function readOnboardingFlowStep(): OnboardingFlowStepId {
+  if (typeof window === "undefined") {
+    return "welcome"
+  }
+
+  const stored = window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.flowStep)
+  if (
+    stored === "welcome" ||
+    stored === "install" ||
+    stored === "connect"
+  ) {
+    return stored
+  }
+
+  return "welcome"
+}
+
+export function writeOnboardingFlowStep(step: OnboardingFlowStepId) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowStep, step)
+}
+
+export function isOnboardingFlowComplete() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  return (
+    window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.flowComplete) ===
+    "true"
+  )
+}
+
+export function completeOnboardingFlow() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowComplete, "true")
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
+  window.dispatchEvent(new CustomEvent("revora:onboarding-flow-complete"))
+}
+
+export function skipOnboardingFlow() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowComplete, "true")
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.dismissed, "true")
+  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
+  window.dispatchEvent(new CustomEvent("revora:onboarding-flow-complete"))
+  window.dispatchEvent(new CustomEvent("revora:onboarding-dismissed"))
 }
 
 /**

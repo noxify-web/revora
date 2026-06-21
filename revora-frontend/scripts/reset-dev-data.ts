@@ -53,7 +53,7 @@ async function main() {
   )
   console.log("  or run in DevTools console:")
   console.log(
-    '  ["revora-onboarding-dismissed","revora-onboarding-extension-install-ack","revora-setup-guide-dismissed","revora-auto-import"].forEach(k=>localStorage.removeItem(k))',
+    '  ["revora-onboarding-dismissed","revora-onboarding-extension-install-ack","revora-onboarding-flow-complete","revora-onboarding-flow-step","revora-setup-guide-dismissed","revora-auto-import"].forEach(k=>localStorage.removeItem(k))',
   )
   console.log("")
   console.log("Chrome extension:")

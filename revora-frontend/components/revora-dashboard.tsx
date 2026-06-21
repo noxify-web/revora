@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react"
 
 import { DisplayWidgetCard } from "@/components/display-widget-card"
 import { ImportActivityLog } from "@/components/import-activity-log"
+import { OnboardingFlow } from "@/components/onboarding-flow"
 import { OnboardingFooter } from "@/components/onboarding-footer"
 import { OnboardingGuide } from "@/components/onboarding-guide"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
 import {
   clearRevoraClientStorage,
+  isOnboardingFlowComplete,
   ONBOARDING_STORAGE_KEYS,
 } from "@/lib/onboarding"
 import { adminFetch } from "@/lib/admin-fetch"
@@ -32,6 +34,8 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   const [autoImportEnabled, setAutoImportEnabled] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
+  const [flowComplete, setFlowComplete] = useState(false)
+  const [flowHydrated, setFlowHydrated] = useState(false)
 
   const loadImports = useCallback(async () => {
     try {
@@ -42,6 +46,10 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     } catch {
       // Progress indicators are best-effort.
     }
+  }, [])
+
+  const handleFlowComplete = useCallback(() => {
+    setFlowComplete(true)
   }, [])
 
   const loadExtensionStatus = useCallback(async () => {
@@ -60,12 +68,14 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
     let nextOnboardingDismissed =
       window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true"
+    let nextFlowComplete = isOnboardingFlowComplete()
 
     if (process.env.NODE_ENV === "development") {
       const params = new URLSearchParams(window.location.search)
       if (params.get("reset") === "1") {
         clearRevoraClientStorage()
         nextOnboardingDismissed = false
+        nextFlowComplete = false
         nextAutoImport = false
         params.delete("reset")
         const nextQuery = params.toString()
@@ -77,6 +87,8 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate dashboard prefs on mount
     setAutoImportEnabled(nextAutoImport)
     setOnboardingDismissed(nextOnboardingDismissed)
+    setFlowComplete(nextFlowComplete)
+    setFlowHydrated(true)
     void loadImports()
     void loadExtensionStatus()
   }, [loadImports, loadExtensionStatus])
@@ -90,11 +102,24 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       setOnboardingDismissed(true)
     }
 
+    function handleFlowComplete() {
+      setFlowComplete(true)
+    }
+
+    function handleFlowReset() {
+      setFlowComplete(false)
+    }
+
     window.addEventListener("revora:reopen-onboarding", handleOnboardingReopen)
     window.addEventListener(
       "revora:onboarding-dismissed",
       handleOnboardingDismissed,
     )
+    window.addEventListener(
+      "revora:onboarding-flow-complete",
+      handleFlowComplete,
+    )
+    window.addEventListener("revora:onboarding-flow-reset", handleFlowReset)
     return () => {
       window.removeEventListener(
         "revora:reopen-onboarding",
@@ -103,6 +128,14 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       window.removeEventListener(
         "revora:onboarding-dismissed",
         handleOnboardingDismissed,
+      )
+      window.removeEventListener(
+        "revora:onboarding-flow-complete",
+        handleFlowComplete,
+      )
+      window.removeEventListener(
+        "revora:onboarding-flow-reset",
+        handleFlowReset,
       )
     }
   }, [])
@@ -137,6 +170,29 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   )
 
   const showOnboarding = !onboardingDismissed
+
+  if (!flowHydrated) {
+    return (
+      <s-page heading="Revora" inlineSize="small">
+        <s-section>
+          <s-stack direction="inline" gap="small" alignItems="center">
+            <s-spinner accessibilityLabel="Loading Revora" />
+            <s-text color="subdued">Loading...</s-text>
+          </s-stack>
+        </s-section>
+      </s-page>
+    )
+  }
+
+  if (!flowComplete) {
+    return (
+      <OnboardingFlow
+        hasConnectedExtension={hasConnectedExtension}
+        onComplete={handleFlowComplete}
+        onExtensionStatusChange={() => void loadExtensionStatus()}
+      />
+    )
+  }
 
   return (
     <s-page heading="Revora" inlineSize="large">
