@@ -92,7 +92,9 @@ export function ImportsManager() {
         )
         setMessage(null)
       } else {
-        setMessage(`Published ${data.published} reviews to Shopify.`)
+        setMessage(
+          `Published ${data.published} reviews to Shopify. Refresh the product page (hard refresh) if the Revora Reviews block already exists. Add the block from Online Store → Themes → Customize → Product page if it is missing.`
+        )
         setError(null)
       }
 
@@ -112,8 +114,22 @@ export function ImportsManager() {
     <div className="space-y-4">
       {message ? (
         <Alert className="border-[#FFD8B8] bg-[#FFF4EB]">
-          <AlertTitle className="text-[#E56B00]">Published</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
+          <AlertTitle className="text-[#E56B00]">
+            Published to Shopify admin
+          </AlertTitle>
+          <AlertDescription className="space-y-2 text-sm">
+            <p>{message}</p>
+            <p className="text-muted-foreground">
+              Revora does not use Shopify&apos;s built-in product reviews. Add
+              the <strong>Revora Reviews</strong> app block on your product
+              template to display them on the live store.
+            </p>
+            <p className="text-muted-foreground">
+              If you see <strong>Revora Reviews</strong> under Variants on the
+              product, delete that option — it is metafield data, not a real
+              variant. Reviews stay saved on the product.
+            </p>
+          </AlertDescription>
         </Alert>
       ) : null}
 

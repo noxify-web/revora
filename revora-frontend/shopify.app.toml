@@ -8,7 +8,6 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = true
 dev_store_url = "noxify-dvgwvtrt.myshopify.com"
-include_config_on_deploy = true
 
 [access_scopes]
 scopes = "read_products,write_products,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects"
@@ -45,7 +44,8 @@ type = "list.single_line_text_field"
 
 [product.metafields.app.revora_reviews]
 type = "list.metaobject_reference<$app:revora_review>"
-name = "Revora Reviews"
+name = "Revora imported reviews"
+description = "Imported Temu reviews for the Revora theme block. Do not connect this metafield as a variant option."
 access.admin = "merchant_read_write"
 access.storefront = "public_read"
 
@@ -57,6 +57,12 @@ access.storefront = "public_read"
 [product.metafields.app.revora_average_rating]
 type = "number_decimal"
 name = "Revora average rating"
+access.storefront = "public_read"
+
+[product.metafields.app.revora_reviews_json]
+type = "json"
+name = "Revora reviews JSON"
+description = "Storefront-friendly review payload for the Revora theme block."
 access.storefront = "public_read"
 
 [auth]
@@ -71,6 +77,11 @@ api_version = "2025-01"
 [[webhooks.subscriptions]]
 topics = ["app_subscriptions/update"]
 uri = "/api/webhooks/app-subscriptions"
+
+[app_proxy]
+url = "/apps/revora"
+subpath = "revora"
+prefix = "apps"
 
 [pos]
 embedded = false

@@ -77,9 +77,23 @@ export function ingestPayload(
 
   state.idleRounds = 0
 
+  reportCollectionProgress(filter, onProgress)
+}
+
+export function reportCollectionProgress(
+  filter: ImportFilter,
+  onProgress?: (current: number, total: number, status: string) => void,
+) {
   const label = getFilterLabel(filter)
   const total = state.reviewLimit || state.maxListSize || state.reviews.size
-  onProgress(state.reviews.size, total, `Collected ${state.reviews.size} ${label}`)
+  const status = `Collected ${state.reviews.size} ${label}`
+
+  if (onProgress) {
+    onProgress(state.reviews.size, total, status)
+    return status
+  }
+
+  return status
 }
 
 export function resolveReviewsSelector(input: string | undefined | null) {

@@ -7,6 +7,14 @@
           "label": "Maximum reviews to show"
         }
       }
+    },
+    "reviews_embed": {
+      "name": "Revora Reviews Widget",
+      "settings": {
+        "max_reviews": {
+          "label": "Maximum reviews to show"
+        }
+      }
     }
   }
 }

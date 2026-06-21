@@ -16,11 +16,13 @@ import {
   state,
 } from "./shared"
 import {
+  clearImportResult,
   getImportFilter,
   getImportLimit,
   getSelectedProduct,
   refreshPlan,
-  setButtons,
+  setImportComplete,
+  setImportRunning,
   setProgress,
   setStatus,
 } from "./panel"
@@ -28,6 +30,7 @@ import {
   activatePhotosVideosTab,
   clickReviewEntryPoints,
   getFilterLabel,
+  reportCollectionProgress,
   resetCollection,
   scrollReviewsPanel,
   shouldStopCollecting,
@@ -155,7 +158,8 @@ export async function startImport() {
   await refreshPlan()
   resetCollection()
   state.collecting = true
-  setButtons(true)
+  clearImportResult()
+  setImportRunning()
   setStatus("Opening reviews and collecting...")
 
   const opened = await clickReviewEntryPoints(setStatus)
@@ -200,6 +204,10 @@ export async function startImport() {
 
   while (state.collecting) {
     scrollReviewsPanel()
+    const status = reportCollectionProgress(filter)
+    const total = state.reviewLimit || state.maxListSize || state.reviews.size
+    setProgress(state.reviews.size, total)
+    setStatus(status)
     await sleep(SCROLL_INTERVAL_MS)
 
     if (shouldStopCollecting(limit, filter)) {
@@ -211,6 +219,8 @@ export async function startImport() {
       break
     }
   }
+
+  let completedSuccessfully = false
 
   try {
     if (state.reviews.size === 0) {
@@ -238,26 +248,27 @@ export async function startImport() {
     }
 
     await flushUploads({ final: true, product, goodsId })
-    const progressTotal =
-      state.reviewLimit || state.maxListSize || state.uploadedIds.size
-    setProgress(state.uploadedIds.size, progressTotal)
 
-    const limitMessage = state.limitReached
-      ? ` Free plan limit (${state.reviewLimit}) reached — upgrade in Revora admin for unlimited imports.`
-      : ""
-    setStatus(
-      `Import complete (${state.uploadedIds.size} reviews ${filterLabel} uploaded).${limitMessage}`,
-    )
+    setImportComplete({
+      count: state.uploadedIds.size,
+      filterLabel,
+      productTitle: product.title,
+      limitReached: state.limitReached,
+      reviewLimit: state.reviewLimit,
+    })
+    completedSuccessfully = true
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Import failed")
   } finally {
     state.collecting = false
-    setButtons(false)
+    if (!completedSuccessfully) {
+      clearImportResult()
+    }
   }
 }
 
 export function stopImport(reason: string) {
   state.collecting = false
-  setButtons(false)
+  clearImportResult()
   setStatus(reason)
 }

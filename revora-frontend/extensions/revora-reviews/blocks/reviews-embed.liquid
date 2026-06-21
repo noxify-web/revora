@@ -17,8 +17,8 @@
 
 {% schema %}
 {
-  "name": "t:blocks.reviews.name",
-  "target": "section",
+  "name": "t:blocks.reviews_embed.name",
+  "target": "body",
   "enabled_on": {
     "templates": ["product"]
   },
@@ -26,7 +26,7 @@
     {
       "type": "range",
       "id": "max_reviews",
-      "label": "t:blocks.reviews.settings.max_reviews.label",
+      "label": "t:blocks.reviews_embed.settings.max_reviews.label",
       "min": 3,
       "max": 30,
       "step": 1,

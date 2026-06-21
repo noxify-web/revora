@@ -4,8 +4,8 @@ import {
   extensionJsonResponse,
   extensionOptionsResponse,
 } from "@/lib/extension/cors"
+import { getProductCatalogWithStats } from "@/lib/reviews/catalog"
 import { authenticateAdmin } from "@/lib/shopify/authenticate-admin"
-import { publishImportToStorefront } from "@/lib/reviews/publish"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -15,28 +15,23 @@ export async function OPTIONS() {
   return extensionOptionsResponse(headerStore.get("origin"))
 }
 
-type RouteContext = {
-  params: Promise<{ id: string }>
-}
-
-export async function POST(request: Request, context: RouteContext) {
+export async function GET(request: Request) {
   const headerStore = await headers()
   const origin = headerStore.get("origin")
   const url = new URL(request.url)
-  const { session } = await authenticateAdmin(url.searchParams)
-  const { id } = await context.params
 
   try {
-    const result = await publishImportToStorefront(session, id)
-    return extensionJsonResponse(result, origin)
+    const { session } = await authenticateAdmin(url.searchParams)
+    const catalog = await getProductCatalogWithStats(session)
+    return extensionJsonResponse({ catalog }, origin)
   } catch (error) {
     return extensionJsonResponse(
       {
         error:
-          error instanceof Error ? error.message : "Failed to publish reviews",
+          error instanceof Error ? error.message : "Failed to load catalog",
       },
       origin,
-      { status: 400 },
+      { status: 500 },
     )
   }
 }

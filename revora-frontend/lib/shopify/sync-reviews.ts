@@ -41,7 +41,7 @@ function reviewComment(review: ReviewRow) {
 function buildReviewFields(review: ReviewRow) {
   const pictureUrls = parseStoredPictures(review.pictures)
 
-  return [
+  const fields = [
     { key: "author_name", value: review.authorName || "Customer" },
     { key: "comment", value: reviewComment(review) || "Great product!" },
     {
@@ -55,44 +55,20 @@ function buildReviewFields(review: ReviewRow) {
         : new Date().toISOString().slice(0, 10),
     },
     { key: "temu_review_id", value: review.temuReviewId },
-    { key: "pictures", value: JSON.stringify(pictureUrls) },
   ]
-}
 
-async function upsertReviewMetaobject(admin: GraphqlAdmin, review: ReviewRow) {
-  const fields = buildReviewFields(review)
-
-  if (review.shopifyMetaobjectId) {
-    const response = await admin.request(
-      `#graphql
-      mutation MetaobjectUpdate($id: ID!, $metaobject: MetaobjectUpdateInput!) {
-        metaobjectUpdate(id: $id, metaobject: $metaobject) {
-          metaobject { id }
-          userErrors { field message }
-        }
-      }
-    `,
-      {
-        variables: {
-          id: review.shopifyMetaobjectId,
-          metaobject: { fields },
-        },
-      }
-    )
-
-    const errors = (
-      response.data as {
-        metaobjectUpdate?: { userErrors?: { message: string }[] }
-      }
-    )?.metaobjectUpdate?.userErrors
-
-    if (errors?.length) {
-      throw new Error(errors[0].message)
-    }
-
-    return review.shopifyMetaobjectId
+  if (pictureUrls.length) {
+    fields.push({ key: "pictures", value: JSON.stringify(pictureUrls) })
   }
 
+  return fields
+}
+
+async function createReviewMetaobject(
+  admin: GraphqlAdmin,
+  review: ReviewRow,
+  fields: ReturnType<typeof buildReviewFields>,
+) {
   const response = await admin.request(
     `#graphql
     mutation MetaobjectCreate($metaobject: MetaobjectCreateInput!) {
@@ -130,6 +106,46 @@ async function upsertReviewMetaobject(admin: GraphqlAdmin, review: ReviewRow) {
   return id
 }
 
+async function upsertReviewMetaobject(admin: GraphqlAdmin, review: ReviewRow) {
+  const fields = buildReviewFields(review)
+
+  if (review.shopifyMetaobjectId) {
+    const response = await admin.request(
+      `#graphql
+      mutation MetaobjectUpdate($id: ID!, $metaobject: MetaobjectUpdateInput!) {
+        metaobjectUpdate(id: $id, metaobject: $metaobject) {
+          metaobject { id }
+          userErrors { field message }
+        }
+      }
+    `,
+      {
+        variables: {
+          id: review.shopifyMetaobjectId,
+          metaobject: { fields },
+        },
+      }
+    )
+
+    const errors = (
+      response.data as {
+        metaobjectUpdate?: { userErrors?: { message: string }[] }
+      }
+    )?.metaobjectUpdate?.userErrors
+
+    if (!errors?.length) {
+      return review.shopifyMetaobjectId
+    }
+
+    const message = errors[0]?.message || ""
+    if (!/not found|does not exist|invalid id/i.test(message)) {
+      throw new Error(message || "Failed to update review metaobject")
+    }
+  }
+
+  return createReviewMetaobject(admin, review, fields)
+}
+
 async function publishReviewsInParallel(
   admin: GraphqlAdmin,
   reviews: ReviewRow[]
@@ -162,56 +178,90 @@ async function publishReviewsInParallel(
   return results
 }
 
+const STOREFRONT_JSON_REVIEW_LIMIT = 30
+
+function buildStorefrontReviewsPayload(
+  succeeded: PublishAttempt[],
+  publishedCount: number,
+  averageScore: number,
+) {
+  return {
+    count: publishedCount,
+    averageRating: Number(averageScore.toFixed(1)),
+    reviews: succeeded.slice(0, STOREFRONT_JSON_REVIEW_LIMIT).map((item) => {
+      const pictureUrls = parseStoredPictures(item.review.pictures)
+
+      return {
+        authorName: item.review.authorName || "Customer",
+        comment: reviewComment(item.review) || "Great product!",
+        score: Math.min(5, Math.max(1, item.review.score ?? 5)),
+        reviewDate: item.review.reviewTime
+          ? new Date(item.review.reviewTime * 1000).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10),
+        pictures: pictureUrls,
+      }
+    }),
+  }
+}
+
 async function updateProductMetafields(
   admin: GraphqlAdmin,
   productId: string,
   metaobjectIds: string[],
   publishedCount: number,
-  averageScore: number
+  averageScore: number,
+  storefrontPayload: ReturnType<typeof buildStorefrontReviewsPayload>,
 ) {
   const productResponse = await admin.request(
     `#graphql
-    mutation ProductUpdate($product: ProductUpdateInput!) {
-      productUpdate(product: $product) {
-        product { id }
+    mutation MetafieldsSet($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        metafields { id namespace key }
         userErrors { field message }
       }
     }
   `,
     {
       variables: {
-        product: {
-          id: productId,
-          metafields: [
-            {
-              namespace: "$app",
-              key: "revora_reviews",
-              type: "list.metaobject_reference",
-              value: JSON.stringify(metaobjectIds),
-            },
-            {
-              namespace: "$app",
-              key: "revora_review_count",
-              type: "number_integer",
-              value: String(publishedCount),
-            },
-            {
-              namespace: "$app",
-              key: "revora_average_rating",
-              type: "number_decimal",
-              value: averageScore.toFixed(1),
-            },
-          ],
-        },
+        metafields: [
+          {
+            ownerId: productId,
+            namespace: "$app",
+            key: "revora_reviews",
+            type: "list.metaobject_reference",
+            value: JSON.stringify(metaobjectIds),
+          },
+          {
+            ownerId: productId,
+            namespace: "$app",
+            key: "revora_review_count",
+            type: "number_integer",
+            value: String(publishedCount),
+          },
+          {
+            ownerId: productId,
+            namespace: "$app",
+            key: "revora_average_rating",
+            type: "number_decimal",
+            value: averageScore.toFixed(1),
+          },
+          {
+            ownerId: productId,
+            namespace: "$app",
+            key: "revora_reviews_json",
+            type: "json",
+            value: JSON.stringify(storefrontPayload),
+          },
+        ],
       },
     }
   )
 
   const productError = (
     productResponse.data as {
-      productUpdate?: { userErrors?: { message: string }[] }
+      metafieldsSet?: { userErrors?: { message: string }[] }
     }
-  )?.productUpdate?.userErrors?.[0]?.message
+  )?.metafieldsSet?.userErrors?.[0]?.message
 
   if (productError) {
     throw new Error(productError)
@@ -293,13 +343,25 @@ export async function publishImportToShopify(
     ? scores.reduce((sum, score) => sum + score, 0) / scores.length
     : 5
 
+  for (const item of succeeded) {
+    await db
+      .update(importedReviews)
+      .set({
+        shopifyMetaobjectId: item.metaobjectId,
+        syncStatus: "pending",
+        syncError: null,
+      })
+      .where(eq(importedReviews.id, item.review.id))
+  }
+
   try {
     await updateProductMetafields(
       admin,
       importRecord.shopifyProductId,
       metaobjectIds,
       succeeded.length,
-      averageScore
+      averageScore,
+      buildStorefrontReviewsPayload(succeeded, succeeded.length, averageScore),
     )
   } catch (error) {
     const message =

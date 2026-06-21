@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google"
 import type { Metadata } from "next"
+import Script from "next/script"
 
 import { ExtensionBridge } from "@/components/extension-bridge"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -38,9 +39,9 @@ export default function RootLayout({
     >
       <head>
         <meta name="shopify-api-key" content={apiKey} />
-        <script
+        <Script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-          async
+          strategy="beforeInteractive"
         />
       </head>
       <body>

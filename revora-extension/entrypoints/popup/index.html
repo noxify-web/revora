@@ -8,42 +8,41 @@
   </head>
   <body>
     <main>
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Revora</p>
-          <h1>Connect your store</h1>
+      <header class="brand-row">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">R</span>
+          <span class="brand-name">Revora</span>
         </div>
-        <span class="badge" id="plan-badge">Free</span>
+        <span class="plan-pill" id="plan-badge">Free</span>
       </header>
 
-      <section class="card">
-        <p class="hint">
-          Open Revora in Shopify admin and click <strong>Connect extension</strong>,
-          or sign in below. Server:
-          <span id="server-label" class="server-label">Not synced yet</span>
-        </p>
-        <div class="actions">
-          <button id="sync-admin-btn" type="button" class="secondary">
-            Sync from admin
-          </button>
-          <button id="sign-in-btn" type="button">Sign in with Revora</button>
+      <section class="panel">
+        <div class="status-row">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <p id="status" class="status-text">Not connected</p>
         </div>
-      </section>
 
-      <section class="card">
-        <label for="reviews-selector">Temu reviews override (optional)</label>
-        <input
-          id="reviews-selector"
-          type="text"
-          placeholder="Auto-detects See all reviews"
-          spellcheck="false"
-        />
-        <button id="save-btn" type="button" class="secondary full">
-          Save settings
+        <button id="connect-btn" type="button" class="primary">
+          Connect store
+        </button>
+        <button id="sign-in-btn" type="button" class="ghost">
+          Sign in manually
         </button>
       </section>
 
-      <p id="status" class="status">Not connected yet.</p>
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <label for="reviews-selector">Temu reviews selector</label>
+        <input
+          id="reviews-selector"
+          type="text"
+          placeholder="Leave blank to auto-detect"
+          spellcheck="false"
+        />
+        <button id="save-btn" type="button" class="secondary full">
+          Save
+        </button>
+      </details>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

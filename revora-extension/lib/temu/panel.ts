@@ -14,8 +14,6 @@ import {
   $,
 } from "./shared"
 
-let productSearchTimer: ReturnType<typeof setTimeout> | null = null
-
 export function createPanel(
   onStart: () => void | Promise<void>,
   onStop: (reason: string) => void,
@@ -140,7 +138,6 @@ export function createPanel(
         color: ${REVORA_THEME.text};
       }
 
-      input[type="search"],
       select,
       button.action {
         width: 100%;
@@ -149,7 +146,6 @@ export function createPanel(
         line-height: 1.3;
       }
 
-      input[type="search"],
       select {
         height: 34px;
         padding: 0 10px;
@@ -185,6 +181,11 @@ export function createPanel(
         cursor: not-allowed;
       }
 
+      .setup.is-complete {
+        opacity: 0.55;
+        pointer-events: none;
+      }
+
       .progress {
         height: 7px;
         background: ${REVORA_THEME.orangeLight};
@@ -201,12 +202,58 @@ export function createPanel(
         transition: width 0.2s ease;
       }
 
+      .panel.is-complete .progress > span {
+        background: ${REVORA_THEME.success};
+      }
+
+      .result-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #ecfdf3;
+        border: 1px solid #b7ebd0;
+      }
+
+      .result-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: ${REVORA_THEME.success};
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 14px;
+        font-weight: 800;
+        flex-shrink: 0;
+      }
+
+      .result-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0b6e40;
+        margin-bottom: 2px;
+      }
+
+      .result-detail {
+        font-size: 11px;
+        color: #166534;
+        line-height: 1.4;
+      }
+
       .status {
         font-size: 11px;
         color: ${REVORA_THEME.textMuted};
-        min-height: 28px;
+        min-height: 16px;
         margin-bottom: 8px;
         word-break: break-word;
+      }
+
+      .panel.is-running .status {
+        color: ${REVORA_THEME.orangeDark};
+        font-weight: 600;
       }
 
       .row {
@@ -235,25 +282,36 @@ export function createPanel(
         <button class="icon-btn" id="revora-toggle-btn" type="button" title="Minimize">–</button>
       </div>
       <div id="revora-panel-content">
-        <div class="muted" id="revora-goods-label">Waiting for Temu product page...</div>
-        <div class="plan-note" id="revora-plan-note">Free plan: up to 100 reviews per import.</div>
-        <label for="revora-product-search">Search Shopify products</label>
-        <input id="revora-product-search" type="search" placeholder="Search by title..." />
-        <label for="revora-product-select">Shopify product</label>
-        <select id="revora-product-select">
-          <option value="">Loading products...</option>
-        </select>
-        <label for="revora-import-filter">Review filter</label>
-        <select id="revora-import-filter">
-          <option value="all">All reviews</option>
-          <option value="withText">With text only</option>
-          <option value="withPictures">With photos/videos only</option>
-        </select>
-        <div class="progress"><span id="revora-progress-bar"></span></div>
-        <div class="status" id="revora-status">Connect the extension from the popup to begin.</div>
-        <div class="row">
-          <button class="action" id="revora-start-btn" type="button">Import reviews</button>
-          <button class="action secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+        <div class="setup" id="revora-setup-section">
+          <div class="muted" id="revora-goods-label">Waiting for Temu product page...</div>
+          <div class="plan-note" id="revora-plan-note">Free plan: up to 100 reviews per import.</div>
+          <label for="revora-product-select">Shopify product</label>
+          <select id="revora-product-select">
+            <option value="">Loading products...</option>
+          </select>
+          <label for="revora-import-filter">Review filter</label>
+          <select id="revora-import-filter">
+            <option value="all">All reviews</option>
+            <option value="withText">With text only</option>
+            <option value="withPictures">With photos/videos only</option>
+          </select>
+        </div>
+        <div class="activity" id="revora-activity-section">
+          <div class="result-banner" id="revora-result-banner" hidden>
+            <div class="result-icon" aria-hidden="true">✓</div>
+            <div>
+              <div class="result-title" id="revora-result-title">Import complete</div>
+              <div class="result-detail" id="revora-result-detail"></div>
+            </div>
+          </div>
+          <div class="progress" id="revora-progress-wrap">
+            <span id="revora-progress-bar"></span>
+          </div>
+          <div class="status" id="revora-status">Connect the extension from the popup to begin.</div>
+          <div class="row">
+            <button class="action" id="revora-start-btn" type="button">Import reviews</button>
+            <button class="action secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+          </div>
         </div>
       </div>
     </div>
@@ -277,10 +335,6 @@ export function createPanel(
       togglePanelCollapsed(false)
     }
   })
-  $("revora-product-search")?.addEventListener("input", () => {
-    scheduleProductSearch()
-  })
-
   void initializePanel()
 }
 
@@ -318,7 +372,9 @@ export function togglePanelCollapsed(forceCollapsed?: boolean) {
 
 export function setStatus(text: string) {
   const node = $("revora-status")
-  if (node) node.textContent = text
+  if (!node) return
+  node.hidden = !text
+  node.textContent = text
 }
 
 export function setProgress(current: number, total: number) {
@@ -329,26 +385,97 @@ export function setProgress(current: number, total: number) {
   bar.style.width = `${pct}%`
 }
 
-export function setButtons(collecting: boolean) {
+export function setButtons(collecting: boolean, complete = false) {
   const start = $("revora-start-btn")
   const stop = $("revora-stop-btn")
-  if (start instanceof HTMLButtonElement) start.disabled = collecting
-  if (stop instanceof HTMLButtonElement) stop.disabled = !collecting
+  if (start instanceof HTMLButtonElement) {
+    start.disabled = collecting
+    start.textContent = complete
+      ? "Import again"
+      : collecting
+        ? "Importing..."
+        : "Import reviews"
+  }
+  if (stop instanceof HTMLButtonElement) {
+    stop.disabled = !collecting
+    stop.hidden = complete || !collecting
+  }
 }
 
-function scheduleProductSearch() {
-  if (productSearchTimer) {
-    clearTimeout(productSearchTimer)
+function updateCollapsedLabel(text: string) {
+  const label = $("revora-panel-body")?.querySelector(".collapsed-label")
+  if (label) {
+    label.textContent = text
+  }
+}
+
+export function setImportRunning() {
+  const panel = $("revora-panel-body")
+  const setup = $("revora-setup-section")
+  const progressWrap = $("revora-progress-wrap")
+  const resultBanner = $("revora-result-banner")
+
+  panel?.classList.add("is-running")
+  panel?.classList.remove("is-complete")
+  setup?.classList.remove("is-complete")
+  progressWrap?.removeAttribute("hidden")
+  resultBanner?.setAttribute("hidden", "")
+  setButtons(true)
+  updateCollapsedLabel("Importing...")
+}
+
+export function setImportComplete({
+  count,
+  filterLabel,
+  productTitle,
+  limitReached = false,
+  reviewLimit = null,
+}: {
+  count: number
+  filterLabel: string
+  productTitle: string
+  limitReached?: boolean
+  reviewLimit?: number | null
+}) {
+  const panel = $("revora-panel-body")
+  const setup = $("revora-setup-section")
+  const progressWrap = $("revora-progress-wrap")
+  const resultBanner = $("revora-result-banner")
+  const resultDetail = $("revora-result-detail")
+
+  panel?.classList.remove("is-running")
+  panel?.classList.add("is-complete")
+  setup?.classList.add("is-complete")
+  progressWrap?.setAttribute("hidden", "")
+  resultBanner?.removeAttribute("hidden")
+  setProgress(count, count)
+  setStatus("")
+
+  if (resultDetail) {
+    let detail = `${count} reviews ${filterLabel} added to ${productTitle}.`
+    if (limitReached && reviewLimit != null) {
+      detail += ` Free plan limit (${reviewLimit}) reached.`
+    }
+    resultDetail.textContent = detail
   }
 
-  productSearchTimer = setTimeout(() => {
-    void loadProducts(getProductSearchQuery())
-  }, 300)
+  setButtons(false, true)
+  updateCollapsedLabel(`Done · ${count} reviews`)
 }
 
-function getProductSearchQuery() {
-  const input = $("revora-product-search")
-  return input instanceof HTMLInputElement ? input.value.trim() : ""
+export function clearImportResult() {
+  const panel = $("revora-panel-body")
+  const setup = $("revora-setup-section")
+  const progressWrap = $("revora-progress-wrap")
+  const resultBanner = $("revora-result-banner")
+
+  panel?.classList.remove("is-running", "is-complete")
+  setup?.classList.remove("is-complete")
+  progressWrap?.removeAttribute("hidden")
+  resultBanner?.setAttribute("hidden", "")
+  setProgress(0, 0)
+  setButtons(false)
+  updateCollapsedLabel("Revora")
 }
 
 function renderProducts(

@@ -1,4 +1,7 @@
-import { REVORA_CLIENT_ID } from "@revora/shared/constants"
+import {
+  REVORA_APP_PATH_PATTERN,
+  REVORA_CLIENT_ID,
+} from "@revora/shared/constants"
 import type {
   AdminBridgeRequest,
   AdminProxyResponse,
@@ -75,7 +78,11 @@ function persistConnectToken(payload: ConnectTokenPayload) {
 }
 
 function isRevoraAppPage() {
-  return window.location.pathname.includes(`/apps/${REVORA_CLIENT_ID}`)
+  const path = window.location.pathname
+  return (
+    REVORA_APP_PATH_PATTERN.test(path) ||
+    path.includes(`/apps/${REVORA_CLIENT_ID}`)
+  )
 }
 
 function isRevoraEmbeddedIframe(url: URL) {
@@ -83,11 +90,22 @@ function isRevoraEmbeddedIframe(url: URL) {
     return false
   }
 
-  if (url.searchParams.get("embedded") === "1" && url.searchParams.get("shop")) {
+  if (
+    REVORA_APP_PATH_PATTERN.test(url.pathname) ||
+    url.pathname.includes(`/apps/${REVORA_CLIENT_ID}`)
+  ) {
     return true
   }
 
-  return url.pathname.includes(`/apps/${REVORA_CLIENT_ID}`)
+  if (
+    url.searchParams.get("embedded") === "1" &&
+    url.searchParams.get("shop") &&
+    isRevoraAppPage()
+  ) {
+    return true
+  }
+
+  return false
 }
 
 function findRevoraIframe() {
