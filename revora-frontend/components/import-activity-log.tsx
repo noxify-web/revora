@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 
+import { PolarisEmptyState } from "@/components/polaris-empty-state"
 import { adminFetch } from "@/lib/admin-fetch"
 
 type ImportRecord = {
@@ -16,9 +17,6 @@ type ImportRecord = {
   totalPublished: number
   createdAt: string
 }
-
-const EMPTY_STATE_IMAGE =
-  "https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
 
 function formatStatus(status: string) {
   if (status === "partial") return "Partial"
@@ -77,68 +75,58 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
           <s-text color="subdued">Loading import log...</s-text>
         </s-stack>
       ) : imports.length === 0 ? (
-        <s-grid gap="base" justifyItems="center" paddingBlock="large">
-          <s-box maxInlineSize="200px">
-            <s-image
-              aspectRatio="1/0.5"
-              src={EMPTY_STATE_IMAGE}
-              alt="No import logs illustration"
-            />
-          </s-box>
-          <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
-            <s-heading>No import logs yet</s-heading>
-            <s-paragraph color="subdued">
-              Use the Revora Chrome extension on a Temu product page to import
-              reviews into your store.
-            </s-paragraph>
-          </s-stack>
-        </s-grid>
+        <PolarisEmptyState
+          heading="No import logs yet"
+          description="Use the Revora Chrome extension on a Temu product page to import reviews into your store."
+          imageAlt="No import logs illustration"
+        />
       ) : (
-        <s-stack gap="small">
-          {imports.map((item) => (
-            <s-box
-              key={item.id}
-              padding="base"
-              border="base"
-              borderRadius="base"
-              background="subdued"
-            >
-              <s-stack gap="small">
-                <s-grid
-                  gridTemplateColumns="1fr auto"
-                  gap="small"
-                  alignItems="start"
-                >
-                  <s-stack gap="small-200">
-                    <s-text type="strong">
-                      {item.temuProductTitle || `Temu product ${item.temuGoodsId}`}
-                    </s-text>
-                    <s-paragraph color="subdued">
-                      {item.shopifyProductTitle
-                        ? `Mapped to ${item.shopifyProductTitle}`
-                        : "No Shopify product mapped"}
-                    </s-paragraph>
-                  </s-stack>
-                  <s-stack direction="inline" gap="small">
-                    <s-badge tone="info">{formatStatus(item.status)}</s-badge>
-                    <s-badge
-                      tone={
-                        item.publishStatus === "published" ? "success" : "neutral"
-                      }
-                    >
-                      {formatStatus(item.publishStatus)}
-                    </s-badge>
-                  </s-stack>
-                </s-grid>
-                <s-paragraph color="subdued">
-                  Imported {item.totalImported}
-                  {item.totalExpected ? ` / ${item.totalExpected}` : ""} · Published{" "}
-                  {item.totalPublished} · {new Date(item.createdAt).toLocaleString()}
-                </s-paragraph>
-              </s-stack>
-            </s-box>
-          ))}
-        </s-stack>
+        <s-section padding="none" accessibilityLabel="Import log table">
+          <s-table>
+            <s-table-header-row>
+              <s-table-header listSlot="primary">Temu product</s-table-header>
+              <s-table-header listSlot="labeled">Shopify product</s-table-header>
+              <s-table-header listSlot="inline">Status</s-table-header>
+              <s-table-header format="numeric">Imported</s-table-header>
+              <s-table-header format="numeric">Published</s-table-header>
+              <s-table-header listSlot="secondary">Created</s-table-header>
+            </s-table-header-row>
+            <s-table-body>
+              {imports.map((item) => (
+                <s-table-row key={item.id}>
+                  <s-table-cell>
+                    {item.temuProductTitle || `Temu product ${item.temuGoodsId}`}
+                  </s-table-cell>
+                  <s-table-cell>
+                    {item.shopifyProductTitle || "Not mapped"}
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-stack direction="inline" gap="small">
+                      <s-badge tone="info">{formatStatus(item.status)}</s-badge>
+                      <s-badge
+                        tone={
+                          item.publishStatus === "published"
+                            ? "success"
+                            : "neutral"
+                        }
+                      >
+                        {formatStatus(item.publishStatus)}
+                      </s-badge>
+                    </s-stack>
+                  </s-table-cell>
+                  <s-table-cell>
+                    {item.totalImported}
+                    {item.totalExpected ? ` / ${item.totalExpected}` : ""}
+                  </s-table-cell>
+                  <s-table-cell>{item.totalPublished}</s-table-cell>
+                  <s-table-cell>
+                    {new Date(item.createdAt).toLocaleString()}
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
+        </s-section>
       )}
     </s-section>
   )

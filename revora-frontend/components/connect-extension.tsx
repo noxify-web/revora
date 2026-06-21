@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react"
 
+const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal"
+
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
 import { broadcastConnectToken } from "@/components/extension-bridge"
 import { adminFetch } from "@/lib/admin-fetch"
@@ -26,7 +28,6 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   const [connectPayload, setConnectPayload] =
     useState<ConnectTokenResponse | null>(null)
   const [connecting, setConnecting] = useState(false)
-  const [confirmRotate, setConfirmRotate] = useState(false)
   const [loadingTokens, setLoadingTokens] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,7 +47,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Failed to load extension status"
+          : "Failed to load extension status",
       )
     } finally {
       setLoadingTokens(false)
@@ -89,7 +90,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
       setError(
         connectError instanceof Error
           ? connectError.message
-          : "Failed to connect extension"
+          : "Failed to connect extension",
       )
     } finally {
       setConnecting(false)
@@ -102,63 +103,39 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   return (
     <s-stack gap="base">
       <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
-        <s-stack>
-          <s-heading>Revora Chrome extension</s-heading>
-          <s-text color="subdued">
-            {loadingTokens
-              ? "Checking connection..."
-              : isConnected
-                ? `Connected${activeToken ? ` · ${activeToken.label}` : ""}`
-                : "No account connected"}
-          </s-text>
-        </s-stack>
-        {!isConnected ? (
-          <s-button
-            variant="primary"
-            onClick={() => void connectExtension()}
-            loading={connecting}
-          >
-            Connect
-          </s-button>
-        ) : (
-          <s-button
-            variant="secondary"
-            onClick={() => setConfirmRotate(true)}
-            disabled={connecting}
-          >
-            Rotate token
-          </s-button>
-        )}
-      </s-grid>
-
-      {confirmRotate ? (
-        <s-banner heading="Rotate extension token?" tone="warning">
-          <s-stack gap="base">
-            <s-paragraph>
-              This creates a new token and may disconnect the extension on other
-              devices or browsers.
-            </s-paragraph>
-            <s-stack direction="inline" gap="small">
-              <s-button
-                variant="primary"
-                loading={connecting}
-                onClick={() => {
-                  setConfirmRotate(false)
-                  void connectExtension()
-                }}
-              >
-                Rotate token
-              </s-button>
-              <s-button
-                variant="secondary"
-                onClick={() => setConfirmRotate(false)}
-              >
-                Cancel
-              </s-button>
-            </s-stack>
+        <s-grid-item>
+          <s-stack>
+            <s-heading>Revora Chrome extension</s-heading>
+            <s-text color="subdued">
+              {loadingTokens
+                ? "Checking connection..."
+                : isConnected
+                  ? `Connected${activeToken ? ` · ${activeToken.label}` : ""}`
+                  : "No account connected"}
+            </s-text>
           </s-stack>
-        </s-banner>
-      ) : null}
+        </s-grid-item>
+        <s-grid-item>
+          {!isConnected ? (
+            <s-button
+              variant="primary"
+              onClick={() => void connectExtension()}
+              loading={connecting}
+            >
+              Connect
+            </s-button>
+          ) : (
+            <s-button
+              variant="secondary"
+              commandFor={ROTATE_TOKEN_MODAL_ID}
+              command="--show"
+              disabled={connecting}
+            >
+              Rotate token
+            </s-button>
+          )}
+        </s-grid-item>
+      </s-grid>
 
       <s-text color="subdued">
         Keep this Revora admin tab open while importing from Temu. If automatic
@@ -185,6 +162,38 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
           {error}
         </s-banner>
       ) : null}
+
+      <s-modal id={ROTATE_TOKEN_MODAL_ID} heading="Rotate extension token?">
+        <s-stack gap="base">
+          <s-text>
+            This creates a new token and may disconnect the extension on other
+            devices or browsers.
+          </s-text>
+          <s-banner tone="warning">
+            <s-text>
+              Use this only if pairing is broken or you need to revoke access on
+              another device.
+            </s-text>
+          </s-banner>
+        </s-stack>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          loading={connecting}
+          commandFor={ROTATE_TOKEN_MODAL_ID}
+          command="--hide"
+          onClick={() => void connectExtension()}
+        >
+          Rotate token
+        </s-button>
+        <s-button
+          slot="secondary-actions"
+          commandFor={ROTATE_TOKEN_MODAL_ID}
+          command="--hide"
+        >
+          Cancel
+        </s-button>
+      </s-modal>
     </s-stack>
   )
 }

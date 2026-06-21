@@ -160,8 +160,8 @@ export function OnboardingGuide({
   }
 
   return (
-    <s-section heading="Get started with Revora">
-      <s-stack gap="base">
+    <s-section accessibilityLabel="Revora setup guide">
+      <s-grid gap="base">
         <s-banner heading="Import Temu reviews in minutes" tone="info">
           <s-paragraph>
             Revora copies live Temu product reviews — text, ratings, and photos
@@ -185,59 +185,49 @@ export function OnboardingGuide({
           </s-banner>
         ) : null}
 
-        <s-grid
-          gridTemplateColumns="1fr auto auto"
-          gap="small-300"
-          alignItems="center"
-        >
-          <s-stack gap="small-200">
-            <s-paragraph>
-              <s-text type="strong">
-                {completedCount} of {ONBOARDING_STEPS.length} steps complete
-              </s-text>
-              {" · "}
-              {progressPercent}% done
-            </s-paragraph>
-            <div
-              style={{
-                blockSize: "8px",
-                borderRadius: "var(--p-border-radius-200, 8px)",
-                background: "var(--p-color-bg-surface-secondary, #f1f1f1)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  blockSize: "100%",
-                  inlineSize: `${progressPercent}%`,
-                  background: "var(--p-color-bg-fill-brand, #fb7701)",
-                  transition: "inline-size 0.2s ease",
-                }}
-              />
-            </div>
-          </s-stack>
-          <s-button
-            accessibilityLabel="Dismiss setup guide"
-            variant="tertiary"
-            tone="neutral"
-            icon="x"
-            onClick={dismissGuide}
-          />
-          <s-button
-            accessibilityLabel="Toggle setup guide"
-            variant="tertiary"
-            tone="neutral"
-            icon={expanded.guide ? "chevron-up" : "chevron-down"}
-            onClick={() =>
-              setExpanded((current) => ({
-                ...current,
-                guide: !current.guide,
-              }))
-            }
-          />
+        <s-grid gap="small-200">
+          <s-grid
+            gridTemplateColumns="1fr auto auto"
+            gap="small-300"
+            alignItems="center"
+          >
+            <s-heading>Get started with Revora</s-heading>
+            <s-button
+              accessibilityLabel="Dismiss setup guide"
+              variant="tertiary"
+              tone="neutral"
+              icon="x"
+              onClick={dismissGuide}
+            />
+            <s-button
+              accessibilityLabel="Toggle setup guide"
+              variant="tertiary"
+              tone="neutral"
+              icon={expanded.guide ? "chevron-up" : "chevron-down"}
+              onClick={() =>
+                setExpanded((current) => ({
+                  ...current,
+                  guide: !current.guide,
+                }))
+              }
+            />
+          </s-grid>
+          <s-paragraph>
+            Follow these steps to import Temu reviews and display them on your
+            storefront.
+          </s-paragraph>
+          <s-paragraph color="subdued">
+            {completedCount} out of {ONBOARDING_STEPS.length} steps completed
+            {progressPercent > 0 ? ` · ${progressPercent}% done` : ""}
+          </s-paragraph>
         </s-grid>
 
-        <s-box display={expanded.guide ? "auto" : "none"}>
+        <s-box
+          borderRadius="base"
+          border="base"
+          background="base"
+          display={expanded.guide ? "auto" : "none"}
+        >
           <s-grid
             gridTemplateColumns="repeat(auto-fit, minmax(280px, 1fr))"
             gap="base"
@@ -245,49 +235,66 @@ export function OnboardingGuide({
           >
             <OnboardingVideo onOpenChromeStore={acknowledgeExtensionInstall} />
 
-            <s-box
-              border="base"
-              borderRadius="base"
-              background="base"
-              padding="base"
-            >
-              <s-stack gap="base">
-                <s-heading>Your path to the aha moment</s-heading>
-                <s-paragraph color="subdued">
-                  The goal: shoppers see real Temu reviews on your product
-                  pages. Most merchants finish in under 10 minutes.
-                </s-paragraph>
-                <s-ordered-list>
-                  <s-list-item>Install Revora from the Chrome Web Store</s-list-item>
-                  <s-list-item>Connect while this Shopify admin tab is open</s-list-item>
-                  <s-list-item>
-                    Import from any Temu product page in Chrome
-                  </s-list-item>
-                  <s-list-item>
-                    Publish and turn on the Revora Reviews widget
-                  </s-list-item>
-                </s-ordered-list>
-                <s-stack direction="inline" gap="small">
-                  <s-button
-                    variant="primary"
-                    icon="external"
-                    onClick={() => {
-                      acknowledgeExtensionInstall()
-                      openChromeWebStore()
-                    }}
-                  >
-                    Get Chrome extension
-                  </s-button>
-                  <s-button variant="secondary" onClick={focusNextIncompleteStep}>
-                    Continue setup
-                  </s-button>
-                </s-stack>
-              </s-stack>
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-grid
+                gridTemplateColumns="1fr auto"
+                gap="base"
+                alignItems="center"
+              >
+                <s-grid gap="small-200">
+                  <s-heading>Your path to the aha moment</s-heading>
+                  <s-paragraph>
+                    Shoppers see real Temu reviews on your product pages. Most
+                    merchants finish in under 10 minutes.
+                  </s-paragraph>
+                  <s-ordered-list>
+                    <s-list-item>
+                      Install Revora from the Chrome Web Store
+                    </s-list-item>
+                    <s-list-item>
+                      Connect while this Shopify admin tab is open
+                    </s-list-item>
+                    <s-list-item>
+                      Import from any Temu product page in Chrome
+                    </s-list-item>
+                    <s-list-item>
+                      Publish and turn on the Revora Reviews widget
+                    </s-list-item>
+                  </s-ordered-list>
+                  <s-button-group>
+                    <s-button
+                      slot="secondary-actions"
+                      variant="secondary"
+                      onClick={focusNextIncompleteStep}
+                    >
+                      Continue setup
+                    </s-button>
+                    <s-button
+                      slot="primary-action"
+                      variant="primary"
+                      icon="external"
+                      onClick={() => {
+                        acknowledgeExtensionInstall()
+                        openChromeWebStore()
+                      }}
+                    >
+                      Get Chrome extension
+                    </s-button>
+                  </s-button-group>
+                </s-grid>
+                <s-box maxBlockSize="80px" maxInlineSize="80px">
+                  <s-image
+                    src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+                    alt="Revora setup illustration"
+                    aspectRatio="1/1"
+                  />
+                </s-box>
+              </s-grid>
             </s-box>
           </s-grid>
 
           <s-box paddingBlockStart="base">
-            <s-box borderRadius="base" border="base" background="base">
+            <s-box>
               <OnboardingStep
                 stepId="install"
                 title={ONBOARDING_STEPS[0].title}
@@ -408,7 +415,7 @@ export function OnboardingGuide({
             </s-box>
           </s-box>
         </s-box>
-      </s-stack>
+      </s-grid>
     </s-section>
   )
 }
@@ -434,21 +441,7 @@ function OnboardingStep({
   return (
     <s-box>
       <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
-        <s-stack gap="small-200">
-          <s-grid
-            gridTemplateColumns="1fr auto"
-            gap="small"
-            alignItems="center"
-          >
-            <s-checkbox label={title} checked={complete} disabled />
-            {complete ? (
-              <s-badge tone="success" icon="check-circle">
-                Done
-              </s-badge>
-            ) : null}
-          </s-grid>
-          <s-paragraph color="subdued">{summary}</s-paragraph>
-        </s-stack>
+        <s-checkbox label={title} checked={complete} disabled />
         <s-button
           accessibilityLabel={`Toggle ${title} details`}
           variant="tertiary"
@@ -456,6 +449,14 @@ function OnboardingStep({
           onClick={onToggle}
         />
       </s-grid>
+      <s-box paddingInline="small" paddingBlockEnd="small">
+        <s-paragraph color="subdued">{summary}</s-paragraph>
+        {complete ? (
+          <s-badge tone="success" icon="check-circle">
+            Done
+          </s-badge>
+        ) : null}
+      </s-box>
       <s-box
         padding="small"
         paddingBlockStart="none"

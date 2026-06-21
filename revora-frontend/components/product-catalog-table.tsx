@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { PolarisEmptyState } from "@/components/polaris-empty-state"
 import { adminFetch } from "@/lib/admin-fetch"
 
 type CatalogProduct = {
@@ -27,9 +28,6 @@ type ProductCatalogTableProps = {
   id?: string
   onPublished?: () => void
 }
-
-const EMPTY_STATE_IMAGE =
-  "https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
 
 function getShopSlug(shop: string) {
   return shop.replace(/\.myshopify\.com$/i, "")
@@ -161,10 +159,9 @@ export function ProductCatalogTable({
   }
 
   const productSearchField = (
-    <s-text-field
+    <s-search-field
       label="Search products"
       labelAccessibilityVisibility="exclusive"
-      icon="search"
       placeholder="Search products"
       value={search}
       onInput={handleSearchInput}
@@ -214,51 +211,30 @@ export function ProductCatalogTable({
             <s-text color="subdued">Loading products...</s-text>
           </s-stack>
         ) : products.length === 0 ? (
-          <s-grid gap="base" justifyItems="center" paddingBlock="large">
-            <s-box maxInlineSize="200px">
-              <s-image
-                aspectRatio="1/0.5"
-                src={EMPTY_STATE_IMAGE}
-                alt="No products illustration"
-              />
-            </s-box>
-            <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
-              <s-heading>No products yet</s-heading>
-              <s-paragraph color="subdued">
-                Import Temu reviews with the Revora Chrome extension and map
-                them to your Shopify products.
-              </s-paragraph>
-            </s-stack>
-          </s-grid>
+          <PolarisEmptyState
+            heading="No products yet"
+            description="Import Temu reviews with the Revora Chrome extension and map them to your Shopify products."
+            imageAlt="No products illustration"
+          />
         ) : filteredProducts.length === 0 ? (
           <s-stack gap="base">
             {productSearchField}
-            <s-grid gap="base" justifyItems="center" paddingBlock="large">
-              <s-box maxInlineSize="200px">
-                <s-image
-                  aspectRatio="1/0.5"
-                  src={EMPTY_STATE_IMAGE}
-                  alt="No matching products illustration"
-                />
-              </s-box>
-              <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
-                <s-heading>No matching products</s-heading>
-                <s-paragraph color="subdued">
-                  Try a different search term or import reviews from Temu using
-                  the Chrome extension.
-                </s-paragraph>
-              </s-stack>
-            </s-grid>
+            <PolarisEmptyState
+              heading="No matching products"
+              description="Try a different search term or import reviews from Temu using the Chrome extension."
+              imageAlt="No matching products illustration"
+            />
           </s-stack>
         ) : (
-          <s-table>
-            <s-grid
-              slot="filters"
-              gap="small-200"
-              gridTemplateColumns="1fr"
-            >
-              {productSearchField}
-            </s-grid>
+          <s-section padding="none" accessibilityLabel="Products table">
+            <s-table>
+              <s-grid
+                slot="filters"
+                gap="small-200"
+                gridTemplateColumns="1fr"
+              >
+                {productSearchField}
+              </s-grid>
               <s-table-header-row>
                 <s-table-header listSlot="primary">
                   Shopify product
@@ -315,7 +291,8 @@ export function ProductCatalogTable({
                   )
                 })}
               </s-table-body>
-          </s-table>
+            </s-table>
+          </s-section>
         )}
       </s-stack>
     </s-section>
