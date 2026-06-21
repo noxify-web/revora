@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Script from "next/script"
 
 import { ExtensionBridge } from "@/components/extension-bridge"
-import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Revora",

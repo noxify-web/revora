@@ -2,17 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { encodePairingCode } from "@/lib/extension/pairing-code"
 
 type ExtensionToken = {
@@ -81,6 +70,7 @@ export function ExtensionPairing() {
   const [pairingCode, setPairingCode] = useState<string | null>(null)
   const [tokenOnlyCode, setTokenOnlyCode] = useState<string | null>(null)
   const [serverUrl, setServerUrl] = useState<string | null>(null)
+  const [originUrl, setOriginUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -118,6 +108,7 @@ export function ExtensionPairing() {
   }, [])
 
   useEffect(() => {
+    setOriginUrl(window.location.origin)
     void loadData()
   }, [loadData])
 
@@ -207,8 +198,7 @@ export function ExtensionPairing() {
   }
 
   async function copyServerUrl() {
-    const url =
-      typeof window !== "undefined" ? window.location.origin : serverUrl
+    const url = originUrl ?? serverUrl
     if (!url) return
     await navigator.clipboard.writeText(url)
     setCopied(true)
@@ -216,180 +206,176 @@ export function ExtensionPairing() {
   }
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
+    <s-stack gap="large">
+      <s-paragraph color="subdued">
         Generate a pairing code and paste it into the Revora Chrome extension.
         During local dev the Cloudflare tunnel URL changes when you restart{" "}
-        <code>shopify app dev</code> — keep Revora admin open and click{" "}
-        <strong>Sync URL</strong> in the extension popup instead of generating a
-        new code.
-      </p>
+        <s-text type="strong">shopify app dev</s-text> — keep Revora admin open
+        and click <s-text type="strong">Sync URL</s-text> in the extension popup
+        instead of generating a new code.
+      </s-paragraph>
 
-      {typeof window !== "undefined" ? (
-        <Alert>
-          <AlertTitle>Current server URL</AlertTitle>
-          <AlertDescription className="space-y-3">
-            <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs text-foreground">
-              {window.location.origin}
-            </code>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void copyServerUrl()}
-            >
+      {originUrl ? (
+        <s-banner heading="Current server URL" tone="info">
+          <s-stack gap="small">
+            <s-box padding="base" background="subdued" borderRadius="base">
+              <s-text>{originUrl}</s-text>
+            </s-box>
+            <s-button variant="secondary" onClick={() => void copyServerUrl()}>
               Copy server URL
-            </Button>
-          </AlertDescription>
-        </Alert>
+            </s-button>
+          </s-stack>
+        </s-banner>
       ) : null}
 
-      <Button onClick={() => void createToken()} disabled={creating}>
-        {creating ? "Generating..." : "Generate pairing code"}
-      </Button>
+      <s-button
+        variant="primary"
+        onClick={() => void createToken()}
+        loading={creating}
+      >
+        Generate pairing code
+      </s-button>
 
       {pairingCode ? (
-        <Alert>
-          <AlertTitle>New pairing code</AlertTitle>
-          <AlertDescription className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm">
-                Recommended for dev: copy the token-only code once. When the
-                tunnel URL changes, open this page and click{" "}
-                <strong>Sync URL</strong> in the extension popup.
-              </p>
-              {tokenOnlyCode ? (
-                <>
-                  <p className="text-xs font-medium text-foreground">
-                    Token-only code
-                  </p>
-                  <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs text-foreground">
-                    {tokenOnlyCode}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void copyTokenOnlyCode()}
-                  >
-                    {copiedToken ? "Copied" : "Copy token-only code"}
-                  </Button>
-                </>
-              ) : null}
-            </div>
+        <s-banner heading="New pairing code" tone="success">
+          <s-stack gap="base">
+            <s-paragraph>
+              Recommended for dev: copy the token-only code once. When the tunnel
+              URL changes, open this page and click{" "}
+              <s-text type="strong">Sync URL</s-text> in the extension popup.
+            </s-paragraph>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-foreground">
-                Full code (token + current URL)
-              </p>
-              <code className="block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs text-foreground">
-                {pairingCode}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void copyPairingCode()}
-              >
+            {tokenOnlyCode ? (
+              <s-stack gap="small">
+                <s-text type="strong">Token-only code</s-text>
+                <s-box padding="base" background="subdued" borderRadius="base">
+                  <s-text>{tokenOnlyCode}</s-text>
+                </s-box>
+                <s-button
+                  variant="secondary"
+                  onClick={() => void copyTokenOnlyCode()}
+                >
+                  {copiedToken ? "Copied" : "Copy token-only code"}
+                </s-button>
+              </s-stack>
+            ) : null}
+
+            <s-stack gap="small">
+              <s-text type="strong">Full code (token + current URL)</s-text>
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-text>{pairingCode}</s-text>
+              </s-box>
+              <s-button variant="secondary" onClick={() => void copyPairingCode()}>
                 {copied ? "Copied" : "Copy full pairing code"}
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-banner>
       ) : null}
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Something went wrong</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <s-banner heading="Something went wrong" tone="critical">
+          {error}
+        </s-banner>
       ) : null}
 
-      <Separator />
+      <s-divider />
 
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium">Active tokens</h3>
-          <p className="text-sm text-muted-foreground">
+      <s-section heading="Active tokens">
+        <s-stack gap="base">
+          <s-paragraph color="subdued">
             Tokens currently linked to your Chrome extension.
-          </p>
-        </div>
+          </s-paragraph>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        ) : tokens.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active tokens yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {tokens.map((token) => (
-              <Card key={token.id} size="sm">
-                <CardHeader>
-                  <CardTitle>{token.label}</CardTitle>
-                  <CardDescription>
-                    Created {new Date(token.createdAt).toLocaleString()}
-                    {token.lastUsedAt
-                      ? ` · Last used ${new Date(token.lastUsedAt).toLocaleString()}`
-                      : " · Never used"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => void revokeToken(token.id)}
-                  >
-                    Revoke
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+          {loading ? (
+            <s-paragraph color="subdued">Loading...</s-paragraph>
+          ) : tokens.length === 0 ? (
+            <s-paragraph color="subdued">No active tokens yet.</s-paragraph>
+          ) : (
+            <s-stack gap="small">
+              {tokens.map((token) => (
+                <s-box
+                  key={token.id}
+                  padding="base"
+                  border="base"
+                  borderRadius="base"
+                >
+                  <s-stack gap="small">
+                    <s-text type="strong">{token.label}</s-text>
+                    <s-paragraph color="subdued">
+                      Created {new Date(token.createdAt).toLocaleString()}
+                      {token.lastUsedAt
+                        ? ` · Last used ${new Date(token.lastUsedAt).toLocaleString()}`
+                        : " · Never used"}
+                    </s-paragraph>
+                    <s-button
+                      variant="secondary"
+                      tone="critical"
+                      onClick={() => void revokeToken(token.id)}
+                    >
+                      Revoke
+                    </s-button>
+                  </s-stack>
+                </s-box>
+              ))}
+            </s-stack>
+          )}
+        </s-stack>
+      </s-section>
 
-      <Separator />
+      <s-divider />
 
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium">Recent imports</h3>
-          <p className="text-sm text-muted-foreground">
+      <s-section heading="Recent imports">
+        <s-stack gap="base">
+          <s-paragraph color="subdued">
             Imports started from Temu product pages.
-          </p>
-        </div>
+          </s-paragraph>
 
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        ) : imports.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No imports yet. Use the Chrome extension on a Temu product page.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {imports.map((item) => (
-              <Card key={item.id} size="sm">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <CardTitle>
+          {loading ? (
+            <s-paragraph color="subdued">Loading...</s-paragraph>
+          ) : imports.length === 0 ? (
+            <s-paragraph color="subdued">
+              No imports yet. Use the Chrome extension on a Temu product page.
+            </s-paragraph>
+          ) : (
+            <s-stack gap="small">
+              {imports.map((item) => (
+                <s-box
+                  key={item.id}
+                  padding="base"
+                  border="base"
+                  borderRadius="base"
+                  background="subdued"
+                >
+                  <s-grid
+                    gridTemplateColumns="1fr auto"
+                    gap="small"
+                    alignItems="start"
+                  >
+                    <s-stack gap="small-200">
+                      <s-text type="strong">
                         {item.temuProductTitle ||
                           `Temu product ${item.temuGoodsId}`}
-                      </CardTitle>
-                      <CardDescription>
+                      </s-text>
+                      <s-paragraph color="subdued">
                         {item.shopifyProductTitle
                           ? `Mapped to ${item.shopifyProductTitle}`
                           : "No Shopify product mapped"}
-                      </CardDescription>
-                    </div>
-                    <Badge variant="outline">{formatStatus(item.status)}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {item.totalImported}
-                  {item.totalExpected ? ` / ${item.totalExpected}` : ""} reviews ·{" "}
-                  {new Date(item.createdAt).toLocaleString()}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+                      </s-paragraph>
+                    </s-stack>
+                    <s-badge tone="info">{formatStatus(item.status)}</s-badge>
+                  </s-grid>
+                  <s-paragraph color="subdued">
+                    {item.totalImported}
+                    {item.totalExpected ? ` / ${item.totalExpected}` : ""}{" "}
+                    reviews · {new Date(item.createdAt).toLocaleString()}
+                  </s-paragraph>
+                </s-box>
+              ))}
+            </s-stack>
+          )}
+        </s-stack>
+      </s-section>
+    </s-stack>
   )
 }

@@ -2,16 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { adminFetch } from "@/lib/admin-fetch"
 
 type ImportRecord = {
@@ -111,83 +101,86 @@ export function ImportsManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <s-stack gap="base">
       {message ? (
-        <Alert className="border-[#FFD8B8] bg-[#FFF4EB]">
-          <AlertTitle className="text-[#E56B00]">
-            Published to Shopify admin
-          </AlertTitle>
-          <AlertDescription className="space-y-2 text-sm">
-            <p>{message}</p>
-            <p className="text-muted-foreground">
+        <s-banner heading="Published to Shopify admin" tone="success">
+          <s-stack gap="small">
+            <s-paragraph>{message}</s-paragraph>
+            <s-paragraph color="subdued">
               Revora does not use Shopify&apos;s built-in product reviews. Add
-              the <strong>Revora Reviews</strong> app block on your product
-              template to display them on the live store.
-            </p>
-            <p className="text-muted-foreground">
-              If you see <strong>Revora Reviews</strong> under Variants on the
-              product, delete that option — it is metafield data, not a real
-              variant. Reviews stay saved on the product.
-            </p>
-          </AlertDescription>
-        </Alert>
+              the <s-text type="strong">Revora Reviews</s-text> app block on
+              your product template to display them on the live store.
+            </s-paragraph>
+            <s-paragraph color="subdued">
+              If you see <s-text type="strong">Revora Reviews</s-text> under
+              Variants on the product, delete that option — it is metafield data,
+              not a real variant. Reviews stay saved on the product.
+            </s-paragraph>
+          </s-stack>
+        </s-banner>
       ) : null}
 
       {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Publish error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <s-banner heading="Publish error" tone="critical">
+          {error}
+        </s-banner>
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading imports...</p>
+        <s-paragraph color="subdued">Loading imports...</s-paragraph>
       ) : imports.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <s-paragraph color="subdued">
           No imports yet. Use the Chrome extension on a Temu product page.
-        </p>
+        </s-paragraph>
       ) : (
-        <div className="space-y-3">
+        <s-stack gap="small">
           {imports.map((item) => (
-            <Card key={item.id} size="sm">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle>
+            <s-box
+              key={item.id}
+              padding="base"
+              border="base"
+              borderRadius="base"
+            >
+              <s-stack gap="base">
+                <s-grid
+                  gridTemplateColumns="1fr auto"
+                  gap="small"
+                  alignItems="start"
+                >
+                  <s-stack gap="small-200">
+                    <s-text type="strong">
                       {item.temuProductTitle ||
                         `Temu product ${item.temuGoodsId}`}
-                    </CardTitle>
-                    <CardDescription>
+                    </s-text>
+                    <s-paragraph color="subdued">
                       {item.shopifyProductTitle
                         ? `Mapped to ${item.shopifyProductTitle}`
                         : "No Shopify product mapped"}
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge variant="outline">{formatStatus(item.status)}</Badge>
-                    <Badge
-                      variant={
-                        item.publishStatus === "published"
-                          ? "default"
-                          : "secondary"
+                    </s-paragraph>
+                  </s-stack>
+                  <s-stack direction="inline" gap="small">
+                    <s-badge tone="info">{formatStatus(item.status)}</s-badge>
+                    <s-badge
+                      tone={
+                        item.publishStatus === "published" ? "success" : "neutral"
                       }
                     >
                       {formatStatus(item.publishStatus)}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
+                    </s-badge>
+                  </s-stack>
+                </s-grid>
+
+                <s-paragraph color="subdued">
                   Imported {item.totalImported}
                   {item.totalExpected ? ` / ${item.totalExpected}` : ""} ·
                   Published {item.totalPublished} ·{" "}
                   {new Date(item.createdAt).toLocaleString()}
-                </p>
-                <Button
-                  size="sm"
+                </s-paragraph>
+
+                <s-button
+                  variant="primary"
+                  loading={publishingId === item.id}
                   disabled={
-                    publishingId === item.id ||
                     item.totalImported === 0 ||
                     item.publishStatus === "published"
                   }
@@ -200,12 +193,12 @@ export function ImportsManager() {
                       : item.publishStatus === "partial"
                         ? "Retry publish"
                         : "Publish to storefront"}
-                </Button>
-              </CardContent>
-            </Card>
+                </s-button>
+              </s-stack>
+            </s-box>
           ))}
-        </div>
+        </s-stack>
       )}
-    </div>
+    </s-stack>
   )
 }
