@@ -10,7 +10,7 @@ import { OnboardingGuide } from "@/components/onboarding-guide"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
 import {
   clearRevoraClientStorage,
-  isOnboardingFlowComplete,
+  hydrateOnboardingFlowComplete,
   ONBOARDING_STORAGE_KEYS,
 } from "@/lib/onboarding"
 import { adminFetch } from "@/lib/admin-fetch"
@@ -68,7 +68,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
     let nextOnboardingDismissed =
       window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true"
-    let nextFlowComplete = isOnboardingFlowComplete()
+    let nextFlowComplete = hydrateOnboardingFlowComplete()
 
     if (process.env.NODE_ENV === "development") {
       const params = new URLSearchParams(window.location.search)

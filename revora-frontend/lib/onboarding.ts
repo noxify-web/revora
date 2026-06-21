@@ -3,7 +3,10 @@ export const ONBOARDING_STORAGE_KEYS = {
   extensionInstallAck: "revora-onboarding-extension-install-ack",
   flowComplete: "revora-onboarding-flow-complete",
   flowStep: "revora-onboarding-flow-step",
+  flowRestarted: "revora-onboarding-flow-restarted",
 } as const
+
+const LEGACY_SETUP_GUIDE_DISMISSED = "revora-setup-guide-dismissed"
 
 export const ONBOARDING_FLOW_STEPS = [
   {
@@ -32,6 +35,7 @@ export const REVORA_CLIENT_STORAGE_KEYS = [
   ONBOARDING_STORAGE_KEYS.extensionInstallAck,
   ONBOARDING_STORAGE_KEYS.flowComplete,
   ONBOARDING_STORAGE_KEYS.flowStep,
+  ONBOARDING_STORAGE_KEYS.flowRestarted,
   "revora-setup-guide-dismissed",
   "revora-auto-import",
 ] as const
@@ -85,6 +89,42 @@ export function isOnboardingFlowComplete() {
   )
 }
 
+/** Hydrate flow-complete state and migrate legacy localStorage keys once. */
+export function hydrateOnboardingFlowComplete() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  if (isOnboardingFlowComplete()) {
+    return true
+  }
+
+  if (
+    window.localStorage.getItem(LEGACY_SETUP_GUIDE_DISMISSED) === "true"
+  ) {
+    completeOnboardingFlow()
+    return true
+  }
+
+  return false
+}
+
+export function consumeFlowRestarted() {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  const restarted =
+    window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.flowRestarted) ===
+    "true"
+
+  if (restarted) {
+    window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowRestarted)
+  }
+
+  return restarted
+}
+
 export function completeOnboardingFlow() {
   if (typeof window === "undefined") {
     return
@@ -116,6 +156,7 @@ export function restartOnboardingFlow() {
   window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
   window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.dismissed)
   window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.extensionInstallAck)
+  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowRestarted, "true")
   window.dispatchEvent(new CustomEvent("revora:onboarding-flow-reset"))
   window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
 }

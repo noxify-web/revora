@@ -6,6 +6,7 @@ import { ConnectExtension } from "@/components/connect-extension"
 import {
   CHROME_WEB_STORE_URL,
   completeOnboardingFlow,
+  consumeFlowRestarted,
   ONBOARDING_FLOW_STEPS,
   ONBOARDING_STORAGE_KEYS,
   readOnboardingFlowStep,
@@ -94,6 +95,7 @@ export function OnboardingFlow({
 }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingFlowStepId>("welcome")
   const [hydrated, setHydrated] = useState(false)
+  const [suppressAutoComplete, setSuppressAutoComplete] = useState(false)
 
   const goToStep = useCallback((nextStep: OnboardingFlowStepId) => {
     setStep(nextStep)
@@ -101,30 +103,23 @@ export function OnboardingFlow({
   }, [])
 
   useEffect(() => {
-    let nextStep = readOnboardingFlowStep()
-
-    const installAcked =
-      window.localStorage.getItem(
-        ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-      ) === "true"
-
-    if (installAcked && nextStep === "welcome") {
-      nextStep = "connect"
-    }
+    const nextStep = readOnboardingFlowStep()
+    const restarted = consumeFlowRestarted()
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate flow step from storage on mount
     setStep(nextStep)
+    setSuppressAutoComplete(restarted)
     setHydrated(true)
   }, [])
 
   useEffect(() => {
-    if (!hydrated || !hasConnectedExtension) {
+    if (!hydrated || !hasConnectedExtension || suppressAutoComplete) {
       return
     }
 
     completeOnboardingFlow()
     onComplete()
-  }, [hydrated, hasConnectedExtension, onComplete])
+  }, [hydrated, hasConnectedExtension, suppressAutoComplete, onComplete])
 
   function handleSkip() {
     skipOnboardingFlow()
