@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { DisplayWidgetCard } from "@/components/display-widget-card"
 import { ImportActivityLog } from "@/components/import-activity-log"
@@ -27,8 +27,6 @@ type RevoraDashboardProps = {
 }
 
 export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
-  const productTableRef = useRef<HTMLDivElement>(null)
-  const displayWidgetRef = useRef<HTMLDivElement>(null)
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [hasConnectedExtension, setHasConnectedExtension] = useState(false)
   const [autoImportEnabled, setAutoImportEnabled] = useState(false)
@@ -116,12 +114,18 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     window.localStorage.setItem(AUTO_IMPORT_STORAGE_KEY, String(nextValue))
   }
 
+  function scrollToSection(sectionId: string) {
+    document
+      .getElementById(sectionId)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   function scrollToProducts() {
-    productTableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    scrollToSection("revora-products")
   }
 
   function scrollToDisplay() {
-    displayWidgetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    scrollToSection("revora-display")
   }
 
   const hasImportedReviews = imports.some((item) => item.totalImported > 0)
@@ -155,26 +159,23 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         </s-banner>
       ) : null}
 
-      <div ref={productTableRef}>
-        <ProductCatalogTable
-          shop={shop}
-          onPublished={() => {
-            void loadImports()
-            void loadExtensionStatus()
-            setRefreshToken((value) => value + 1)
-          }}
-        />
-      </div>
+      <ProductCatalogTable
+        id="revora-products"
+        shop={shop}
+        onPublished={() => {
+          void loadImports()
+          void loadExtensionStatus()
+          setRefreshToken((value) => value + 1)
+        }}
+      />
 
-      <s-grid
-        gridTemplateColumns="repeat(auto-fit, minmax(320px, 1fr))"
-        gap="base"
-      >
-        <div ref={displayWidgetRef}>
-          <DisplayWidgetCard shop={shop} shopifyApiKey={shopifyApiKey} />
-        </div>
-        <ImportActivityLog refreshToken={refreshToken} />
-      </s-grid>
+      <DisplayWidgetCard
+        id="revora-display"
+        shop={shop}
+        shopifyApiKey={shopifyApiKey}
+      />
+
+      <ImportActivityLog refreshToken={refreshToken} />
 
       {onboardingDismissed ? (
         <s-section heading="Auto-import">

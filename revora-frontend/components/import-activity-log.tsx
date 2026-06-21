@@ -77,23 +77,21 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
           <s-text color="subdued">Loading import log...</s-text>
         </s-stack>
       ) : imports.length === 0 ? (
-        <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
-          <s-box maxInlineSize="200px" maxBlockSize="200px">
+        <s-grid gap="base" justifyItems="center" paddingBlock="large">
+          <s-box maxInlineSize="200px">
             <s-image
               aspectRatio="1/0.5"
               src={EMPTY_STATE_IMAGE}
               alt="No import logs illustration"
             />
           </s-box>
-          <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
-            <s-stack alignItems="center">
-              <s-heading>No import logs yet</s-heading>
-              <s-paragraph>
-                Use the Revora Chrome extension on a Temu product page to import
-                reviews into your store.
-              </s-paragraph>
-            </s-stack>
-          </s-grid>
+          <s-stack alignItems="center" maxInlineSize="450px" gap="small-200">
+            <s-heading>No import logs yet</s-heading>
+            <s-paragraph color="subdued">
+              Use the Revora Chrome extension on a Temu product page to import
+              reviews into your store.
+            </s-paragraph>
+          </s-stack>
         </s-grid>
       ) : (
         <s-stack gap="small">
