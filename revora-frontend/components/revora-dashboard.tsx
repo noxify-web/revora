@@ -32,10 +32,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   const productTableRef = useRef<HTMLDivElement>(null)
   const displayWidgetRef = useRef<HTMLDivElement>(null)
   const [imports, setImports] = useState<ImportRecord[]>([])
-  const [autoImportEnabled, setAutoImportEnabled] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
-  })
+  const [autoImportEnabled, setAutoImportEnabled] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
 
   const loadImports = useCallback(async () => {
@@ -50,6 +47,9 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }, [])
 
   useEffect(() => {
+    setAutoImportEnabled(
+      window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true",
+    )
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount for setup progress
     void loadImports()
   }, [loadImports])
