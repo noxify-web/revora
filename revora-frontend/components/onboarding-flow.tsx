@@ -188,23 +188,18 @@ function WelcomeStep({ onContinue, onSkip }: WelcomeStepProps) {
         <s-list-item>Import reviews from any Temu product page</s-list-item>
       </s-ordered-list>
 
-      <s-button-group>
-        <s-button
-          slot="secondary-actions"
-          variant="tertiary"
-          onClick={onSkip}
-        >
+      <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+        <s-button variant="tertiary" onClick={onSkip}>
           Skip onboarding
         </s-button>
         <s-button
-          slot="primary-action"
           variant="primary"
           icon="arrow-right"
           onClick={onContinue}
         >
           Continue
         </s-button>
-      </s-button-group>
+      </s-grid>
     </s-stack>
   )
 }
