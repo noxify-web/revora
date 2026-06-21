@@ -257,13 +257,13 @@ export function OnboardingFlow({
             Continue
           </s-button>
         </s-grid>
-      ) : (
+      ) : step === "connect" ? (
         <s-box paddingBlockStart="base">
           <s-button variant="tertiary" onClick={handleSkip}>
             Skip onboarding
           </s-button>
         </s-box>
-      )}
+      ) : null}
 
       <OnboardingStepDots
         currentIndex={stepIndex}
