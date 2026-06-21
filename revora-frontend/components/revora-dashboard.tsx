@@ -13,6 +13,7 @@ const AUTO_IMPORT_STORAGE_KEY = "revora-auto-import"
 
 type ImportRecord = {
   totalImported: number
+  totalPublished: number
   publishStatus: string
 }
 
@@ -77,7 +78,10 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
 
   const hasImportedReviews = imports.some((item) => item.totalImported > 0)
   const hasPublishedReviews = imports.some(
-    (item) => item.publishStatus === "published",
+    (item) =>
+      item.publishStatus === "published" ||
+      item.publishStatus === "partial" ||
+      item.totalPublished > 0,
   )
 
   return (

@@ -25,7 +25,7 @@ export function SetupGuide({
   onScrollToDisplay,
   onExtensionStatusChange,
 }: SetupGuideProps) {
-  const [visible, setVisible] = useState(true)
+  const [visible, setVisible] = useState(false)
   const [expanded, setExpanded] = useState({
     guide: true,
     step1: true,
@@ -140,7 +140,7 @@ export function SetupGuide({
           <s-box>
             <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
               <s-checkbox
-                label="Import and publish reviews"
+                label="Import reviews to products"
                 checked={hasImportedReviews}
                 disabled
               />
@@ -159,8 +159,8 @@ export function SetupGuide({
               <s-box padding="base" background="subdued" borderRadius="base">
                 <s-stack gap="base">
                   <s-paragraph>
-                    Review imported content in the product table below and publish
-                    reviews to mapped products.
+                    Use the Revora Chrome extension on Temu product pages and map
+                    imported reviews to products in the table below.
                   </s-paragraph>
                   <s-button variant="primary" onClick={onScrollToProducts}>
                     Manage products
@@ -175,7 +175,7 @@ export function SetupGuide({
           <s-box>
             <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
               <s-checkbox
-                label="Display reviews on your storefront"
+                label="Publish reviews to storefront"
                 checked={hasPublishedReviews}
                 disabled
               />
@@ -194,12 +194,18 @@ export function SetupGuide({
               <s-box padding="base" background="subdued" borderRadius="base">
                 <s-stack gap="base">
                   <s-paragraph>
-                    Enable the Revora Reviews widget in your theme editor so
-                    shoppers can see imported reviews on product pages.
+                    Publish imported reviews from the product table so they are
+                    available on your storefront. Enable the Revora Reviews
+                    widget separately to display them on product pages.
                   </s-paragraph>
-                  <s-button variant="primary" onClick={onScrollToDisplay}>
-                    Set up widget
-                  </s-button>
+                  <s-stack direction="inline" gap="small">
+                    <s-button variant="primary" onClick={onScrollToProducts}>
+                      Publish reviews
+                    </s-button>
+                    <s-button variant="secondary" onClick={onScrollToDisplay}>
+                      Set up widget
+                    </s-button>
+                  </s-stack>
                 </s-stack>
               </s-box>
             </s-box>

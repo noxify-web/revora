@@ -26,6 +26,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   const [connectPayload, setConnectPayload] =
     useState<ConnectTokenResponse | null>(null)
   const [connecting, setConnecting] = useState(false)
+  const [confirmRotate, setConfirmRotate] = useState(false)
   const [loadingTokens, setLoadingTokens] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -113,14 +114,53 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
                 : "No account connected"}
           </s-text>
         </s-stack>
-        <s-button
-          variant="primary"
-          onClick={() => void connectExtension()}
-          loading={connecting}
-        >
-          {isConnected ? "Reconnect" : "Connect"}
-        </s-button>
+        {!isConnected ? (
+          <s-button
+            variant="primary"
+            onClick={() => void connectExtension()}
+            loading={connecting}
+          >
+            Connect
+          </s-button>
+        ) : (
+          <s-button
+            variant="secondary"
+            onClick={() => setConfirmRotate(true)}
+            disabled={connecting}
+          >
+            Rotate token
+          </s-button>
+        )}
       </s-grid>
+
+      {confirmRotate ? (
+        <s-banner heading="Rotate extension token?" tone="warning">
+          <s-stack gap="base">
+            <s-paragraph>
+              This creates a new token and may disconnect the extension on other
+              devices or browsers.
+            </s-paragraph>
+            <s-stack direction="inline" gap="small">
+              <s-button
+                variant="primary"
+                loading={connecting}
+                onClick={() => {
+                  setConfirmRotate(false)
+                  void connectExtension()
+                }}
+              >
+                Rotate token
+              </s-button>
+              <s-button
+                variant="secondary"
+                onClick={() => setConfirmRotate(false)}
+              >
+                Cancel
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-banner>
+      ) : null}
 
       <s-text color="subdued">
         Keep this Revora admin tab open while importing from Temu. If automatic

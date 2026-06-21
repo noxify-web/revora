@@ -21,7 +21,6 @@
   "dependencies": {
     "@revora/shared": "workspace:*",
     "@libsql/client": "^0.17.4",
-    "@shopify/app-bridge-react": "^4.2.11",
     "@shopify/app-bridge-types": "^0.7.1",
     "@shopify/shopify-api": "^13.0.0",
     "@shopify/shopify-app-session-storage": "^5.0.0",
