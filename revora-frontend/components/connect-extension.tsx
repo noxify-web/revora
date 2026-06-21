@@ -54,6 +54,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch token status on mount
     void loadTokens()
   }, [loadTokens])
 
@@ -79,9 +80,6 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
         token: data.token,
         apiUrl: data.apiUrl,
         shop: data.shop,
-        plan: data.plan,
-        planName: data.planName,
-        reviewLimit: data.reviewLimit,
       })
 
       showToast("Extension connected")
@@ -171,8 +169,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
       {connectPayload ? (
         <s-banner heading="Extension connected" tone="success">
           <s-paragraph>
-            Linked to <s-text type="strong">{connectPayload.shop}</s-text> on
-            the {connectPayload.planName} plan.
+            Linked to <s-text type="strong">{connectPayload.shop}</s-text>.
           </s-paragraph>
         </s-banner>
       ) : null}

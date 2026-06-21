@@ -13,7 +13,6 @@ const reviewsSelectorInput = document.getElementById(
 const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement
 const signInBtn = document.getElementById("sign-in-btn") as HTMLButtonElement
 const saveBtn = document.getElementById("save-btn") as HTMLButtonElement
-const planBadge = document.getElementById("plan-badge") as HTMLSpanElement
 const statusNode = document.getElementById("status") as HTMLParagraphElement
 const statusDot = document.getElementById("status-dot") as HTMLSpanElement
 
@@ -22,24 +21,19 @@ function setStatus(text: string, tone = "") {
   statusDot.className = `status-dot ${tone}`.trim()
 }
 
-function setPlanBadge(planName = "Free") {
-  planBadge.textContent = planName
-}
-
 function setConnecting(connecting: boolean) {
   connectBtn.disabled = connecting
   connectBtn.textContent = connecting ? "Connecting..." : "Connect store"
 }
 
-function setConnected(shop: string, planName = "Free") {
-  setPlanBadge(planName)
+function setConnected(shop: string) {
   setStatus(shop, "ok")
   connectBtn.hidden = true
   signInBtn.hidden = true
 }
 
 function applyConnection(data: ConnectTokenResponse) {
-  setConnected(data.shop, data.planName || "Free")
+  setConnected(data.shop)
 }
 
 async function connectFromAdminToken() {
@@ -54,9 +48,6 @@ async function connectFromAdminToken() {
     token: payload.token,
     apiUrl: payload.apiUrl,
     shop: payload.shop,
-    plan: payload.plan || undefined,
-    planName: payload.planName || undefined,
-    reviewLimit: payload.reviewLimit,
   })) as BackgroundDirectConnectResponse
 
   if (!response?.ok || !response.data) {
@@ -144,17 +135,15 @@ saveBtn.addEventListener("click", async () => {
 
 async function loadSettings() {
   const stored = await chrome.storage.sync.get([
-    "planName",
     "temuAllReviewsSelector",
     "shop",
     "pairingToken",
   ])
 
   reviewsSelectorInput.value = (stored.temuAllReviewsSelector as string) || ""
-  setPlanBadge((stored.planName as string) || "Free")
 
   if (stored.shop) {
-    setConnected(stored.shop as string, (stored.planName as string) || "Free")
+    setConnected(stored.shop as string)
     return
   }
 
@@ -175,15 +164,8 @@ async function loadSettings() {
     })) as BackgroundPlanResponse
 
     if (planResponse?.ok && planResponse.data?.shop) {
-      setConnected(
-        planResponse.data.shop,
-        planResponse.data.planName || "Free",
-      )
+      setConnected(planResponse.data.shop)
       return
-    }
-
-    if (planResponse?.ok && planResponse.data) {
-      setPlanBadge(planResponse.data.planName || "Free")
     }
   } catch {
     // Background may not be ready yet.

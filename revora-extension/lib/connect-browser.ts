@@ -16,18 +16,13 @@ function parseConnectCallback(responseUrl: string): ConnectTokenResponse {
     throw new Error("Revora sign-in did not return a complete connection payload.")
   }
 
-  const reviewLimitParam = url.searchParams.get("review_limit")
-
   return {
     token,
     apiUrl: apiUrl.replace(/\/$/, ""),
     shop,
-    plan: url.searchParams.get("plan")?.trim() || "free",
-    planName: url.searchParams.get("plan_name")?.trim() || "Free",
-    reviewLimit:
-      reviewLimitParam == null || reviewLimitParam === ""
-        ? null
-        : Number(reviewLimitParam),
+    plan: "free",
+    planName: "Free",
+    reviewLimit: null,
   }
 }
 

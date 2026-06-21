@@ -5,8 +5,7 @@ import {
   normalizePictureUrls,
   serializePictures,
 } from "@/lib/extension/pictures"
-import { getReviewLimitForPlan, PLANS } from "@/lib/plans"
-import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
+import { REVORA_PLAN } from "@/lib/plans"
 import { db } from "@/src/db"
 import { importedReviews, reviewImports } from "@/src/db/schema"
 
@@ -16,10 +15,6 @@ export async function processImportBatch(
   shop: string,
   body: ImportBatchRequest
 ) {
-  const resolved = await resolveShopPlan(shop)
-  const plan = resolved.plan
-  const reviewLimit = resolved.reviewLimit
-
   const now = new Date().toISOString()
   let importRecord = body.importId
     ? await db.query.reviewImports.findFirst({
@@ -84,19 +79,7 @@ export async function processImportBatch(
   }
 
   const currentTotal = importRecord.totalImported ?? 0
-  let reviewsToInsert = body.reviews
-  let truncated = 0
-
-  if (reviewLimit != null) {
-    const remaining = Math.max(0, reviewLimit - currentTotal)
-    if (remaining <= 0) {
-      reviewsToInsert = []
-      truncated = body.reviews.length
-    } else if (body.reviews.length > remaining) {
-      reviewsToInsert = body.reviews.slice(0, remaining)
-      truncated = body.reviews.length - remaining
-    }
-  }
+  const reviewsToInsert = body.reviews
 
   let inserted = 0
   let skipped = 0
@@ -128,7 +111,6 @@ export async function processImportBatch(
 
   const totalImported = currentTotal + inserted
   const status = body.isFinal ? "completed" : "uploading"
-  const limitReached = reviewLimit != null && totalImported >= reviewLimit
 
   await db
     .update(reviewImports)
@@ -148,13 +130,13 @@ export async function processImportBatch(
     importId: importRecord.id,
     inserted,
     skipped,
-    truncated,
+    truncated: 0,
     totalImported,
     status,
-    plan,
-    reviewLimit,
-    limitReached,
-    planName: PLANS[plan].name,
+    plan: REVORA_PLAN.id,
+    reviewLimit: null,
+    limitReached: false,
+    planName: REVORA_PLAN.name,
   }
 }
 

@@ -43,9 +43,9 @@ async function handleMessage(
       token: message.token,
       apiUrl: message.apiUrl,
       shop: message.shop,
-      plan: message.plan || "free",
-      planName: message.planName || "Free",
-      reviewLimit: message.reviewLimit ?? null,
+      plan: "free",
+      planName: "Free",
+      reviewLimit: null,
     }
 
     await persistApiBaseUrl(data.apiUrl, { requestPermission: false })

@@ -49,7 +49,6 @@ export function resetCollection() {
   state.uploadedIds.clear()
   state.pendingUpload = []
   state.scrollContainer = null
-  state.limitReached = false
 }
 
 export function ingestPayload(
@@ -85,7 +84,7 @@ export function reportCollectionProgress(
   onProgress?: (current: number, total: number, status: string) => void,
 ) {
   const label = getFilterLabel(filter)
-  const total = state.reviewLimit || state.maxListSize || state.reviews.size
+  const total = state.maxListSize || state.reviews.size
   const status = `Collected ${state.reviews.size} ${label}`
 
   if (onProgress) {
@@ -333,12 +332,8 @@ export function scrollReviewsPanel() {
   }
 }
 
-export function shouldStopCollecting(limit: number | null, filter: ImportFilter) {
+export function shouldStopCollecting(filter: ImportFilter) {
   const collected = state.reviews.size
-
-  if (limit && collected >= limit) {
-    return true
-  }
 
   if (filter === "withText") {
     return false

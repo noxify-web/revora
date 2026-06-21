@@ -5,7 +5,7 @@ import {
   revokeShopExtensionTokens,
 } from "@/lib/extension/auth"
 import { getAppBaseUrl } from "@/lib/extension/app-url"
-import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
+import { REVORA_PLAN } from "@/lib/plans"
 import { db } from "@/src/db"
 import { extensionTokens } from "@/src/db/schema"
 
@@ -54,7 +54,6 @@ export async function mintExtensionTokenForShop(
 
   const { token, tokenHash } = generateExtensionToken()
   const now = new Date().toISOString()
-  const resolved = await resolveShopPlan(shop)
   const apiUrl = await getAppBaseUrl(request)
 
   await db.insert(extensionTokens).values({
@@ -69,9 +68,9 @@ export async function mintExtensionTokenForShop(
     token,
     apiUrl,
     shop,
-    plan: resolved.plan,
-    planName: resolved.planName,
-    reviewLimit: resolved.reviewLimit,
+    plan: REVORA_PLAN.id,
+    planName: REVORA_PLAN.name,
+    reviewLimit: REVORA_PLAN.reviewLimitPerImport,
   }
 }
 
@@ -93,13 +92,6 @@ export function buildExtensionRedirectUrl(
   url.searchParams.set("token", payload.token)
   url.searchParams.set("api_url", payload.apiUrl)
   url.searchParams.set("shop", payload.shop)
-  url.searchParams.set("plan", payload.plan)
-  url.searchParams.set("plan_name", payload.planName)
-
-  if (payload.reviewLimit != null) {
-    url.searchParams.set("review_limit", String(payload.reviewLimit))
-  }
-
   return url.toString()
 }
 

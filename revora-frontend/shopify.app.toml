@@ -71,13 +71,6 @@ redirect_urls = [
   "https://reissue-irritable-slider.ngrok-free.dev/api/extension/connect/callback"
 ]
 
-[webhooks]
-api_version = "2025-01"
-
-[[webhooks.subscriptions]]
-topics = ["app_subscriptions/update"]
-uri = "/api/webhooks/app-subscriptions"
-
 [app_proxy]
 url = "/apps/revora"
 subpath = "revora"

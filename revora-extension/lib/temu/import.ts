@@ -18,9 +18,7 @@ import {
 import {
   clearImportResult,
   getImportFilter,
-  getImportLimit,
   getSelectedProduct,
-  refreshPlan,
   setImportComplete,
   setImportRunning,
   setProgress,
@@ -109,17 +107,7 @@ export async function flushUploads({
       state.uploadedIds.add(String(review.review_id))
     }
 
-    if (response.data?.limitReached) {
-      state.limitReached = true
-    }
-
-    const limitSuffix =
-      state.reviewLimit != null ? ` / ${state.reviewLimit}` : ""
-    setStatus(`Uploaded ${state.uploadedIds.size}${limitSuffix} reviews`)
-
-    if (state.limitReached) {
-      break
-    }
+    setStatus(`Uploaded ${state.uploadedIds.size} reviews`)
 
     batchIndex += 1
   }
@@ -155,7 +143,6 @@ export async function startImport() {
     return
   }
 
-  await refreshPlan()
   resetCollection()
   state.collecting = true
   clearImportResult()
@@ -185,7 +172,6 @@ export async function startImport() {
   await sleep(800)
 
   const filter = getImportFilter()
-  const limit = getImportLimit()
   const filterLabel = getFilterLabel(filter)
   const idleRoundsLimit = filter === "withText" ? 20 : MAX_IDLE_ROUNDS
 
@@ -205,12 +191,12 @@ export async function startImport() {
   while (state.collecting) {
     scrollReviewsPanel()
     const status = reportCollectionProgress(filter)
-    const total = state.reviewLimit || state.maxListSize || state.reviews.size
+    const total = state.maxListSize || state.reviews.size
     setProgress(state.reviews.size, total)
     setStatus(status)
     await sleep(SCROLL_INTERVAL_MS)
 
-    if (shouldStopCollecting(limit, filter)) {
+    if (shouldStopCollecting(filter)) {
       break
     }
 
@@ -232,20 +218,7 @@ export async function startImport() {
       return
     }
 
-    const reviewsToUpload = state.reviewLimit
-      ? Array.from(state.reviews.values()).slice(0, state.reviewLimit)
-      : Array.from(state.reviews.values())
-
-    if (state.reviewLimit && reviewsToUpload.length < state.reviews.size) {
-      state.reviews = new Map(
-        reviewsToUpload.map((review) => [String(review.review_id), review]),
-      )
-      setStatus(
-        `Free plan limit reached — uploading first ${state.reviewLimit} reviews...`,
-      )
-    } else {
-      setStatus(`Uploading ${state.reviews.size} reviews ${filterLabel}...`)
-    }
+    setStatus(`Uploading ${state.reviews.size} reviews ${filterLabel}...`)
 
     await flushUploads({ final: true, product, goodsId })
 
@@ -253,8 +226,6 @@ export async function startImport() {
       count: state.uploadedIds.size,
       filterLabel,
       productTitle: product.title,
-      limitReached: state.limitReached,
-      reviewLimit: state.reviewLimit,
     })
     completedSuccessfully = true
   } catch (error) {

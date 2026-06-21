@@ -10,7 +10,6 @@ import {
 } from "@/lib/extension/auth"
 import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
 import {
-  extensionCorsHeaders,
   extensionJsonResponse,
   extensionOptionsResponse,
 } from "@/lib/extension/cors"

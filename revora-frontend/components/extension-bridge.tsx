@@ -26,9 +26,6 @@ type ConnectTokenPayload = {
   token: string
   apiUrl: string
   shop: string
-  plan?: string | null
-  planName?: string | null
-  reviewLimit?: number | null
 }
 
 function isAllowedProxyPath(path: string) {
@@ -48,11 +45,6 @@ function readConnectTokenFromDom(): ConnectTokenPayload | null {
     token,
     apiUrl,
     shop,
-    plan: document.documentElement.dataset.revoraPlan?.trim() || null,
-    planName: document.documentElement.dataset.revoraPlanName?.trim() || null,
-    reviewLimit: document.documentElement.dataset.revoraReviewLimit
-      ? Number(document.documentElement.dataset.revoraReviewLimit)
-      : null,
   }
 }
 
@@ -60,20 +52,6 @@ function writeConnectTokenToDom(payload: ConnectTokenPayload) {
   document.documentElement.dataset.revoraConnectToken = payload.token
   document.documentElement.dataset.revoraApiUrl = payload.apiUrl
   document.documentElement.dataset.revoraShop = payload.shop
-
-  if (payload.plan) {
-    document.documentElement.dataset.revoraPlan = payload.plan
-  }
-
-  if (payload.planName) {
-    document.documentElement.dataset.revoraPlanName = payload.planName
-  }
-
-  if (payload.reviewLimit != null) {
-    document.documentElement.dataset.revoraReviewLimit = String(
-      payload.reviewLimit
-    )
-  }
 }
 
 function broadcastConnectToken(payload: ConnectTokenPayload) {
@@ -85,9 +63,6 @@ function broadcastConnectToken(payload: ConnectTokenPayload) {
       token: payload.token,
       apiUrl: payload.apiUrl,
       shop: payload.shop,
-      plan: payload.plan,
-      planName: payload.planName,
-      reviewLimit: payload.reviewLimit,
     } satisfies ConnectTokenBroadcast,
     "https://admin.shopify.com"
   )
@@ -120,9 +95,6 @@ export function ExtensionBridge() {
             token: payload?.token || null,
             apiUrl: payload?.apiUrl || null,
             shop: payload?.shop || null,
-            plan: payload?.plan || null,
-            planName: payload?.planName || null,
-            reviewLimit: payload?.reviewLimit ?? null,
           },
           event.origin
         )

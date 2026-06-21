@@ -15,8 +15,6 @@ type StoredConnection = {
   pairingCode?: string
   apiBaseUrl?: string
   shop?: string
-  plan?: string
-  planName?: string
 }
 
 function normalizeApiBaseUrl(url: string | undefined | null) {
@@ -29,8 +27,6 @@ export async function readConnectionState(): Promise<ConnectionState> {
     "pairingCode",
     "apiBaseUrl",
     "shop",
-    "plan",
-    "planName",
   ])) as StoredConnection
 
   let pairingToken = stored.pairingToken || ""
@@ -51,8 +47,6 @@ export async function readConnectionState(): Promise<ConnectionState> {
     pairingCode: stored.pairingCode,
     apiBaseUrl: storedUrl || adminUrl || "",
     shop: stored.shop,
-    plan: stored.plan,
-    planName: stored.planName,
   }
 }
 
@@ -66,8 +60,6 @@ export function enrichConnection(
     pairingToken: stored.pairingToken,
     apiBaseUrl: stored.apiBaseUrl,
     shop: data.shop || stored.shop,
-    plan: data.plan || stored.plan,
-    planName: data.planName || stored.planName,
     paired: data.paired ?? Boolean(stored.pairingToken),
   }
 }
@@ -314,8 +306,6 @@ export async function persistConnection(
       token: data.token,
     }),
     shop: data.shop,
-    plan: data.plan,
-    planName: data.planName,
   })
 }
 

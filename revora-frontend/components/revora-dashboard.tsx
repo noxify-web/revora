@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { BillingCard } from "@/components/billing-card"
 import { DisplayWidgetCard } from "@/components/display-widget-card"
 import { ImportActivityLog } from "@/components/import-activity-log"
+import { OnboardingFooter } from "@/components/onboarding-footer"
+import { OnboardingGuide } from "@/components/onboarding-guide"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
-import { SetupGuide } from "@/components/setup-guide"
+import {
+  clearRevoraClientStorage,
+  ONBOARDING_STORAGE_KEYS,
+} from "@/lib/onboarding"
 import { adminFetch } from "@/lib/admin-fetch"
 
 const AUTO_IMPORT_STORAGE_KEY = "revora-auto-import"
@@ -29,6 +33,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   const [hasConnectedExtension, setHasConnectedExtension] = useState(false)
   const [autoImportEnabled, setAutoImportEnabled] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
 
   const loadImports = useCallback(async () => {
     try {
@@ -53,13 +58,56 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }, [])
 
   useEffect(() => {
-    setAutoImportEnabled(
-      window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true",
-    )
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount for setup progress
+    let nextAutoImport =
+      window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
+    let nextOnboardingDismissed =
+      window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true"
+
+    if (process.env.NODE_ENV === "development") {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("reset") === "1") {
+        clearRevoraClientStorage()
+        nextOnboardingDismissed = false
+        nextAutoImport = false
+        params.delete("reset")
+        const nextQuery = params.toString()
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
+        window.history.replaceState({}, "", nextUrl)
+      }
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate dashboard prefs on mount
+    setAutoImportEnabled(nextAutoImport)
+    setOnboardingDismissed(nextOnboardingDismissed)
     void loadImports()
     void loadExtensionStatus()
   }, [loadImports, loadExtensionStatus])
+
+  useEffect(() => {
+    function handleOnboardingReopen() {
+      setOnboardingDismissed(false)
+    }
+
+    function handleOnboardingDismissed() {
+      setOnboardingDismissed(true)
+    }
+
+    window.addEventListener("revora:reopen-onboarding", handleOnboardingReopen)
+    window.addEventListener(
+      "revora:onboarding-dismissed",
+      handleOnboardingDismissed,
+    )
+    return () => {
+      window.removeEventListener(
+        "revora:reopen-onboarding",
+        handleOnboardingReopen,
+      )
+      window.removeEventListener(
+        "revora:onboarding-dismissed",
+        handleOnboardingDismissed,
+      )
+    }
+  }, [])
 
   function handleAutoImportChange(event: Event) {
     const target = event.currentTarget as HTMLInputElement
@@ -84,9 +132,11 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       item.totalPublished > 0,
   )
 
+  const showOnboarding = !onboardingDismissed
+
   return (
     <s-page heading="Revora" inlineSize="large">
-      <SetupGuide
+      <OnboardingGuide
         hasConnectedExtension={hasConnectedExtension}
         hasImportedReviews={hasImportedReviews}
         hasPublishedReviews={hasPublishedReviews}
@@ -95,24 +145,15 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         onExtensionStatusChange={() => void loadExtensionStatus()}
       />
 
-      <s-section heading="Auto-import">
-        <s-stack gap="base">
-          <s-paragraph color="subdued">
-            Automatically queue imports when the extension detects new Temu
-            reviews. (UI preview — coming soon)
+      {!showOnboarding && !hasImportedReviews ? (
+        <s-banner heading="Ready to import?" tone="info">
+          <s-paragraph>
+            Install the Revora Chrome extension, open a Temu product page, and
+            import reviews to a Shopify product. Use the footer link to reopen
+            the setup guide anytime.
           </s-paragraph>
-          <s-stack direction="inline" gap="base" alignItems="center">
-            <s-switch
-              label="Enable auto-import"
-              checked={autoImportEnabled}
-              onChange={handleAutoImportChange}
-            />
-            <s-button variant="secondary" disabled>
-              Settings
-            </s-button>
-          </s-stack>
-        </s-stack>
-      </s-section>
+        </s-banner>
+      ) : null}
 
       <div ref={productTableRef}>
         <ProductCatalogTable
@@ -135,22 +176,28 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         <ImportActivityLog refreshToken={refreshToken} />
       </s-grid>
 
-      <s-section heading="Plan & billing">
-        <BillingCard />
-      </s-section>
+      {onboardingDismissed ? (
+        <s-section heading="Auto-import">
+          <s-stack gap="base">
+            <s-paragraph color="subdued">
+              Automatically queue imports when the extension detects new Temu
+              reviews. (Coming soon)
+            </s-paragraph>
+            <s-stack direction="inline" gap="base" alignItems="center">
+              <s-switch
+                label="Enable auto-import"
+                checked={autoImportEnabled}
+                onChange={handleAutoImportChange}
+              />
+              <s-button variant="secondary" disabled>
+                Settings
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-section>
+      ) : null}
 
-      <s-section>
-        <s-paragraph color="subdued">
-          Learn more about{" "}
-          <s-link
-            href="https://help.shopify.com/manual/online-store/themes/theme-structure/extend/apps"
-            target="_blank"
-          >
-            enabling app embeds in your theme
-          </s-link>
-          .
-        </s-paragraph>
-      </s-section>
+      <OnboardingFooter />
     </s-page>
   )
 }

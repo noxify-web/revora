@@ -4,15 +4,7 @@ import type { PlanId } from "@/lib/plans"
 import { db } from "@/src/db"
 import { shopPlans } from "@/src/db/schema"
 
-export async function getShopPlan(shop: string): Promise<PlanId> {
-  const record = await db.query.shopPlans.findFirst({
-    where: eq(shopPlans.shop, shop),
-  })
-
-  if (record?.plan === "premium") {
-    return "premium"
-  }
-
+export async function getShopPlan(): Promise<PlanId> {
   return "free"
 }
 
@@ -39,21 +31,4 @@ export async function ensureShopPlan(shop: string) {
     subscriptionId: null,
     updatedAt: now,
   }
-}
-
-export async function setShopPlan(
-  shop: string,
-  plan: PlanId,
-  subscriptionId?: string | null,
-) {
-  await ensureShopPlan(shop)
-
-  await db
-    .update(shopPlans)
-    .set({
-      plan,
-      subscriptionId: subscriptionId ?? null,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(shopPlans.shop, shop))
 }

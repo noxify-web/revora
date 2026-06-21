@@ -16,7 +16,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:migrate-local": "bun run scripts/migrate-sqlite-to-turso.ts"
+    "db:migrate-local": "bun run scripts/migrate-sqlite-to-turso.ts",
+    "db:reset": "bun run scripts/reset-dev-data.ts"
   },
   "dependencies": {
     "@revora/shared": "workspace:*",

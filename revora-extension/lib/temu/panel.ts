@@ -1,5 +1,4 @@
 import type {
-  BackgroundPlanResponse,
   BackgroundProductsResponse,
   BackgroundVerifyResponse,
 } from "@revora/shared/extension-messages"
@@ -87,18 +86,6 @@ export function createPanel(
         color: ${REVORA_THEME.orangeDark};
       }
 
-      .plan-badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        background: ${REVORA_THEME.orange};
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 3px 8px;
-        white-space: nowrap;
-      }
-
       .icon-btn {
         width: 26px;
         height: 26px;
@@ -117,17 +104,6 @@ export function createPanel(
         color: ${REVORA_THEME.textMuted};
         font-size: 11px;
         margin-bottom: 10px;
-      }
-
-      .plan-note {
-        margin-bottom: 10px;
-        padding: 8px 10px;
-        border-radius: 10px;
-        background: ${REVORA_THEME.orangeLight};
-        border: 1px solid ${REVORA_THEME.orangeMuted};
-        color: ${REVORA_THEME.orangeDark};
-        font-size: 11px;
-        font-weight: 600;
       }
 
       label {
@@ -277,14 +253,12 @@ export function createPanel(
       <div class="header">
         <div class="title-wrap">
           <h3 class="title">Revora</h3>
-          <span class="plan-badge" id="revora-plan-badge">Free</span>
         </div>
         <button class="icon-btn" id="revora-toggle-btn" type="button" title="Minimize">–</button>
       </div>
       <div id="revora-panel-content">
         <div class="setup" id="revora-setup-section">
           <div class="muted" id="revora-goods-label">Waiting for Temu product page...</div>
-          <div class="plan-note" id="revora-plan-note">Free plan: up to 100 reviews per import.</div>
           <label for="revora-product-select">Shopify product</label>
           <select id="revora-product-select">
             <option value="">Loading products...</option>
@@ -428,14 +402,10 @@ export function setImportComplete({
   count,
   filterLabel,
   productTitle,
-  limitReached = false,
-  reviewLimit = null,
 }: {
   count: number
   filterLabel: string
   productTitle: string
-  limitReached?: boolean
-  reviewLimit?: number | null
 }) {
   const panel = $("revora-panel-body")
   const setup = $("revora-setup-section")
@@ -452,11 +422,7 @@ export function setImportComplete({
   setStatus("")
 
   if (resultDetail) {
-    let detail = `${count} reviews ${filterLabel} added to ${productTitle}.`
-    if (limitReached && reviewLimit != null) {
-      detail += ` Free plan limit (${reviewLimit}) reached.`
-    }
-    resultDetail.textContent = detail
+    resultDetail.textContent = `${count} reviews ${filterLabel} added to ${productTitle}.`
   }
 
   setButtons(false, true)
@@ -541,8 +507,6 @@ export async function initializePanel() {
       return
     }
 
-    await refreshPlan()
-
     const shop =
       verify.data?.shop ||
       verify.data?.label ||
@@ -585,42 +549,3 @@ export function getImportFilter(): ImportFilter {
   return "all"
 }
 
-export function getImportLimit() {
-  return state.reviewLimit
-}
-
-export function updatePlanUI() {
-  const badge = $("revora-plan-badge")
-  const note = $("revora-plan-note")
-
-  if (badge) {
-    badge.textContent = state.planName
-  }
-
-  if (note) {
-    note.textContent =
-      state.reviewLimit == null
-        ? "Premium plan: unlimited reviews per import."
-        : `Free plan: up to ${state.reviewLimit} reviews per import.`
-  }
-}
-
-export async function refreshPlan() {
-  try {
-    const planResponse = await sendRuntimeMessage<BackgroundPlanResponse>({
-      type: "REVORA_GET_PLAN",
-    })
-
-    if (!planResponse.ok || !planResponse.data) {
-      return false
-    }
-
-    state.plan = planResponse.data.plan || "free"
-    state.planName = planResponse.data.planName || "Free"
-    state.reviewLimit = planResponse.data.reviewLimit ?? 100
-    updatePlanUI()
-    return true
-  } catch {
-    return false
-  }
-}

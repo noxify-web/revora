@@ -25,10 +25,6 @@ export const state = {
   uploadedIds: new Set<string>(),
   pendingUpload: [] as TemuReviewPayload[],
   scrollContainer: null as HTMLElement | null,
-  plan: "free",
-  planName: "Free",
-  reviewLimit: 100 as number | null,
-  limitReached: false,
 }
 
 export function extractGoodsId() {
