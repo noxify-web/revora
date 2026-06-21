@@ -43,7 +43,12 @@ export function DisplayWidgetCard({
               can see imported reviews on product pages.
             </s-paragraph>
             <s-stack direction="inline" gap="small-200">
-              <s-button variant="primary" href={themeEditorUrl} target="_blank">
+              <s-button
+                variant="primary"
+                icon="theme-edit"
+                href={themeEditorUrl}
+                target="_blank"
+              >
                 Open theme editor
               </s-button>
             </s-stack>

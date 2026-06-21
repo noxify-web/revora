@@ -178,7 +178,7 @@ export function OnboardingGuide({
                 storefront is ready. You can dismiss this guide or keep it for
                 reference.
               </s-paragraph>
-              <s-button variant="primary" onClick={dismissGuide}>
+              <s-button variant="primary" icon="check-circle" onClick={dismissGuide}>
                 Dismiss setup guide
               </s-button>
             </s-stack>
@@ -265,6 +265,7 @@ export function OnboardingGuide({
                     <s-button
                       slot="secondary-actions"
                       variant="secondary"
+                      icon="arrow-right"
                       onClick={focusNextIncompleteStep}
                     >
                       Continue setup
@@ -321,6 +322,7 @@ export function OnboardingGuide({
                     </s-button>
                     <s-button
                       variant="secondary"
+                      icon={stepCompletion.install ? "check-circle" : "apps"}
                       onClick={acknowledgeExtensionInstall}
                       disabled={stepCompletion.install}
                     >
@@ -380,7 +382,11 @@ export function OnboardingGuide({
                       automatically
                     </s-list-item>
                   </s-ordered-list>
-                  <s-button variant="primary" onClick={onScrollToProducts}>
+                  <s-button
+                    variant="primary"
+                    icon="product"
+                    onClick={onScrollToProducts}
+                  >
                     View imported products
                   </s-button>
                 </s-stack>
@@ -403,10 +409,18 @@ export function OnboardingGuide({
                     pages.
                   </s-paragraph>
                   <s-stack direction="inline" gap="small">
-                    <s-button variant="primary" onClick={onScrollToProducts}>
+                    <s-button
+                      variant="primary"
+                      icon="view"
+                      onClick={onScrollToProducts}
+                    >
                       Publish reviews
                     </s-button>
-                    <s-button variant="secondary" onClick={onScrollToDisplay}>
+                    <s-button
+                      variant="secondary"
+                      icon="theme-edit"
+                      onClick={onScrollToDisplay}
+                    >
                       Set up storefront widget
                     </s-button>
                   </s-stack>

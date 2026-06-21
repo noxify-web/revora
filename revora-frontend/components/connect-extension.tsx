@@ -104,21 +104,34 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
     <s-stack gap="base">
       <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
         <s-grid-item>
-          <s-stack>
-            <s-heading>Revora Chrome extension</s-heading>
-            <s-text color="subdued">
-              {loadingTokens
-                ? "Checking connection..."
-                : isConnected
-                  ? `Connected${activeToken ? ` · ${activeToken.label}` : ""}`
-                  : "No account connected"}
-            </s-text>
+          <s-stack gap="small-200">
+            <s-stack direction="inline" gap="small" alignItems="center">
+              <s-icon type="app-extension" size="small" />
+              <s-heading>Revora Chrome extension</s-heading>
+            </s-stack>
+            <s-stack direction="inline" gap="small" alignItems="center">
+              {!loadingTokens ? (
+                <s-icon
+                  type={isConnected ? "check-circle" : "alert-circle"}
+                  tone={isConnected ? "success" : "warning"}
+                  size="small"
+                />
+              ) : null}
+              <s-text color="subdued">
+                {loadingTokens
+                  ? "Checking connection..."
+                  : isConnected
+                    ? `Connected${activeToken ? ` · ${activeToken.label}` : ""}`
+                    : "No account connected"}
+              </s-text>
+            </s-stack>
           </s-stack>
         </s-grid-item>
         <s-grid-item>
           {!isConnected ? (
             <s-button
               variant="primary"
+              icon="connect"
               onClick={() => void connectExtension()}
               loading={connecting}
             >
@@ -127,6 +140,7 @@ export function ConnectExtension({ onConnected }: ConnectExtensionProps) {
           ) : (
             <s-button
               variant="secondary"
+              icon="refresh"
               commandFor={ROTATE_TOKEN_MODAL_ID}
               command="--show"
               disabled={connecting}

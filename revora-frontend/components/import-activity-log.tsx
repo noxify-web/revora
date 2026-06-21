@@ -61,10 +61,12 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
   }, [loadImports, refreshToken])
 
   return (
-    <s-section
-      heading="Reviews import log"
-      accessibilityLabel="Import activity log"
-    >
+    <s-section accessibilityLabel="Import activity log">
+      <s-stack direction="inline" gap="small" alignItems="center">
+        <s-icon type="data-table" size="small" />
+        <s-heading>Reviews import log</s-heading>
+      </s-stack>
+      <s-box paddingBlockStart="base">
       {error ? (
         <s-banner heading="Error" tone="critical">
           {error}
@@ -128,6 +130,7 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
           </s-table>
         </s-section>
       )}
+      </s-box>
     </s-section>
   )
 }

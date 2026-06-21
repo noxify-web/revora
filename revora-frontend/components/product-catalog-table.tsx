@@ -270,6 +270,7 @@ export function ProductCatalogTable({
                         <s-stack direction="inline" gap="small">
                           <s-button
                             variant="secondary"
+                            icon="import"
                             onClick={() => setImportHintProduct(product.title)}
                           >
                             Import
@@ -277,6 +278,7 @@ export function ProductCatalogTable({
                           {showPublish && product.importId ? (
                             <s-button
                               variant="primary"
+                              icon="view"
                               loading={publishingId === product.importId}
                               onClick={() =>
                                 void publishImport(product.importId!)

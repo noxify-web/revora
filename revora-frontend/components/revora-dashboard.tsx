@@ -190,7 +190,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
                 checked={autoImportEnabled}
                 onChange={handleAutoImportChange}
               />
-              <s-button variant="secondary" disabled>
+              <s-button variant="secondary" icon="settings" disabled>
                 Settings
               </s-button>
             </s-stack>
