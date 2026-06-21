@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Script from "next/script"
 
+import { CustomerSupportWidget } from "@/components/customer-support-widget"
 import { ExtensionBridge } from "@/components/extension-bridge"
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
       </head>
       <body>
         <ExtensionBridge />
+        <CustomerSupportWidget />
         {children}
       </body>
     </html>
