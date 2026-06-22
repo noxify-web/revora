@@ -10,7 +10,7 @@ export function getPanelStyles() {
     :host {
       all: initial;
       position: fixed;
-      right: 20px;
+      left: 20px;
       bottom: 20px;
       z-index: 2147483646;
       display: block;
@@ -20,10 +20,14 @@ export function getPanelStyles() {
 
     ${extensionUi}
 
+    [hidden] {
+      display: none !important;
+    }
+
     .revora-widget {
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: var(--revora-space-300);
     }
 
@@ -125,7 +129,7 @@ export function getPanelStyles() {
 
     .revora-fab-hint {
       position: absolute;
-      right: calc(100% + 12px);
+      left: calc(100% + 12px);
       top: 50%;
       transform: translateY(-50%);
       padding: 8px 12px;
@@ -139,30 +143,19 @@ export function getPanelStyles() {
       border: 1px solid var(--revora-border);
       border-radius: var(--revora-radius-sm);
       box-shadow: var(--revora-shadow-popover);
-      opacity: 0;
-      transition: opacity 0.15s ease;
     }
 
     .revora-fab-hint::after {
       content: "";
       position: absolute;
       top: 50%;
-      right: -5px;
+      left: -5px;
       width: 8px;
       height: 8px;
       background: var(--revora-surface);
-      border-top: 1px solid var(--revora-border);
-      border-right: 1px solid var(--revora-border);
+      border-bottom: 1px solid var(--revora-border);
+      border-left: 1px solid var(--revora-border);
       transform: translateY(-50%) rotate(45deg);
-    }
-
-    .revora-fab:hover .revora-fab-hint,
-    .revora-fab:focus-visible .revora-fab-hint {
-      opacity: 1;
-    }
-
-    .revora-widget.is-open .revora-fab-hint {
-      display: none;
     }
 
     .revora-panel {
