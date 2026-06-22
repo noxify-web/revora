@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 
 import { AppNav } from "@/components/app-nav";
+import { AppNavMarkup } from "@/components/app-nav-markup";
 import { ExtensionBridge } from "@/components/extension-bridge";
 
 export const metadata: Metadata = {
@@ -28,8 +29,11 @@ export default function RootLayout({
           src="https://cdn.shopify.com/shopifycloud/polaris.js"
           strategy="beforeInteractive"
         />
+        <style>{"ui-nav-menu, s-app-nav { display: none; }"}</style>
       </head>
       <body>
+        <script src="/revora-app-nav-bootstrap.js" />
+        <AppNavMarkup />
         <AppNav />
         <ExtensionBridge />
         {children}
