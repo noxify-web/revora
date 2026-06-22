@@ -4,7 +4,8 @@ type IconTone =
   | "warning"
   | "critical"
   | "info"
-  | "subdued";
+  | "subdued"
+  | "on-fill";
 
 function iconClass(tone: IconTone = "base") {
   return `revora-icon revora-icon--${tone}`;
@@ -32,6 +33,14 @@ export function connectIcon() {
 
 export function disconnectIcon(tone: IconTone = "critical") {
   return `<svg class="${iconClass(tone)}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z"/></svg>`;
+}
+
+export function closeIcon(tone: IconTone = "on-fill") {
+  return `<svg class="${iconClass(tone)}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 6.28a.75.75 0 0 1 1.06 0L10 8.94l2.66-2.66a.75.75 0 1 1 1.06 1.06L11.06 10l2.66 2.66a.75.75 0 1 1-1.06 1.06L10 11.06l-2.66 2.66a.75.75 0 0 1-1.06-1.06L8.94 10 6.28 7.34a.75.75 0 0 1 0-1.06Z"/></svg>`;
+}
+
+export function importReviewsIcon(tone: IconTone = "on-fill") {
+  return `<svg class="${iconClass(tone)}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 3a.75.75 0 0 1 .75.75v7.69l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06l2.22 2.22V3.75A.75.75 0 0 1 10 3Zm-6.25 9.5a.75.75 0 0 1 .75.75v1.5c0 .69.56 1.25 1.25 1.25h9.5c.69 0 1.25-.56 1.25-1.25v-1.5a.75.75 0 0 1 1.5 0v1.5A2.75 2.75 0 0 1 14.25 17h-9.5A2.75 2.75 0 0 1 2 14.25v-1.5a.75.75 0 0 1 .75-.75Z"/></svg>`;
 }
 
 export function statusIconForTone(tone: "" | "ok" | "error" | "pending") {

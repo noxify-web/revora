@@ -7,6 +7,12 @@ import type {
   ImportFilter,
   ShopifyProductSummary,
 } from "@revora/shared/extension-types";
+import {
+  checkCircleIcon,
+  closeIcon,
+  importReviewsIcon,
+  spinnerIcon,
+} from "../icons";
 import { getPanelStyles } from "../ui-styles";
 import { $, PANEL_ID, panelRef, sendRuntimeMessage } from "./shared";
 
@@ -25,52 +31,88 @@ export function createPanel(
   panelRef.shadow = host.attachShadow({ mode: "open" });
   panelRef.shadow.innerHTML = `
     <style>${getPanelStyles()}</style>
-    <div class="panel" id="revora-panel-body">
-      <button class="revora-btn revora-btn--icon panel-collapse" id="revora-toggle-btn" type="button" title="Minimize">–</button>
-      <div id="revora-panel-content" class="revora-stack">
-        <div class="section setup" id="revora-setup-section">
-          <div class="revora-field">
-            <label for="revora-product-select">Shopify product</label>
-            <select class="revora-select" id="revora-product-select">
-              <option value="">Loading products...</option>
-            </select>
-          </div>
-          <div class="revora-field">
-            <label for="revora-import-filter">Review filter</label>
-            <select class="revora-select" id="revora-import-filter">
-              <option value="all">All reviews</option>
-              <option value="withText">With text only</option>
-              <option value="withPictures">With photos/videos only</option>
-            </select>
-          </div>
-        </div>
-        <div class="section activity" id="revora-activity-section">
-          <div class="success-state" id="revora-success-state" hidden>
-            <div class="revora-banner revora-banner--success">
-              <p class="revora-banner__heading" id="revora-success-count">Import complete</p>
-              <p class="revora-banner__body" id="revora-success-detail"></p>
-            </div>
-            <div class="revora-btn-group">
-              <button class="revora-btn revora-btn--primary" id="revora-view-shopify-btn" type="button">
-                View in Shopify
-              </button>
-              <button class="revora-btn revora-btn--secondary" id="revora-import-again-btn" type="button">
-                Import again
-              </button>
+    <div class="revora-widget" id="revora-widget-root">
+      <div class="revora-panel" id="revora-panel-body">
+        <header class="revora-panel-header">
+          <div class="revora-panel-brand">
+            <span class="revora-panel-brand-mark" aria-hidden="true">R</span>
+            <div class="revora-panel-brand-copy">
+              <h2 class="revora-panel-title">Revora</h2>
+              <p class="revora-panel-subtitle">Import Temu reviews</p>
             </div>
           </div>
-          <div class="working-state" id="revora-working-state">
-            <div class="revora-progress" id="revora-progress-wrap">
-              <span id="revora-progress-bar"></span>
+          <button
+            class="revora-panel-close"
+            id="revora-close-btn"
+            type="button"
+            title="Close"
+            aria-label="Close Revora panel"
+          >
+            ${closeIcon()}
+          </button>
+        </header>
+        <div id="revora-panel-content" class="revora-panel-body revora-stack">
+          <div class="section setup" id="revora-setup-section">
+            <div class="revora-field">
+              <label for="revora-product-select">Shopify product</label>
+              <select class="revora-select" id="revora-product-select">
+                <option value="">Loading products...</option>
+              </select>
             </div>
-            <p class="status" id="revora-status">Connect the extension from the popup to begin.</p>
-            <div class="revora-btn-group">
-              <button class="revora-btn revora-btn--primary" id="revora-start-btn" type="button">Import reviews</button>
-              <button class="revora-btn revora-btn--secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+            <div class="revora-field">
+              <label for="revora-import-filter">Review filter</label>
+              <select class="revora-select" id="revora-import-filter">
+                <option value="all">All reviews</option>
+                <option value="withText">With text only</option>
+                <option value="withPictures">With photos/videos only</option>
+              </select>
+            </div>
+          </div>
+          <div class="section activity" id="revora-activity-section">
+            <div class="success-state" id="revora-success-state" hidden>
+              <div class="revora-banner revora-banner--success">
+                <p class="revora-banner__heading" id="revora-success-count">Import complete</p>
+                <p class="revora-banner__body" id="revora-success-detail"></p>
+              </div>
+              <div class="revora-btn-group">
+                <button class="revora-btn revora-btn--primary" id="revora-view-shopify-btn" type="button">
+                  View in Shopify
+                </button>
+                <button class="revora-btn revora-btn--secondary" id="revora-import-again-btn" type="button">
+                  Import again
+                </button>
+              </div>
+            </div>
+            <div class="working-state" id="revora-working-state">
+              <div class="revora-progress" id="revora-progress-wrap">
+                <span id="revora-progress-bar"></span>
+              </div>
+              <p class="status" id="revora-status">Connect the extension from the popup to begin.</p>
+              <div class="revora-btn-group">
+                <button class="revora-btn revora-btn--primary" id="revora-start-btn" type="button">
+                  ${importReviewsIcon("on-fill")}
+                  Import reviews
+                </button>
+                <button class="revora-btn revora-btn--secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      <button
+        class="revora-fab"
+        id="revora-fab-btn"
+        type="button"
+        aria-label="Open Revora import panel"
+        aria-expanded="false"
+        aria-controls="revora-panel-body"
+      >
+        <span class="revora-fab-hint">Import reviews</span>
+        <span class="revora-fab-mark" aria-hidden="true">R</span>
+        <span class="revora-fab-spinner" aria-hidden="true">${spinnerIcon()}</span>
+        <span class="revora-fab-check" aria-hidden="true">${checkCircleIcon("on-fill")}</span>
+        <span class="revora-fab-badge" id="revora-fab-badge" hidden></span>
+      </button>
     </div>
   `;
 
@@ -89,15 +131,12 @@ export function createPanel(
   $("revora-view-shopify-btn")?.addEventListener("click", () => {
     void openRevoraInShopify();
   });
-  $("revora-toggle-btn")?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    togglePanelCollapsed();
+  $("revora-fab-btn")?.addEventListener("click", () => {
+    togglePanelOpen();
   });
-  $("revora-panel-body")?.addEventListener("click", () => {
-    const panel = $("revora-panel-body");
-    if (panel?.classList.contains("collapsed")) {
-      togglePanelCollapsed(false);
-    }
+  $("revora-close-btn")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    togglePanelOpen(false);
   });
   void initializePanel();
 }
@@ -118,38 +157,56 @@ function setConnectedShop(shop: string | null) {
   connectedShop = shop;
 }
 
+export function togglePanelOpen(forceOpen?: boolean) {
+  const widget = $("revora-widget-root");
+  const fab = $("revora-fab-btn");
+  if (!(widget && fab)) {
+    return;
+  }
+
+  const shouldOpen =
+    typeof forceOpen === "boolean"
+      ? forceOpen
+      : !widget.classList.contains("is-open");
+
+  widget.classList.toggle("is-open", shouldOpen);
+  fab.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+}
+
+/** @deprecated Use togglePanelOpen instead. */
 export function togglePanelCollapsed(forceCollapsed?: boolean) {
-  const panel = $("revora-panel-body");
-  const content = $("revora-panel-content");
-  const toggle = $("revora-toggle-btn");
-  if (!(panel && content && toggle)) {
+  togglePanelOpen(
+    typeof forceCollapsed === "boolean" ? !forceCollapsed : undefined
+  );
+}
+
+function updateFabState({
+  running = false,
+  complete = false,
+  badge,
+}: {
+  running?: boolean;
+  complete?: boolean;
+  badge?: string;
+}) {
+  const fab = $("revora-fab-btn");
+  const badgeNode = $("revora-fab-badge");
+  if (!fab) {
     return;
   }
 
-  const shouldCollapse =
-    typeof forceCollapsed === "boolean"
-      ? forceCollapsed
-      : !panel.classList.contains("collapsed");
+  fab.classList.toggle("is-running", running);
+  fab.classList.toggle("is-complete", complete);
 
-  if (shouldCollapse) {
-    panel.classList.add("collapsed");
-    content.hidden = true;
-    toggle.textContent = "+";
-    toggle.title = "Expand";
-    if (!panel.querySelector(".collapsed-label")) {
-      const label = document.createElement("span");
-      label.className = "collapsed-label";
-      label.innerHTML = `<span class="collapsed-check" aria-hidden="true">✓</span><span>Revora</span>`;
-      panel.insertBefore(label, content);
+  if (badgeNode) {
+    if (badge) {
+      badgeNode.textContent = badge;
+      badgeNode.removeAttribute("hidden");
+    } else {
+      badgeNode.textContent = "";
+      badgeNode.setAttribute("hidden", "");
     }
-    return;
   }
-
-  panel.classList.remove("collapsed");
-  content.hidden = false;
-  toggle.textContent = "–";
-  toggle.title = "Minimize";
-  panel.querySelector(".collapsed-label")?.remove();
 }
 
 export function setStatus(text: string) {
@@ -180,23 +237,14 @@ export function setButtons(collecting: boolean) {
   const stop = $("revora-stop-btn");
   if (start instanceof HTMLButtonElement) {
     start.disabled = collecting;
-    start.textContent = collecting ? "Importing..." : "Import reviews";
+    start.innerHTML = collecting
+      ? `${spinnerIcon()} Importing...`
+      : `${importReviewsIcon("on-fill")} Import reviews`;
   }
   if (stop instanceof HTMLButtonElement) {
     stop.disabled = !collecting;
     stop.hidden = !collecting;
   }
-}
-
-function updateCollapsedLabel(text: string, showCheck = false) {
-  const label = $("revora-panel-body")?.querySelector(".collapsed-label");
-  if (!label) {
-    return;
-  }
-
-  label.innerHTML = showCheck
-    ? `<span class="collapsed-check" aria-hidden="true">✓</span><span>${escapeHtml(text)}</span>`
-    : `<span>${escapeHtml(text)}</span>`;
 }
 
 export function setImportRunning() {
@@ -214,8 +262,8 @@ export function setImportRunning() {
   progressWrap?.removeAttribute("hidden");
   progressWrap?.classList.remove("is-complete");
   setButtons(true);
-  updateCollapsedLabel("Importing...");
-  togglePanelCollapsed(false);
+  updateFabState({ running: true });
+  togglePanelOpen(true);
 }
 
 export function setImportComplete({
@@ -252,8 +300,8 @@ export function setImportComplete({
   }
 
   setButtons(false);
-  updateCollapsedLabel(`${count} imported`, true);
-  togglePanelCollapsed(false);
+  updateFabState({ complete: true, badge: String(count) });
+  togglePanelOpen(true);
 }
 
 export function clearImportResult() {
@@ -271,7 +319,7 @@ export function clearImportResult() {
   progressWrap?.classList.remove("is-complete");
   setProgress(0, 0);
   setButtons(false);
-  updateCollapsedLabel("Revora");
+  updateFabState({});
 }
 
 function renderProducts(
