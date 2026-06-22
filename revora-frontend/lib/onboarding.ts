@@ -5,15 +5,15 @@ export {
   ONBOARDING_INSTALL_DEMO_GIF,
   ONBOARDING_JOURNEY_BULLETS,
   type OnboardingFlowStepId,
-} from "./onboarding/constants"
+} from "./onboarding/constants";
 
 export {
   LEGACY_SETUP_GUIDE_DISMISSED,
   ONBOARDING_STORAGE_KEYS,
   REVORA_CLIENT_STORAGE_KEYS,
-} from "./onboarding/keys"
+} from "./onboarding/keys";
 
 export {
   readOnboardingFlowStep,
   writeOnboardingFlowStep,
-} from "./onboarding/storage"
+} from "./onboarding/storage";

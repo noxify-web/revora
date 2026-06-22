@@ -1,19 +1,21 @@
-import type { ConnectTokenResponse } from "@revora/shared/extension-types"
+import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 
 function parseConnectCallback(responseUrl: string): ConnectTokenResponse {
-  const url = new URL(responseUrl)
-  const error = url.searchParams.get("error")?.trim()
+  const url = new URL(responseUrl);
+  const error = url.searchParams.get("error")?.trim();
 
   if (error) {
-    throw new Error(error)
+    throw new Error(error);
   }
 
-  const token = url.searchParams.get("token")?.trim()
-  const apiUrl = url.searchParams.get("api_url")?.trim()
-  const shop = url.searchParams.get("shop")?.trim()
+  const token = url.searchParams.get("token")?.trim();
+  const apiUrl = url.searchParams.get("api_url")?.trim();
+  const shop = url.searchParams.get("shop")?.trim();
 
-  if (!token || !apiUrl || !shop) {
-    throw new Error("Revora sign-in did not return a complete connection payload.")
+  if (!(token && apiUrl && shop)) {
+    throw new Error(
+      "Revora sign-in did not return a complete connection payload."
+    );
   }
 
   return {
@@ -23,16 +25,16 @@ function parseConnectCallback(responseUrl: string): ConnectTokenResponse {
     plan: "free",
     planName: "Free",
     reviewLimit: null,
-  }
+  };
 }
 
 export async function connectViaBrowser(
-  apiBaseUrl: string,
+  apiBaseUrl: string
 ): Promise<ConnectTokenResponse> {
-  const normalizedBase = apiBaseUrl.replace(/\/$/, "")
-  const redirectUri = chrome.identity.getRedirectURL()
-  const connectUrl = new URL("/api/extension/connect/browser", normalizedBase)
-  connectUrl.searchParams.set("redirect_uri", redirectUri)
+  const normalizedBase = apiBaseUrl.replace(/\/$/, "");
+  const redirectUri = chrome.identity.getRedirectURL();
+  const connectUrl = new URL("/api/extension/connect/browser", normalizedBase);
+  connectUrl.searchParams.set("redirect_uri", redirectUri);
 
   const responseUrl = await new Promise<string>((resolve, reject) => {
     chrome.identity.launchWebAuthFlow(
@@ -42,19 +44,19 @@ export async function connectViaBrowser(
       },
       (callbackUrl) => {
         if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message))
-          return
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
         }
 
         if (!callbackUrl) {
-          reject(new Error("Sign-in was cancelled."))
-          return
+          reject(new Error("Sign-in was cancelled."));
+          return;
         }
 
-        resolve(callbackUrl)
-      },
-    )
-  })
+        resolve(callbackUrl);
+      }
+    );
+  });
 
-  return parseConnectCallback(responseUrl)
+  return parseConnectCallback(responseUrl);
 }

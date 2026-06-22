@@ -1,7 +1,7 @@
-export {}
+export {};
 
 declare global {
   interface XMLHttpRequest {
-    __revoraUrl?: string
+    __revoraUrl?: string;
   }
 }

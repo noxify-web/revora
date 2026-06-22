@@ -1,24 +1,24 @@
-import { encodePairingCode, decodePairingCode } from "@revora/shared/pairing-code"
 import type {
-  ConnectTokenResponse,
   ConnectionState,
+  ConnectTokenResponse,
   EnrichedConnection,
   ExtensionConnectPayload,
-} from "@revora/shared/extension-types"
+} from "@revora/shared/extension-types";
 import {
-  readApiBaseUrlFromAdmin,
-  sendAdminBridgeMessage,
-} from "./admin-tabs"
+  decodePairingCode,
+  encodePairingCode,
+} from "@revora/shared/pairing-code";
+import { readApiBaseUrlFromAdmin, sendAdminBridgeMessage } from "./admin-tabs";
 
-type StoredConnection = {
-  pairingToken?: string
-  pairingCode?: string
-  apiBaseUrl?: string
-  shop?: string
+interface StoredConnection {
+  apiBaseUrl?: string;
+  pairingCode?: string;
+  pairingToken?: string;
+  shop?: string;
 }
 
 function normalizeApiBaseUrl(url: string | undefined | null) {
-  return url?.replace(/\/$/, "") || ""
+  return url?.replace(/\/$/, "") || "";
 }
 
 export async function readConnectionState(): Promise<ConnectionState> {
@@ -27,32 +27,32 @@ export async function readConnectionState(): Promise<ConnectionState> {
     "pairingCode",
     "apiBaseUrl",
     "shop",
-  ])) as StoredConnection
+  ])) as StoredConnection;
 
-  let pairingToken = stored.pairingToken || ""
+  let pairingToken = stored.pairingToken || "";
 
   if (!pairingToken && stored.pairingCode) {
-    pairingToken = decodePairingCode(stored.pairingCode).pairingToken || ""
+    pairingToken = decodePairingCode(stored.pairingCode).pairingToken || "";
 
     if (pairingToken) {
-      await chrome.storage.sync.set({ pairingToken })
+      await chrome.storage.sync.set({ pairingToken });
     }
   }
 
-  const storedUrl = normalizeApiBaseUrl(stored.apiBaseUrl)
-  const adminUrl = storedUrl ? null : await readApiBaseUrlFromAdmin()
+  const storedUrl = normalizeApiBaseUrl(stored.apiBaseUrl);
+  const adminUrl = storedUrl ? null : await readApiBaseUrlFromAdmin();
 
   return {
     pairingToken,
     pairingCode: stored.pairingCode,
     apiBaseUrl: storedUrl || adminUrl || "",
     shop: stored.shop,
-  }
+  };
 }
 
 export function enrichConnection(
   data: Partial<EnrichedConnection>,
-  stored: ConnectionState,
+  stored: ConnectionState
 ): EnrichedConnection {
   return {
     ...stored,
@@ -61,12 +61,12 @@ export function enrichConnection(
     apiBaseUrl: stored.apiBaseUrl,
     shop: data.shop || stored.shop,
     paired: data.paired ?? Boolean(stored.pairingToken),
-  }
+  };
 }
 
 function ngrokHeaders(apiBaseUrl: string): Record<string, string> {
   try {
-    const host = new URL(apiBaseUrl).hostname
+    const host = new URL(apiBaseUrl).hostname;
 
     if (
       host.endsWith(".ngrok-free.dev") ||
@@ -74,51 +74,51 @@ function ngrokHeaders(apiBaseUrl: string): Record<string, string> {
       host.endsWith(".ngrok.io") ||
       host.endsWith(".ngrok.app")
     ) {
-      return { "ngrok-skip-browser-warning": "1" }
+      return { "ngrok-skip-browser-warning": "1" };
     }
   } catch {
     // Ignore malformed URLs.
   }
 
-  return {}
+  return {};
 }
 
 function isNetworkError(error: unknown) {
   return (
     error instanceof TypeError ||
     (error instanceof Error && /failed to fetch/i.test(error.message))
-  )
+  );
 }
 
 async function ensureHostPermission(
   apiBaseUrl: string,
-  { requestPermission = true }: { requestPermission?: boolean } = {},
+  { requestPermission = true }: { requestPermission?: boolean } = {}
 ) {
-  const origin = `${new URL(apiBaseUrl).origin}/*`
+  const origin = `${new URL(apiBaseUrl).origin}/*`;
   const hasPermission = await chrome.permissions.contains({
     origins: [origin],
-  })
+  });
 
   if (hasPermission) {
-    return
+    return;
   }
 
   if (!requestPermission) {
-    throw new TypeError("Failed to fetch")
+    throw new TypeError("Failed to fetch");
   }
 
-  const granted = await chrome.permissions.request({ origins: [origin] })
+  const granted = await chrome.permissions.request({ origins: [origin] });
 
   if (!granted) {
     throw new Error(
-      `Allow Chrome access to ${new URL(apiBaseUrl).origin} when prompted.`,
-    )
+      `Allow Chrome access to ${new URL(apiBaseUrl).origin} when prompted.`
+    );
   }
 }
 
 type ProxyResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error?: string; unavailable?: boolean }
+  | { ok: false; error?: string; unavailable?: boolean };
 
 async function requestViaAdminProxy<T>({
   path,
@@ -126,124 +126,124 @@ async function requestViaAdminProxy<T>({
   body,
   headers = {},
 }: {
-  path: string
-  method?: string
-  body?: unknown
-  headers?: Record<string, string>
+  path: string;
+  method?: string;
+  body?: unknown;
+  headers?: Record<string, string>;
 }): Promise<ProxyResult<T>> {
   const response = await sendAdminBridgeMessage<{
-    ok: boolean
-    data?: T
-    error?: string
-    unavailable?: boolean
+    ok: boolean;
+    data?: T;
+    error?: string;
+    unavailable?: boolean;
   }>({
     type: "REVORA_ADMIN_PROXY",
     path,
     method,
     body,
     headers,
-  })
+  });
 
   if (!response) {
-    return { ok: false, unavailable: true }
+    return { ok: false, unavailable: true };
   }
 
   if (response.ok) {
-    return { ok: true, data: response.data as T }
+    return { ok: true, data: response.data as T };
   }
 
   if (!response.unavailable) {
     return {
       ok: false,
       error: response.error || "Request failed",
-    }
+    };
   }
 
-  return { ok: false, unavailable: true }
+  return { ok: false, unavailable: true };
 }
 
 async function directApiRequest<T>(
   apiBaseUrl: string,
   path: string,
-  init: RequestInit = {},
+  init: RequestInit = {}
 ): Promise<T> {
-  await ensureHostPermission(apiBaseUrl, { requestPermission: false })
+  await ensureHostPermission(apiBaseUrl, { requestPermission: false });
 
   const headers = {
     ...ngrokHeaders(apiBaseUrl),
     ...(init.headers as Record<string, string> | undefined),
-  }
+  };
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers })
-  const contentType = response.headers.get("content-type") || ""
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers });
+  const contentType = response.headers.get("content-type") || "";
   const data = (await response.json().catch(() => ({}))) as T & {
-    error?: string
-    apiUrl?: string
-  }
+    error?: string;
+    apiUrl?: string;
+  };
 
   if (!response.ok) {
-    throw new Error(data.error || `Request failed (${response.status})`)
+    throw new Error(data.error || `Request failed (${response.status})`);
   }
 
   if (
     !contentType.includes("application/json") &&
     Object.keys(data as object).length === 0
   ) {
-    throw new TypeError("Failed to fetch")
+    throw new TypeError("Failed to fetch");
   }
 
-  return data
+  return data;
 }
 
 export async function persistApiBaseUrl(
   apiBaseUrl: string,
-  { requestPermission = true }: { requestPermission?: boolean } = {},
+  { requestPermission = true }: { requestPermission?: boolean } = {}
 ) {
   if (!apiBaseUrl) {
-    return ""
+    return "";
   }
 
-  const normalized = normalizeApiBaseUrl(apiBaseUrl)
-  const stored = await readConnectionState()
+  const normalized = normalizeApiBaseUrl(apiBaseUrl);
+  const stored = await readConnectionState();
   const updates: StoredConnection & { pairingCode?: string } = {
     apiBaseUrl: normalized,
-  }
+  };
 
   if (stored.pairingToken) {
-    updates.pairingToken = stored.pairingToken
+    updates.pairingToken = stored.pairingToken;
     updates.pairingCode = encodePairingCode({
       apiUrl: normalized,
       token: stored.pairingToken,
-    })
+    });
   }
 
-  await chrome.storage.sync.set(updates)
+  await chrome.storage.sync.set(updates);
 
   try {
-    await ensureHostPermission(normalized, { requestPermission })
+    await ensureHostPermission(normalized, { requestPermission });
   } catch (error) {
     if (requestPermission) {
-      throw error
+      throw error;
     }
   }
 
-  return normalized
+  return normalized;
 }
 
 export async function verifyConnectionPayload(
-  data: Pick<ConnectTokenResponse, "token" | "apiUrl" | "shop">,
+  data: Pick<ConnectTokenResponse, "token" | "apiUrl" | "shop">
 ) {
-  const apiBaseUrl = normalizeApiBaseUrl(data.apiUrl)
+  const apiBaseUrl = normalizeApiBaseUrl(data.apiUrl);
 
   if (!apiBaseUrl) {
-    throw new Error("Missing Revora server URL")
+    throw new Error("Missing Revora server URL");
   }
 
   const verifyHeaders = {
     Authorization: `Bearer ${data.token}`,
-  }
+  };
 
-  let verified: { shop: string; paired: boolean } | null = null
+  let verified: { shop: string; paired: boolean } | null = null;
 
   try {
     verified = await directApiRequest<{ shop: string; paired: boolean }>(
@@ -251,57 +251,60 @@ export async function verifyConnectionPayload(
       "/api/extension/verify",
       {
         headers: verifyHeaders,
-      },
-    )
+      }
+    );
   } catch (error) {
     if (!isNetworkError(error)) {
-      throw error
+      throw error;
     }
   }
 
   if (!verified) {
     const proxyResult = await requestViaAdminProxy<{
-      shop: string
-      paired: boolean
+      shop: string;
+      paired: boolean;
     }>({
       path: "/api/extension/verify",
       headers: verifyHeaders,
-    })
+    });
 
     if (!proxyResult.ok) {
-      throw new Error(proxyResult.error || "Extension token verification failed")
+      throw new Error(
+        proxyResult.error || "Extension token verification failed"
+      );
     }
 
-    verified = proxyResult.data
+    verified = proxyResult.data;
   }
 
   if (!verified.paired || verified.shop !== data.shop) {
-    throw new Error("Extension token verification failed")
+    throw new Error("Extension token verification failed");
   }
 
-  return verified
+  return verified;
 }
 
 export async function verifyAndPersistConnection(
-  data: ExtensionConnectPayload | ConnectTokenResponse,
+  data: ExtensionConnectPayload | ConnectTokenResponse
 ) {
-  await verifyConnectionPayload(data)
-  await persistConnection(data)
+  await verifyConnectionPayload(data);
+  await persistConnection(data);
 }
 
 export async function clearConnection() {
-  await chrome.storage.sync.remove(["pairingToken", "pairingCode", "shop"])
-  await chrome.storage.sync.set({ userDisconnected: true })
+  await chrome.storage.sync.remove(["pairingToken", "pairingCode", "shop"]);
+  await chrome.storage.sync.set({ userDisconnected: true });
 }
 
 export async function persistConnection(
-  data: ExtensionConnectPayload | ConnectTokenResponse,
+  data: ExtensionConnectPayload | ConnectTokenResponse
 ) {
   const apiBaseUrl =
-    normalizeApiBaseUrl(data.apiUrl) || (await readConnectionState()).apiBaseUrl
+    normalizeApiBaseUrl(data.apiUrl) ||
+    (await readConnectionState()).apiBaseUrl;
 
   if (apiBaseUrl) {
-    await persistApiBaseUrl(apiBaseUrl, { requestPermission: false })
+    await persistApiBaseUrl(apiBaseUrl, { requestPermission: false });
   }
 
   await chrome.storage.sync.set({
@@ -312,7 +315,7 @@ export async function persistConnection(
     }),
     shop: data.shop,
     userDisconnected: false,
-  })
+  });
 }
 
 export async function fetchRevora<T>(
@@ -322,50 +325,50 @@ export async function fetchRevora<T>(
     body,
     auth = true,
   }: {
-    method?: string
-    body?: unknown
-    auth?: boolean
-  } = {},
+    method?: string;
+    body?: unknown;
+    auth?: boolean;
+  } = {}
 ): Promise<T> {
-  const stored = await readConnectionState()
-  const headers: Record<string, string> = {}
+  const stored = await readConnectionState();
+  const headers: Record<string, string> = {};
 
   if (auth) {
     if (!stored.pairingToken) {
-      throw new Error("Connect the extension from the popup first.")
+      throw new Error("Connect the extension from the popup first.");
     }
 
-    headers.Authorization = `Bearer ${stored.pairingToken}`
+    headers.Authorization = `Bearer ${stored.pairingToken}`;
   }
 
   if (body != null) {
-    headers["Content-Type"] = "application/json"
+    headers["Content-Type"] = "application/json";
   }
 
   const init: RequestInit = {
     method,
     headers,
     body: body == null ? undefined : JSON.stringify(body),
-  }
+  };
 
-  const apiBaseUrl = stored.apiBaseUrl
+  const apiBaseUrl = stored.apiBaseUrl;
 
   if (apiBaseUrl) {
     try {
       const data = await directApiRequest<T & { apiUrl?: string }>(
         apiBaseUrl,
         path,
-        init,
-      )
+        init
+      );
 
       if (data.apiUrl && normalizeApiBaseUrl(data.apiUrl) !== apiBaseUrl) {
-        await persistApiBaseUrl(data.apiUrl, { requestPermission: false })
+        await persistApiBaseUrl(data.apiUrl, { requestPermission: false });
       }
 
-      return data
+      return data;
     } catch (error) {
       if (!isNetworkError(error)) {
-        throw error
+        throw error;
       }
     }
   }
@@ -375,28 +378,28 @@ export async function fetchRevora<T>(
     method,
     body,
     headers,
-  })
+  });
 
   if (proxyResult.ok) {
-    return proxyResult.data
+    return proxyResult.data;
   }
 
   if (proxyResult.error) {
-    throw new Error(proxyResult.error)
+    throw new Error(proxyResult.error);
   }
 
   throw new Error(
     apiBaseUrl
       ? `Cannot reach Revora at ${apiBaseUrl}. Check that shopify app dev is running.`
-      : "Open Revora in Shopify admin, or connect from the extension popup.",
-  )
+      : "Open Revora in Shopify admin, or connect from the extension popup."
+  );
 }
 
 export async function resolveApiBaseUrlForConnect(): Promise<string | null> {
-  const stored = await readConnectionState()
+  const stored = await readConnectionState();
   if (stored.apiBaseUrl) {
-    return stored.apiBaseUrl
+    return stored.apiBaseUrl;
   }
 
-  return readApiBaseUrlFromAdmin()
+  return readApiBaseUrlFromAdmin();
 }

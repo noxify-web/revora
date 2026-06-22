@@ -2,72 +2,74 @@ import type {
   BackgroundDirectConnectResponse,
   BackgroundPlanResponse,
   BackgroundResponse,
-} from "@revora/shared/extension-messages"
-import type { ConnectTokenResponse } from "@revora/shared/extension-types"
-import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs"
-import { statusIconForTone } from "../../lib/icons"
+} from "@revora/shared/extension-messages";
+import type { ConnectTokenResponse } from "@revora/shared/extension-types";
+import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs";
+import { statusIconForTone } from "../../lib/icons";
 
-const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement
-const syncBtnLabel = document.getElementById("sync-btn-label") as HTMLSpanElement
+const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement;
+const syncBtnLabel = document.getElementById(
+  "sync-btn-label"
+) as HTMLSpanElement;
 const disconnectBtn = document.getElementById(
-  "disconnect-btn",
-) as HTMLButtonElement
+  "disconnect-btn"
+) as HTMLButtonElement;
 const disconnectBtnLabel = document.getElementById(
-  "disconnect-btn-label",
-) as HTMLSpanElement
-const statusNode = document.getElementById("status") as HTMLParagraphElement
-const statusIcon = document.getElementById("status-icon") as HTMLSpanElement
-const statusHint = document.getElementById("status-hint") as HTMLDivElement
-const syncActions = document.getElementById("sync-actions") as HTMLDivElement
+  "disconnect-btn-label"
+) as HTMLSpanElement;
+const statusNode = document.getElementById("status") as HTMLParagraphElement;
+const statusIcon = document.getElementById("status-icon") as HTMLSpanElement;
+const statusHint = document.getElementById("status-hint") as HTMLDivElement;
+const syncActions = document.getElementById("sync-actions") as HTMLDivElement;
 const connectedActions = document.getElementById(
-  "connected-actions",
-) as HTMLDivElement
-type StatusTone = "" | "ok" | "error" | "pending"
+  "connected-actions"
+) as HTMLDivElement;
+type StatusTone = "" | "ok" | "error" | "pending";
 
 function setStatus(text: string, tone: StatusTone = "") {
-  statusNode.textContent = text
-  statusIcon.innerHTML = statusIconForTone(tone)
+  statusNode.textContent = text;
+  statusIcon.innerHTML = statusIconForTone(tone);
 }
 
 function setSyncing(syncing: boolean) {
-  syncBtn.disabled = syncing
-  syncBtnLabel.textContent = syncing ? "Syncing..." : "Sync from admin"
+  syncBtn.disabled = syncing;
+  syncBtnLabel.textContent = syncing ? "Syncing..." : "Sync from admin";
 }
 
 function setDisconnecting(disconnecting: boolean) {
-  disconnectBtn.disabled = disconnecting
+  disconnectBtn.disabled = disconnecting;
   disconnectBtnLabel.textContent = disconnecting
     ? "Disconnecting..."
-    : "Disconnect"
+    : "Disconnect";
 }
 
 function formatShopLabel(shop: string) {
-  return shop.replace(/\.myshopify\.com$/i, "")
+  return shop.replace(/\.myshopify\.com$/i, "");
 }
 
 function setConnected(shop: string) {
-  setStatus(`Connected · ${formatShopLabel(shop)}`, "ok")
-  statusHint.hidden = true
-  syncActions.hidden = true
-  connectedActions.hidden = false
+  setStatus(`Connected · ${formatShopLabel(shop)}`, "ok");
+  statusHint.hidden = true;
+  syncActions.hidden = true;
+  connectedActions.hidden = false;
 }
 
 function setDisconnected() {
-  setStatus("Not connected", "")
-  statusHint.hidden = false
-  syncActions.hidden = false
-  connectedActions.hidden = true
+  setStatus("Not connected", "");
+  statusHint.hidden = false;
+  syncActions.hidden = false;
+  connectedActions.hidden = true;
 }
 
 function applyConnection(data: ConnectTokenResponse) {
-  setConnected(data.shop)
+  setConnected(data.shop);
 }
 
 async function syncFromAdmin() {
-  const payload = await resolveConnectPayloadFromAdmin()
+  const payload = await resolveConnectPayloadFromAdmin();
 
-  if (!payload?.token || !payload.apiUrl || !payload.shop) {
-    return false
+  if (!(payload?.token && payload.apiUrl && payload.shop)) {
+    return false;
   }
 
   const response = (await chrome.runtime.sendMessage({
@@ -75,95 +77,95 @@ async function syncFromAdmin() {
     token: payload.token,
     apiUrl: payload.apiUrl,
     shop: payload.shop,
-  })) as BackgroundDirectConnectResponse
+  })) as BackgroundDirectConnectResponse;
 
-  if (!response?.ok || !response.data) {
+  if (!(response?.ok && response.data)) {
     const message =
-      response && "error" in response ? response.error : "Sync failed"
-    throw new Error(message || "Sync failed")
+      response && "error" in response ? response.error : "Sync failed";
+    throw new Error(message || "Sync failed");
   }
 
-  applyConnection(response.data)
-  return true
+  applyConnection(response.data);
+  return true;
 }
 
 async function handleSync() {
-  setSyncing(true)
-  setStatus("Syncing with Revora admin...", "pending")
+  setSyncing(true);
+  setStatus("Syncing with Revora admin...", "pending");
 
   try {
-    const synced = await syncFromAdmin()
+    const synced = await syncFromAdmin();
 
     if (!synced) {
       setStatus(
         "Open Revora in Shopify admin and click Connect, then try again.",
-        "error",
-      )
+        "error"
+      );
     }
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : "Sync failed", "error")
+    setStatus(error instanceof Error ? error.message : "Sync failed", "error");
   } finally {
-    setSyncing(false)
+    setSyncing(false);
   }
 }
 
 async function handleDisconnect() {
-  setDisconnecting(true)
+  setDisconnecting(true);
 
   try {
     const response = (await chrome.runtime.sendMessage({
       type: "REVORA_DISCONNECT",
-    })) as BackgroundResponse
+    })) as BackgroundResponse;
 
     if (!response?.ok) {
       const message =
-        response && "error" in response ? response.error : "Disconnect failed"
-      throw new Error(message || "Disconnect failed")
+        response && "error" in response ? response.error : "Disconnect failed";
+      throw new Error(message || "Disconnect failed");
     }
 
-    setDisconnected()
+    setDisconnected();
   } catch (error) {
     setStatus(
       error instanceof Error ? error.message : "Disconnect failed",
-      "error",
-    )
+      "error"
+    );
   } finally {
-    setDisconnecting(false)
+    setDisconnecting(false);
   }
 }
 
 syncBtn.addEventListener("click", () => {
-  void handleSync()
-})
+  void handleSync();
+});
 
 disconnectBtn.addEventListener("click", () => {
-  void handleDisconnect()
-})
+  void handleDisconnect();
+});
 
 async function loadSettings() {
-  const stored = await chrome.storage.sync.get(["shop", "pairingToken"])
+  const stored = await chrome.storage.sync.get(["shop", "pairingToken"]);
 
   if (stored.shop) {
-    setConnected(stored.shop as string)
-    return
+    setConnected(stored.shop as string);
+    return;
   }
 
   if (stored.pairingToken) {
     try {
       const planResponse = (await chrome.runtime.sendMessage({
         type: "REVORA_GET_PLAN",
-      })) as BackgroundPlanResponse
+      })) as BackgroundPlanResponse;
 
       if (planResponse?.ok && planResponse.data?.shop) {
-        setConnected(planResponse.data.shop)
-        return
+        setConnected(planResponse.data.shop);
+        return;
       }
     } catch {
       // Background may not be ready yet.
     }
   }
 
-  setDisconnected()
+  setDisconnected();
 }
 
-void loadSettings()
+void loadSettings();

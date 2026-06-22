@@ -1,10 +1,10 @@
-import type { Session } from "@shopify/shopify-api"
+import type { Session } from "@shopify/shopify-api";
 
 import {
   isThemesAccessDeniedError,
   sessionHasThemesAccess,
-} from "@/lib/shopify/scopes"
-import { getShopify } from "@/lib/shopify/shopify"
+} from "@/lib/shopify/scopes";
+import { getShopify } from "@/lib/shopify/shopify";
 
 const MAIN_THEME_QUERY = `#graphql
   query RevoraMainTheme {
@@ -15,7 +15,7 @@ const MAIN_THEME_QUERY = `#graphql
       }
     }
   }
-`
+`;
 
 const THEME_FILES_QUERY = `#graphql
   query RevoraThemeFiles($themeId: ID!) {
@@ -35,197 +35,197 @@ const THEME_FILES_QUERY = `#graphql
       }
     }
   }
-`
+`;
 
-type ThemeFileNode = {
-  filename?: string
+interface ThemeFileNode {
   body?: {
-    content?: string
-  }
+    content?: string;
+  };
+  filename?: string;
 }
 
-type ThemeFilesResponse = {
+interface ThemeFilesResponse {
   theme?: {
     files?: {
-      nodes?: ThemeFileNode[]
-    }
-  }
+      nodes?: ThemeFileNode[];
+    };
+  };
 }
 
-type MainThemeResponse = {
+interface MainThemeResponse {
   themes?: {
     nodes?: Array<{
-      id: string
-      name: string
-    }>
-  }
+      id: string;
+      name: string;
+    }>;
+  };
 }
 
-export type RevoraStorefrontWidgetStatus = {
-  enabled: boolean
-  themeName: string | null
-  checked: boolean
+export interface RevoraStorefrontWidgetStatus {
+  checked: boolean;
+  enabled: boolean;
+  themeName: string | null;
 }
 
 function stripJsonComments(raw: string) {
-  return raw.replace(/\/\*[\s\S]*?\*\//, "").trim()
+  return raw.replace(/\/\*[\s\S]*?\*\//, "").trim();
 }
 
 function parseThemeJson(raw: string | undefined) {
   if (!raw) {
-    return null
+    return null;
   }
 
   try {
-    return JSON.parse(stripJsonComments(raw)) as Record<string, unknown>
+    return JSON.parse(stripJsonComments(raw)) as Record<string, unknown>;
   } catch {
-    return null
+    return null;
   }
 }
 
 function isEnabledThemeBlock(block: Record<string, unknown>) {
-  return block.disabled !== true
+  return block.disabled !== true;
 }
 
 function matchesRevoraBlockType(type: unknown, apiKey: string) {
   if (typeof type !== "string") {
-    return false
+    return false;
   }
 
-  const normalized = type.toLowerCase()
+  const normalized = type.toLowerCase();
   const markers = [
     apiKey.toLowerCase(),
     "revora-reviews",
     "revora/blocks/",
     "revora-reviews/blocks/",
-  ]
+  ];
 
-  return markers.some((marker) => normalized.includes(marker))
+  return markers.some((marker) => normalized.includes(marker));
 }
 
 function hasEnabledAppEmbed(
   settingsData: Record<string, unknown> | null,
-  apiKey: string,
+  apiKey: string
 ) {
-  const current = settingsData?.current
+  const current = settingsData?.current;
   if (!current || typeof current !== "object") {
-    return false
+    return false;
   }
 
-  const blocks = (current as Record<string, unknown>).blocks
+  const blocks = (current as Record<string, unknown>).blocks;
   if (!blocks || typeof blocks !== "object") {
-    return false
+    return false;
   }
 
   return Object.values(blocks as Record<string, Record<string, unknown>>).some(
     (block) => {
-      const type = block.type
+      const type = block.type;
       if (typeof type !== "string" || !isEnabledThemeBlock(block)) {
-        return false
+        return false;
       }
 
       return (
         matchesRevoraBlockType(type, apiKey) &&
         type.toLowerCase().includes("reviews-embed")
-      )
-    },
-  )
+      );
+    }
+  );
 }
 
 function hasEnabledProductAppBlock(
   productTemplate: Record<string, unknown> | null,
-  apiKey: string,
+  apiKey: string
 ) {
-  const sections = productTemplate?.sections
+  const sections = productTemplate?.sections;
   if (!sections || typeof sections !== "object") {
-    return false
+    return false;
   }
 
   for (const section of Object.values(
-    sections as Record<string, Record<string, unknown>>,
+    sections as Record<string, Record<string, unknown>>
   )) {
-    const blocks = section?.blocks
+    const blocks = section?.blocks;
     if (!blocks || typeof blocks !== "object") {
-      continue
+      continue;
     }
 
     for (const block of Object.values(
-      blocks as Record<string, Record<string, unknown>>,
+      blocks as Record<string, Record<string, unknown>>
     )) {
-      const type = block.type
+      const type = block.type;
       if (
         typeof type === "string" &&
         isEnabledThemeBlock(block) &&
         matchesRevoraBlockType(type, apiKey) &&
         type.toLowerCase().includes("/blocks/reviews/")
       ) {
-        return true
+        return true;
       }
     }
   }
 
-  return false
+  return false;
 }
 
 export async function getRevoraStorefrontWidgetStatus(
   session: Session,
-  apiKey: string,
+  apiKey: string
 ): Promise<RevoraStorefrontWidgetStatus> {
   if (!sessionHasThemesAccess(session)) {
     return {
       enabled: false,
       themeName: null,
       checked: false,
-    }
+    };
   }
 
-  const shopify = getShopify()
-  const admin = new shopify.clients.Graphql({ session })
+  const shopify = getShopify();
+  const admin = new shopify.clients.Graphql({ session });
 
   try {
-    const mainThemeResponse = await admin.request(MAIN_THEME_QUERY)
+    const mainThemeResponse = await admin.request(MAIN_THEME_QUERY);
     const mainTheme = (mainThemeResponse.data as MainThemeResponse)?.themes
-      ?.nodes?.[0]
+      ?.nodes?.[0];
 
     if (!mainTheme?.id) {
-      return { enabled: false, themeName: null, checked: true }
+      return { enabled: false, themeName: null, checked: true };
     }
 
     const filesResponse = await admin.request(THEME_FILES_QUERY, {
       variables: { themeId: mainTheme.id },
-    })
+    });
 
     const fileNodes =
-      (filesResponse.data as ThemeFilesResponse)?.theme?.files?.nodes ?? []
+      (filesResponse.data as ThemeFilesResponse)?.theme?.files?.nodes ?? [];
 
     const settingsData = parseThemeJson(
       fileNodes.find((node) => node.filename === "config/settings_data.json")
-        ?.body?.content,
-    )
+        ?.body?.content
+    );
     const productTemplate = parseThemeJson(
       fileNodes.find((node) => node.filename === "templates/product.json")?.body
-        ?.content,
-    )
+        ?.content
+    );
 
     const enabled =
       hasEnabledAppEmbed(settingsData, apiKey) ||
-      hasEnabledProductAppBlock(productTemplate, apiKey)
+      hasEnabledProductAppBlock(productTemplate, apiKey);
 
     return {
       enabled,
       themeName: mainTheme.name,
       checked: true,
-    }
+    };
   } catch (error) {
     if (isThemesAccessDeniedError(error)) {
       return {
         enabled: false,
         themeName: null,
         checked: false,
-      }
+      };
     }
 
-    console.warn("Revora theme embed status check failed", error)
-    return { enabled: false, themeName: null, checked: false }
+    console.warn("Revora theme embed status check failed", error);
+    return { enabled: false, themeName: null, checked: false };
   }
 }

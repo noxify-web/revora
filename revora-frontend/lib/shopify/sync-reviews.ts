@@ -1,45 +1,45 @@
-import type { Session } from "@shopify/shopify-api"
-import { and, eq } from "drizzle-orm"
+import type { Session } from "@shopify/shopify-api";
+import { and, eq } from "drizzle-orm";
 
-import { parseStoredPictures } from "@/lib/extension/pictures"
-import { db } from "@/src/db"
-import { importedReviews, reviewImports } from "@/src/db/schema"
-import { getShopify } from "@/lib/shopify/shopify"
+import { parseStoredPictures } from "@/lib/extension/pictures";
+import { getShopify } from "@/lib/shopify/shopify";
+import { db } from "@/src/db";
+import { importedReviews, reviewImports } from "@/src/db/schema";
 
-const REVIEW_METAOBJECT_TYPE = "$app:revora_review"
-const PUBLISH_CONCURRENCY = 5
+const REVIEW_METAOBJECT_TYPE = "$app:revora_review";
+const PUBLISH_CONCURRENCY = 5;
 
-type ReviewRow = {
-  id: string
-  temuReviewId: string
-  comment: string | null
-  translatedComment: string | null
-  score: number | null
-  authorName: string | null
-  reviewTime: number | null
-  pictures: string | null
-  shopifyMetaobjectId: string | null
+interface ReviewRow {
+  authorName: string | null;
+  comment: string | null;
+  id: string;
+  pictures: string | null;
+  reviewTime: number | null;
+  score: number | null;
+  shopifyMetaobjectId: string | null;
+  temuReviewId: string;
+  translatedComment: string | null;
 }
 
-type GraphqlAdmin = {
+interface GraphqlAdmin {
   request: (
     query: string,
     options?: { variables?: Record<string, unknown> }
-  ) => Promise<{ data?: unknown }>
+  ) => Promise<{ data?: unknown }>;
 }
 
-type PublishAttempt = {
-  review: ReviewRow
-  metaobjectId: string | null
-  error: string | null
+interface PublishAttempt {
+  error: string | null;
+  metaobjectId: string | null;
+  review: ReviewRow;
 }
 
 function reviewComment(review: ReviewRow) {
-  return (review.translatedComment || review.comment || "").trim()
+  return (review.translatedComment || review.comment || "").trim();
 }
 
 function buildReviewFields(review: ReviewRow) {
-  const pictureUrls = parseStoredPictures(review.pictures)
+  const pictureUrls = parseStoredPictures(review.pictures);
 
   const fields = [
     { key: "author_name", value: review.authorName || "Customer" },
@@ -55,19 +55,19 @@ function buildReviewFields(review: ReviewRow) {
         : new Date().toISOString().slice(0, 10),
     },
     { key: "temu_review_id", value: review.temuReviewId },
-  ]
+  ];
 
   if (pictureUrls.length) {
-    fields.push({ key: "pictures", value: JSON.stringify(pictureUrls) })
+    fields.push({ key: "pictures", value: JSON.stringify(pictureUrls) });
   }
 
-  return fields
+  return fields;
 }
 
 async function createReviewMetaobject(
   admin: GraphqlAdmin,
   review: ReviewRow,
-  fields: ReturnType<typeof buildReviewFields>,
+  fields: ReturnType<typeof buildReviewFields>
 ) {
   const response = await admin.request(
     `#graphql
@@ -87,27 +87,27 @@ async function createReviewMetaobject(
         },
       },
     }
-  )
+  );
 
   const payload = response.data as {
     metaobjectCreate?: {
-      metaobject?: { id?: string }
-      userErrors?: { message: string }[]
-    }
-  }
+      metaobject?: { id?: string };
+      userErrors?: { message: string }[];
+    };
+  };
 
-  const error = payload.metaobjectCreate?.userErrors?.[0]?.message
-  const id = payload.metaobjectCreate?.metaobject?.id
+  const error = payload.metaobjectCreate?.userErrors?.[0]?.message;
+  const id = payload.metaobjectCreate?.metaobject?.id;
 
   if (error || !id) {
-    throw new Error(error || "Failed to create review metaobject")
+    throw new Error(error || "Failed to create review metaobject");
   }
 
-  return id
+  return id;
 }
 
 async function upsertReviewMetaobject(admin: GraphqlAdmin, review: ReviewRow) {
-  const fields = buildReviewFields(review)
+  const fields = buildReviewFields(review);
 
   if (review.shopifyMetaobjectId) {
     const response = await admin.request(
@@ -125,40 +125,40 @@ async function upsertReviewMetaobject(admin: GraphqlAdmin, review: ReviewRow) {
           metaobject: { fields },
         },
       }
-    )
+    );
 
     const errors = (
       response.data as {
-        metaobjectUpdate?: { userErrors?: { message: string }[] }
+        metaobjectUpdate?: { userErrors?: { message: string }[] };
       }
-    )?.metaobjectUpdate?.userErrors
+    )?.metaobjectUpdate?.userErrors;
 
     if (!errors?.length) {
-      return review.shopifyMetaobjectId
+      return review.shopifyMetaobjectId;
     }
 
-    const message = errors[0]?.message || ""
+    const message = errors[0]?.message || "";
     if (!/not found|does not exist|invalid id/i.test(message)) {
-      throw new Error(message || "Failed to update review metaobject")
+      throw new Error(message || "Failed to update review metaobject");
     }
   }
 
-  return createReviewMetaobject(admin, review, fields)
+  return createReviewMetaobject(admin, review, fields);
 }
 
 async function publishReviewsInParallel(
   admin: GraphqlAdmin,
   reviews: ReviewRow[]
 ): Promise<PublishAttempt[]> {
-  const results: PublishAttempt[] = []
+  const results: PublishAttempt[] = [];
 
   for (let index = 0; index < reviews.length; index += PUBLISH_CONCURRENCY) {
-    const batch = reviews.slice(index, index + PUBLISH_CONCURRENCY)
+    const batch = reviews.slice(index, index + PUBLISH_CONCURRENCY);
     const batchResults = await Promise.all(
       batch.map(async (review) => {
         try {
-          const metaobjectId = await upsertReviewMetaobject(admin, review)
-          return { review, metaobjectId, error: null }
+          const metaobjectId = await upsertReviewMetaobject(admin, review);
+          return { review, metaobjectId, error: null };
         } catch (error) {
           return {
             review,
@@ -167,29 +167,29 @@ async function publishReviewsInParallel(
               error instanceof Error
                 ? error.message
                 : "Failed to publish review",
-          }
+          };
         }
       })
-    )
+    );
 
-    results.push(...batchResults)
+    results.push(...batchResults);
   }
 
-  return results
+  return results;
 }
 
-const STOREFRONT_JSON_REVIEW_LIMIT = 30
+const STOREFRONT_JSON_REVIEW_LIMIT = 30;
 
 function buildStorefrontReviewsPayload(
   succeeded: PublishAttempt[],
   publishedCount: number,
-  averageScore: number,
+  averageScore: number
 ) {
   return {
     count: publishedCount,
     averageRating: Number(averageScore.toFixed(1)),
     reviews: succeeded.slice(0, STOREFRONT_JSON_REVIEW_LIMIT).map((item) => {
-      const pictureUrls = parseStoredPictures(item.review.pictures)
+      const pictureUrls = parseStoredPictures(item.review.pictures);
 
       return {
         authorName: item.review.authorName || "Customer",
@@ -199,9 +199,9 @@ function buildStorefrontReviewsPayload(
           ? new Date(item.review.reviewTime * 1000).toISOString().slice(0, 10)
           : new Date().toISOString().slice(0, 10),
         pictures: pictureUrls,
-      }
+      };
     }),
-  }
+  };
 }
 
 async function updateProductMetafields(
@@ -210,7 +210,7 @@ async function updateProductMetafields(
   metaobjectIds: string[],
   publishedCount: number,
   averageScore: number,
-  storefrontPayload: ReturnType<typeof buildStorefrontReviewsPayload>,
+  storefrontPayload: ReturnType<typeof buildStorefrontReviewsPayload>
 ) {
   const productResponse = await admin.request(
     `#graphql
@@ -255,16 +255,16 @@ async function updateProductMetafields(
         ],
       },
     }
-  )
+  );
 
   const productError = (
     productResponse.data as {
-      metafieldsSet?: { userErrors?: { message: string }[] }
+      metafieldsSet?: { userErrors?: { message: string }[] };
     }
-  )?.metafieldsSet?.userErrors?.[0]?.message
+  )?.metafieldsSet?.userErrors?.[0]?.message;
 
   if (productError) {
-    throw new Error(productError)
+    throw new Error(productError);
   }
 }
 
@@ -277,14 +277,14 @@ export async function publishImportToShopify(
       eq(reviewImports.id, importId),
       eq(reviewImports.shop, session.shop)
     ),
-  })
+  });
 
   if (!importRecord) {
-    throw new Error("Import not found")
+    throw new Error("Import not found");
   }
 
   if (!importRecord.shopifyProductId) {
-    throw new Error("Import is missing a Shopify product mapping")
+    throw new Error("Import is missing a Shopify product mapping");
   }
 
   const reviews = await db.query.importedReviews.findMany({
@@ -292,19 +292,19 @@ export async function publishImportToShopify(
       eq(importedReviews.importId, importId),
       eq(importedReviews.shop, session.shop)
     ),
-  })
+  });
 
   if (!reviews.length) {
-    throw new Error("No reviews to publish")
+    throw new Error("No reviews to publish");
   }
 
-  const shopify = getShopify()
-  const admin = new shopify.clients.Graphql({ session })
-  const attempts = await publishReviewsInParallel(admin, reviews)
+  const shopify = getShopify();
+  const admin = new shopify.clients.Graphql({ session });
+  const attempts = await publishReviewsInParallel(admin, reviews);
 
-  const succeeded = attempts.filter((item) => item.metaobjectId)
-  const failed = attempts.filter((item) => item.error)
-  const now = new Date().toISOString()
+  const succeeded = attempts.filter((item) => item.metaobjectId);
+  const failed = attempts.filter((item) => item.error);
+  const now = new Date().toISOString();
 
   for (const item of failed) {
     await db
@@ -313,7 +313,7 @@ export async function publishImportToShopify(
         syncStatus: "failed",
         syncError: item.error,
       })
-      .where(eq(importedReviews.id, item.review.id))
+      .where(eq(importedReviews.id, item.review.id));
   }
 
   if (!succeeded.length) {
@@ -324,7 +324,7 @@ export async function publishImportToShopify(
         totalPublished: 0,
         updatedAt: now,
       })
-      .where(eq(reviewImports.id, importId))
+      .where(eq(reviewImports.id, importId));
 
     return {
       importId,
@@ -332,16 +332,16 @@ export async function publishImportToShopify(
       failed: failed.length,
       productId: importRecord.shopifyProductId,
       errors: failed.map((item) => item.error).filter(Boolean),
-    }
+    };
   }
 
-  const metaobjectIds = succeeded.map((item) => item.metaobjectId as string)
+  const metaobjectIds = succeeded.map((item) => item.metaobjectId as string);
   const scores = succeeded
     .map((item) => item.review.score)
-    .filter((score): score is number => typeof score === "number")
+    .filter((score): score is number => typeof score === "number");
   const averageScore = scores.length
     ? scores.reduce((sum, score) => sum + score, 0) / scores.length
-    : 5
+    : 5;
 
   for (const item of succeeded) {
     await db
@@ -351,7 +351,7 @@ export async function publishImportToShopify(
         syncStatus: "pending",
         syncError: null,
       })
-      .where(eq(importedReviews.id, item.review.id))
+      .where(eq(importedReviews.id, item.review.id));
   }
 
   try {
@@ -361,11 +361,11 @@ export async function publishImportToShopify(
       metaobjectIds,
       succeeded.length,
       averageScore,
-      buildStorefrontReviewsPayload(succeeded, succeeded.length, averageScore),
-    )
+      buildStorefrontReviewsPayload(succeeded, succeeded.length, averageScore)
+    );
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to update product"
+      error instanceof Error ? error.message : "Failed to update product";
 
     for (const item of succeeded) {
       await db
@@ -374,7 +374,7 @@ export async function publishImportToShopify(
           syncStatus: "failed",
           syncError: message,
         })
-        .where(eq(importedReviews.id, item.review.id))
+        .where(eq(importedReviews.id, item.review.id));
     }
 
     await db
@@ -384,9 +384,9 @@ export async function publishImportToShopify(
         totalPublished: 0,
         updatedAt: now,
       })
-      .where(eq(reviewImports.id, importId))
+      .where(eq(reviewImports.id, importId));
 
-    throw new Error(message)
+    throw new Error(message);
   }
 
   for (const item of succeeded) {
@@ -398,7 +398,7 @@ export async function publishImportToShopify(
         syncError: null,
         publishedAt: now,
       })
-      .where(eq(importedReviews.id, item.review.id))
+      .where(eq(importedReviews.id, item.review.id));
   }
 
   await db
@@ -409,7 +409,7 @@ export async function publishImportToShopify(
       publishedAt: now,
       updatedAt: now,
     })
-    .where(eq(reviewImports.id, importId))
+    .where(eq(reviewImports.id, importId));
 
   return {
     importId,
@@ -417,5 +417,5 @@ export async function publishImportToShopify(
     failed: failed.length,
     productId: importRecord.shopifyProductId,
     errors: failed.map((item) => item.error).filter(Boolean),
-  }
+  };
 }

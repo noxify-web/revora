@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod";
 
 export const importReviewSchema = z.object({
   temuReviewId: z.string().min(1),
@@ -8,7 +8,7 @@ export const importReviewSchema = z.object({
   authorName: z.string().optional(),
   reviewTime: z.number().int().nullable().optional(),
   pictures: z.array(z.string()).optional(),
-})
+});
 
 export const importBatchSchema = z.object({
   importId: z.string().uuid().optional(),
@@ -21,5 +21,4 @@ export const importBatchSchema = z.object({
   batchIndex: z.number().int().min(0).optional(),
   isFinal: z.boolean().optional(),
   reviews: z.array(importReviewSchema),
-})
-
+});

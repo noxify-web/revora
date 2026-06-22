@@ -1,8 +1,8 @@
-import extensionUi from "./extension-ui.css?inline"
-import { getInterFontFace, getRevoraCssVariables } from "./theme"
+import extensionUi from "./extension-ui.css?inline";
+import { getInterFontFace, getRevoraCssVariables } from "./theme";
 
 export function getPanelStyles() {
-  const fontUrl = chrome.runtime.getURL("fonts/InterVariable-latin.woff2")
+  const fontUrl = chrome.runtime.getURL("fonts/InterVariable-latin.woff2");
 
   return `
     ${getInterFontFace(fontUrl)}
@@ -108,5 +108,5 @@ export function getPanelStyles() {
     }
 
 
-  `
+  `;
 }

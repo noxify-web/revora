@@ -1,28 +1,28 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react";
 
-const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal"
+const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal";
 
-import type { ConnectTokenResponse } from "@revora/shared/extension-types"
-import { broadcastConnectToken } from "@/components/extension-bridge"
-import { adminFetch, readAdminJson } from "@/lib/admin-fetch"
+import type { ConnectTokenResponse } from "@revora/shared/extension-types";
+import { broadcastConnectToken } from "@/components/extension-bridge";
+import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
 
-type ExtensionToken = {
-  id: string
-  label: string
-  createdAt: string
-  lastUsedAt: string | null
+interface ExtensionToken {
+  createdAt: string;
+  id: string;
+  label: string;
+  lastUsedAt: string | null;
 }
 
 function showToast(message: string) {
-  window.shopify?.toast?.show(message)
+  window.shopify?.toast?.show(message);
 }
 
-type ConnectExtensionProps = {
-  onConnected?: () => void
-  compact?: boolean
-  checkStatusOnMount?: boolean
+interface ConnectExtensionProps {
+  checkStatusOnMount?: boolean;
+  compact?: boolean;
+  onConnected?: () => void;
 }
 
 export function ConnectExtension({
@@ -30,113 +30,113 @@ export function ConnectExtension({
   compact = false,
   checkStatusOnMount = true,
 }: ConnectExtensionProps) {
-  const [tokens, setTokens] = useState<ExtensionToken[]>([])
+  const [tokens, setTokens] = useState<ExtensionToken[]>([]);
   const [connectPayload, setConnectPayload] =
-    useState<ConnectTokenResponse | null>(null)
-  const [connecting, setConnecting] = useState(false)
-  const [loadingTokens, setLoadingTokens] = useState(checkStatusOnMount)
-  const [error, setError] = useState<string | null>(null)
+    useState<ConnectTokenResponse | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [loadingTokens, setLoadingTokens] = useState(checkStatusOnMount);
+  const [error, setError] = useState<string | null>(null);
 
   const loadTokens = useCallback(async () => {
-    setLoadingTokens(true)
-    setError(null)
+    setLoadingTokens(true);
+    setError(null);
 
     try {
-      const response = await adminFetch("/api/extension/token")
-      const data = await readAdminJson<{ tokens?: ExtensionToken[]; error?: string }>(
-        response,
-      )
+      const response = await adminFetch("/api/extension/token");
+      const data = await readAdminJson<{
+        tokens?: ExtensionToken[];
+        error?: string;
+      }>(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to load extension status")
+        throw new Error(data.error || "Failed to load extension status");
       }
-      setTokens(data.tokens ?? [])
+      setTokens(data.tokens ?? []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Failed to load extension status",
-      )
+          : "Failed to load extension status"
+      );
     } finally {
-      setLoadingTokens(false)
+      setLoadingTokens(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (!checkStatusOnMount) {
-      return
+      return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch token status on mount
-    void loadTokens()
-  }, [checkStatusOnMount, loadTokens])
+    void loadTokens();
+  }, [checkStatusOnMount, loadTokens]);
 
   async function connectExtension() {
-    setConnecting(true)
-    setError(null)
-    setConnectPayload(null)
+    setConnecting(true);
+    setError(null);
+    setConnectPayload(null);
 
     try {
       const response = await adminFetch("/api/extension/token", {
         method: "POST",
         body: JSON.stringify({ label: "Chrome extension" }),
-      })
+      });
 
-      const data = await readAdminJson<ConnectTokenResponse & { error?: string }>(
-        response,
-      )
+      const data = await readAdminJson<
+        ConnectTokenResponse & { error?: string }
+      >(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to connect extension")
+        throw new Error(data.error || "Failed to connect extension");
       }
-      setConnectPayload(data)
+      setConnectPayload(data);
 
       broadcastConnectToken({
         token: data.token,
         apiUrl: data.apiUrl,
         shop: data.shop,
-      })
+      });
 
-      showToast("Extension connected")
-      await loadTokens()
-      onConnected?.()
+      showToast("Extension connected");
+      await loadTokens();
+      onConnected?.();
     } catch (connectError) {
       setError(
         connectError instanceof Error
           ? connectError.message
-          : "Failed to connect extension",
-      )
+          : "Failed to connect extension"
+      );
     } finally {
-      setConnecting(false)
+      setConnecting(false);
     }
   }
 
-  const activeToken = tokens[0]
-  const isConnected = Boolean(activeToken || connectPayload)
+  const activeToken = tokens[0];
+  const isConnected = Boolean(activeToken || connectPayload);
 
   return (
     <s-stack gap={compact ? "small-200" : "base"}>
       <s-grid
-        gridTemplateColumns="1fr auto"
-        gap={compact ? "small" : "base"}
         alignItems="center"
+        gap={compact ? "small" : "base"}
+        gridTemplateColumns="1fr auto"
       >
         <s-grid-item>
           <s-stack gap="small-200">
             {compact ? null : (
-              <s-stack direction="inline" gap="small" alignItems="center">
-                <s-icon type="app-extension" size="small" />
+              <s-stack alignItems="center" direction="inline" gap="small">
+                <s-icon size="small" type="app-extension" />
                 <s-heading>Revora Chrome extension</s-heading>
               </s-stack>
             )}
-            <s-stack direction="inline" gap="small" alignItems="center">
-              {!loadingTokens ? (
+            <s-stack alignItems="center" direction="inline" gap="small">
+              {loadingTokens ? null : (
                 <s-icon
-                  type={isConnected ? "check-circle" : "alert-circle"}
-                  tone={isConnected ? "success" : "warning"}
                   size="small"
+                  tone={isConnected ? "success" : "warning"}
+                  type={isConnected ? "check-circle" : "alert-circle"}
                 />
-              ) : null}
+              )}
               <s-text color="subdued">
                 {loadingTokens
                   ? "Checking connection..."
@@ -148,24 +148,24 @@ export function ConnectExtension({
           </s-stack>
         </s-grid-item>
         <s-grid-item>
-          {!isConnected ? (
+          {isConnected ? (
             <s-button
-              variant="primary"
-              icon="connect"
-              onClick={() => void connectExtension()}
-              loading={connecting}
+              command="--show"
+              commandFor={ROTATE_TOKEN_MODAL_ID}
+              disabled={connecting}
+              icon="refresh"
+              variant="secondary"
             >
-              Connect
+              Rotate token
             </s-button>
           ) : (
             <s-button
-              variant="secondary"
-              icon="refresh"
-              commandFor={ROTATE_TOKEN_MODAL_ID}
-              command="--show"
-              disabled={connecting}
+              icon="connect"
+              loading={connecting}
+              onClick={() => void connectExtension()}
+              variant="primary"
             >
-              Rotate token
+              Connect
             </s-button>
           )}
         </s-grid-item>
@@ -174,8 +174,8 @@ export function ConnectExtension({
       {compact ? (
         <s-banner heading="Connect your extension" tone="info">
           <s-paragraph>
-            Click Connect below to link the Chrome extension to this store.
-            Keep this tab open while importing from Temu.
+            Click Connect below to link the Chrome extension to this store. Keep
+            this tab open while importing from Temu.
           </s-paragraph>
         </s-banner>
       ) : null}
@@ -195,7 +195,7 @@ export function ConnectExtension({
         </s-banner>
       ) : null}
 
-      {!compact && !loadingTokens && activeToken?.lastUsedAt ? (
+      {!(compact || loadingTokens) && activeToken?.lastUsedAt ? (
         <s-text color="subdued">
           Last used {new Date(activeToken.lastUsedAt).toLocaleString()}
         </s-text>
@@ -205,14 +205,14 @@ export function ConnectExtension({
         <s-banner heading="Connection error" tone="critical">
           <s-stack gap="small">
             <s-text>{error}</s-text>
-            <s-button variant="secondary" onClick={() => void loadTokens()}>
+            <s-button onClick={() => void loadTokens()} variant="secondary">
               Try again
             </s-button>
           </s-stack>
         </s-banner>
       ) : null}
 
-      <s-modal id={ROTATE_TOKEN_MODAL_ID} heading="Rotate extension token?">
+      <s-modal heading="Rotate extension token?" id={ROTATE_TOKEN_MODAL_ID}>
         <s-stack gap="base">
           <s-text>
             This creates a new token and may disconnect the extension on other
@@ -226,23 +226,23 @@ export function ConnectExtension({
           </s-banner>
         </s-stack>
         <s-button
+          command="--hide"
+          commandFor={ROTATE_TOKEN_MODAL_ID}
+          loading={connecting}
+          onClick={() => void connectExtension()}
           slot="primary-action"
           variant="primary"
-          loading={connecting}
-          commandFor={ROTATE_TOKEN_MODAL_ID}
-          command="--hide"
-          onClick={() => void connectExtension()}
         >
           Rotate token
         </s-button>
         <s-button
-          slot="secondary-actions"
-          commandFor={ROTATE_TOKEN_MODAL_ID}
           command="--hide"
+          commandFor={ROTATE_TOKEN_MODAL_ID}
+          slot="secondary-actions"
         >
           Cancel
         </s-button>
       </s-modal>
     </s-stack>
-  )
+  );
 }

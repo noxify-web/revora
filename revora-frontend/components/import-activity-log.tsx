@@ -1,86 +1,87 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react";
 
-import { PolarisEmptyState } from "@/components/polaris-empty-state"
-import { adminFetch } from "@/lib/admin-fetch"
+import { PolarisEmptyState } from "@/components/polaris-empty-state";
+import { adminFetch } from "@/lib/admin-fetch";
 
-type ImportRecord = {
-  id: string
-  temuGoodsId: string
-  temuProductTitle: string | null
-  shopifyProductTitle: string | null
-  status: string
-  publishStatus: string
-  totalExpected: number | null
-  totalImported: number
-  totalPublished: number
-  createdAt: string
+interface ImportRecord {
+  createdAt: string;
+  id: string;
+  publishStatus: string;
+  shopifyProductTitle: string | null;
+  status: string;
+  temuGoodsId: string;
+  temuProductTitle: string | null;
+  totalExpected: number | null;
+  totalImported: number;
+  totalPublished: number;
 }
 
 function formatStatus(status: string) {
-  if (status === "partial") return "Partial"
-  return status.charAt(0).toUpperCase() + status.slice(1)
+  if (status === "partial") {
+    return "Partial";
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-type ImportActivityLogProps = {
-  refreshToken?: number
+interface ImportActivityLogProps {
+  refreshToken?: number;
 }
 
-export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) {
-  const [imports, setImports] = useState<ImportRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(true)
+export function ImportActivityLog({
+  refreshToken = 0,
+}: ImportActivityLogProps) {
+  const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(true);
 
   const loadImports = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await adminFetch("/api/imports")
+      const response = await adminFetch("/api/imports");
       if (!response.ok) {
-        throw new Error("Failed to load import history")
+        throw new Error("Failed to load import history");
       }
 
-      const data = await response.json()
-      setImports(data.imports ?? [])
+      const data = await response.json();
+      setImports(data.imports ?? []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Failed to load import history",
-      )
+          : "Failed to load import history"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch import history on mount/refresh
-    void loadImports()
-  }, [loadImports, refreshToken])
+    void refreshToken;
+    void loadImports();
+  }, [loadImports, refreshToken]);
 
   return (
-    <s-section
-      heading="Import history"
-      accessibilityLabel="Import history"
-    >
+    <s-section accessibilityLabel="Import history" heading="Import history">
       <s-stack gap="base">
         <s-stack
+          alignItems="center"
           direction="inline"
           gap="small"
-          alignItems="center"
           justifyContent="space-between"
         >
           <s-paragraph color="subdued">
             Recent Temu imports mapped to Shopify products.
           </s-paragraph>
           <s-button
-            variant="tertiary"
-            icon={expanded ? "chevron-up" : "chevron-down"}
             accessibilityLabel="Toggle import history"
+            icon={expanded ? "chevron-up" : "chevron-down"}
             onClick={() => setExpanded((value) => !value)}
+            variant="tertiary"
           />
         </s-stack>
 
@@ -91,26 +92,35 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
                 {error}
               </s-banner>
             ) : loading ? (
-              <s-stack direction="inline" gap="small" alignItems="center">
+              <s-stack alignItems="center" direction="inline" gap="small">
                 <s-spinner accessibilityLabel="Loading import history" />
                 <s-text color="subdued">Loading...</s-text>
               </s-stack>
             ) : imports.length === 0 ? (
               <PolarisEmptyState
-                heading="No imports yet"
                 description="Use the Revora Chrome extension on a Temu product page to import reviews."
+                heading="No imports yet"
                 imageAlt="No imports illustration"
               />
             ) : (
-              <s-section padding="none" accessibilityLabel="Import history table">
+              <s-section
+                accessibilityLabel="Import history table"
+                padding="none"
+              >
                 <s-table>
                   <s-table-header-row>
-                    <s-table-header listSlot="primary">Temu product</s-table-header>
-                    <s-table-header listSlot="labeled">Shopify product</s-table-header>
+                    <s-table-header listSlot="primary">
+                      Temu product
+                    </s-table-header>
+                    <s-table-header listSlot="labeled">
+                      Shopify product
+                    </s-table-header>
                     <s-table-header listSlot="inline">Status</s-table-header>
                     <s-table-header format="numeric">Imported</s-table-header>
                     <s-table-header format="numeric">Published</s-table-header>
-                    <s-table-header listSlot="secondary">Created</s-table-header>
+                    <s-table-header listSlot="secondary">
+                      Created
+                    </s-table-header>
                   </s-table-header-row>
                   <s-table-body>
                     {imports.map((item) => (
@@ -156,5 +166,5 @@ export function ImportActivityLog({ refreshToken = 0 }: ImportActivityLogProps) 
         ) : null}
       </s-stack>
     </s-section>
-  )
+  );
 }

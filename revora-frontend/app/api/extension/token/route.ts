@@ -1,41 +1,46 @@
-import { randomUUID } from "crypto"
-import { and, desc, eq, isNull } from "drizzle-orm"
-import { headers } from "next/headers"
+import { randomUUID } from "node:crypto";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { headers } from "next/headers";
 
-import { getAppBaseUrl } from "@/lib/extension/app-url"
+import { getAppBaseUrl } from "@/lib/extension/app-url";
 import {
   generateExtensionToken,
   revokeShopExtensionTokens,
-} from "@/lib/extension/auth"
-import { extensionJsonResponse, extensionOptionsResponse } from "@/lib/extension/cors"
-import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
-import { withAdminApi } from "@/lib/shopify/authenticate-admin"
-import { db } from "@/src/db"
-import { extensionTokens } from "@/src/db/schema"
+} from "@/lib/extension/auth";
+import {
+  extensionJsonResponse,
+  extensionOptionsResponse,
+} from "@/lib/extension/cors";
+import { withAdminApi } from "@/lib/shopify/authenticate-admin";
+import { resolveShopPlan } from "@/lib/shopify/resolve-plan";
+import { db } from "@/src/db";
+import { extensionTokens } from "@/src/db/schema";
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function OPTIONS() {
-  const headerStore = await headers()
-  return extensionOptionsResponse(headerStore.get("origin"))
+  const headerStore = await headers();
+  return extensionOptionsResponse(headerStore.get("origin"));
 }
 
 export async function POST(request: Request) {
-  const headerStore = await headers()
-  const origin = headerStore.get("origin")
+  const headerStore = await headers();
+  const origin = headerStore.get("origin");
 
   return withAdminApi(
     request,
     async ({ shop }) => {
-      const body = (await request.json().catch(() => ({}))) as { label?: string }
+      const body = (await request.json().catch(() => ({}))) as {
+        label?: string;
+      };
 
-      await revokeShopExtensionTokens(shop)
+      await revokeShopExtensionTokens(shop);
 
-      const { token, tokenHash } = generateExtensionToken()
-      const now = new Date().toISOString()
-      const resolved = await resolveShopPlan(shop)
-      const label = body.label?.trim() || "Chrome extension"
+      const { token, tokenHash } = generateExtensionToken();
+      const now = new Date().toISOString();
+      const resolved = await resolveShopPlan(shop);
+      const label = body.label?.trim() || "Chrome extension";
 
       await db.insert(extensionTokens).values({
         id: randomUUID(),
@@ -43,9 +48,9 @@ export async function POST(request: Request) {
         tokenHash,
         label,
         createdAt: now,
-      })
+      });
 
-      const apiUrl = await getAppBaseUrl(request)
+      const apiUrl = await getAppBaseUrl(request);
 
       return extensionJsonResponse(
         {
@@ -59,25 +64,28 @@ export async function POST(request: Request) {
           createdAt: now,
         },
         origin,
-        { status: 201 },
-      )
+        { status: 201 }
+      );
     },
     {
       logPrefix: "Revora extension token POST failed",
       defaultErrorMessage: "Failed to connect extension",
-    },
-  )
+    }
+  );
 }
 
 export async function GET(request: Request) {
-  const headerStore = await headers()
-  const origin = headerStore.get("origin")
+  const headerStore = await headers();
+  const origin = headerStore.get("origin");
 
   return withAdminApi(
     request,
     async ({ shop }) => {
       const tokens = await db.query.extensionTokens.findMany({
-        where: and(eq(extensionTokens.shop, shop), isNull(extensionTokens.revokedAt)),
+        where: and(
+          eq(extensionTokens.shop, shop),
+          isNull(extensionTokens.revokedAt)
+        ),
         orderBy: [desc(extensionTokens.createdAt)],
         columns: {
           id: true,
@@ -85,27 +93,27 @@ export async function GET(request: Request) {
           createdAt: true,
           lastUsedAt: true,
         },
-      })
+      });
 
-      return extensionJsonResponse({ tokens }, origin)
+      return extensionJsonResponse({ tokens }, origin);
     },
     {
       logPrefix: "Revora extension token GET failed",
       defaultErrorMessage: "Failed to load extension status",
-    },
-  )
+    }
+  );
 }
 
 export async function DELETE(request: Request) {
-  const headerStore = await headers()
-  const origin = headerStore.get("origin")
-  const url = new URL(request.url)
-  const tokenId = url.searchParams.get("id")
+  const headerStore = await headers();
+  const origin = headerStore.get("origin");
+  const url = new URL(request.url);
+  const tokenId = url.searchParams.get("id");
 
   if (!tokenId) {
     return extensionJsonResponse({ error: "Missing token id" }, origin, {
       status: 400,
-    })
+    });
   }
 
   return withAdminApi(
@@ -115,14 +123,14 @@ export async function DELETE(request: Request) {
         .update(extensionTokens)
         .set({ revokedAt: new Date().toISOString() })
         .where(
-          and(eq(extensionTokens.id, tokenId), eq(extensionTokens.shop, shop)),
-        )
+          and(eq(extensionTokens.id, tokenId), eq(extensionTokens.shop, shop))
+        );
 
-      return extensionJsonResponse({ revoked: true }, origin)
+      return extensionJsonResponse({ revoked: true }, origin);
     },
     {
       logPrefix: "Revora extension token DELETE failed",
       defaultErrorMessage: "Failed to revoke extension token",
-    },
-  )
+    }
+  );
 }

@@ -1,7 +1,7 @@
-import { REVORA_CLIENT_ID } from "./constants"
+import { REVORA_CLIENT_ID } from "./constants";
 
 export function getShopSlug(shop: string) {
-  return shop.replace(/\.myshopify\.com$/i, "")
+  return shop.replace(/\.myshopify\.com$/i, "");
 }
 
 /**
@@ -9,7 +9,7 @@ export function getShopSlug(shop: string) {
  * Uses the app client ID so it works regardless of handle suffix (revora vs revora-1).
  */
 export function getRevoraAdminAppUrl(shop: string) {
-  return `https://admin.shopify.com/store/${getShopSlug(shop)}/apps/${REVORA_CLIENT_ID}`
+  return `https://admin.shopify.com/store/${getShopSlug(shop)}/apps/${REVORA_CLIENT_ID}`;
 }
 
 export function getThemeEditorProductUrl(shop: string, shopifyApiKey: string) {
@@ -17,7 +17,7 @@ export function getThemeEditorProductUrl(shop: string, shopifyApiKey: string) {
     template: "product",
     context: "apps",
     activateAppId: shopifyApiKey,
-  })
+  });
 
-  return `https://admin.shopify.com/store/${getShopSlug(shop)}/themes/current/editor?${params.toString()}`
+  return `https://admin.shopify.com/store/${getShopSlug(shop)}/themes/current/editor?${params.toString()}`;
 }

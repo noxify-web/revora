@@ -1,15 +1,13 @@
-(function () {
-  "use strict";
-
+(() => {
   if (window.__revoraReviewsWidgetLoaded) {
     return;
   }
   window.__revoraReviewsWidgetLoaded = true;
 
-  var STYLE_ID = "revora-reviews-styles";
-  var API_PATH = "/apps/revora/reviews";
+  const STYLE_ID = "revora-reviews-styles";
+  const API_PATH = "/apps/revora/reviews";
 
-  var CSS =
+  const CSS =
     ".revora-reviews{border:1px solid #f0e4d8;border-radius:14px;padding:20px;background:#fff;color:#1a1a1a}" +
     ".revora-reviews__header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}" +
     ".revora-reviews__score{display:flex;align-items:center;gap:10px}" +
@@ -30,30 +28,30 @@
       return;
     }
 
-    var style = document.createElement("style");
+    const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = CSS;
     document.head.appendChild(style);
   }
 
   function escapeHtml(text) {
-    var div = document.createElement("div");
+    const div = document.createElement("div");
     div.textContent = text == null ? "" : String(text);
     return div.innerHTML;
   }
 
   function formatCount(template, count) {
-    var value = String(count);
-    return (template || value + " reviews")
+    const value = String(count);
+    return (template || `${value} reviews`)
       .replace(/__COUNT__/g, value)
       .replace(/\{\{\s*count\s*\}\}/g, value);
   }
 
   function renderStars(rating) {
-    var numericRating = Number(rating) || 0;
-    var html = "";
+    const numericRating = Number(rating) || 0;
+    let html = "";
 
-    for (var i = 1; i <= 5; i += 1) {
+    for (let i = 1; i <= 5; i += 1) {
       html +=
         '<span class="revora-reviews__star' +
         (i <= numericRating ? " is-filled" : "") +
@@ -76,26 +74,25 @@
   }
 
   function renderReview(review, i18n) {
-    var author = review.authorName || i18n.customer;
-    var score = Math.min(5, Math.max(1, Number(review.score) || 5));
-    var comment = review.comment || "";
-    var date = review.reviewDate || "";
-    var pictures = Array.isArray(review.pictures) ? review.pictures : [];
-    var photosHtml = "";
+    const author = review.authorName || i18n.customer;
+    const score = Math.min(5, Math.max(1, Number(review.score) || 5));
+    const comment = review.comment || "";
+    const date = review.reviewDate || "";
+    const pictures = Array.isArray(review.pictures) ? review.pictures : [];
+    let photosHtml = "";
 
     if (pictures.length > 0) {
       photosHtml =
         '<div class="revora-reviews__photos">' +
         pictures
-          .map(function (url) {
-            return (
+          .map(
+            (url) =>
               '<img src="' +
               escapeHtml(url) +
               '" alt="' +
               escapeHtml(i18n.photoAlt) +
               '" loading="lazy" width="72" height="72">'
-            );
-          })
+          )
           .join("") +
         "</div>";
     }
@@ -112,7 +109,7 @@
       renderStars(score) +
       "</span>" +
       "</div>" +
-      (date ? '<p class="revora-reviews__date">' + escapeHtml(date) + "</p>" : "") +
+      (date ? `<p class="revora-reviews__date">${escapeHtml(date)}</p>` : "") +
       '<p class="revora-reviews__comment">' +
       escapeHtml(comment) +
       "</p>" +
@@ -122,9 +119,9 @@
   }
 
   function renderWidget(root, data, i18n) {
-    var count = Number(data.count) || 0;
-    var average = Number(data.averageRating) || 0;
-    var reviews = Array.isArray(data.reviews) ? data.reviews : [];
+    const count = Number(data.count) || 0;
+    const average = Number(data.averageRating) || 0;
+    const reviews = Array.isArray(data.reviews) ? data.reviews : [];
 
     if (count === 0 || reviews.length === 0) {
       root.innerHTML =
@@ -152,9 +149,7 @@
       "</p>" +
       "</div>" +
       '<div class="revora-reviews__list">' +
-      reviews.map(function (review) {
-        return renderReview(review, i18n);
-      }).join("") +
+      reviews.map((review) => renderReview(review, i18n)).join("") +
       "</div>" +
       "</div>";
   }
@@ -167,18 +162,18 @@
   }
 
   function fetchReviews(shop, productId, limit) {
-    var params = new URLSearchParams({
-      shop: shop,
+    const params = new URLSearchParams({
+      shop,
       product_id: String(productId),
       limit: String(limit),
     });
 
-    return fetch(API_PATH + "?" + params.toString(), {
+    return fetch(`${API_PATH}?${params.toString()}`, {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
-    }).then(function (response) {
+    }).then((response) => {
       if (!response.ok) {
-        throw new Error("Revora reviews request failed (" + response.status + ")");
+        throw new Error(`Revora reviews request failed (${response.status})`);
       }
 
       return response.json();
@@ -186,12 +181,12 @@
   }
 
   function initRoot(root) {
-    var shop = root.dataset.shop;
-    var productId = root.dataset.productId;
-    var limit = parseInt(root.dataset.limit || "10", 10) || 10;
-    var i18n = readI18n(root);
+    const shop = root.dataset.shop;
+    const productId = root.dataset.productId;
+    const limit = Number.parseInt(root.dataset.limit || "10", 10) || 10;
+    const i18n = readI18n(root);
 
-    if (!shop || !productId) {
+    if (!(shop && productId)) {
       return;
     }
 
@@ -199,10 +194,10 @@
     renderLoading(root, i18n);
 
     fetchReviews(shop, productId, limit)
-      .then(function (data) {
+      .then((data) => {
         renderWidget(root, data, i18n);
       })
-      .catch(function () {
+      .catch(() => {
         root.innerHTML =
           '<div class="revora-reviews"><p class="revora-reviews__empty">' +
           escapeHtml(i18n.empty) +
@@ -211,9 +206,11 @@
   }
 
   function init() {
-    var roots = document.querySelectorAll("#revora-reviews-root, .revora-reviews-root");
+    const roots = document.querySelectorAll(
+      "#revora-reviews-root, .revora-reviews-root"
+    );
 
-    roots.forEach(function (root) {
+    roots.forEach((root) => {
       if (root.dataset.revoraInitialized === "true") {
         return;
       }

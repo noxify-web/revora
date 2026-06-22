@@ -1,12 +1,12 @@
-import { Session } from "@shopify/shopify-api"
-import type { SessionStorage } from "@shopify/shopify-app-session-storage"
-import { eq, inArray } from "drizzle-orm"
+import { Session } from "@shopify/shopify-api";
+import type { SessionStorage } from "@shopify/shopify-app-session-storage";
+import { eq, inArray } from "drizzle-orm";
 
-import { db } from "@/src/db"
-import { sessions } from "@/src/db/schema"
+import { db } from "@/src/db";
+import { sessions } from "@/src/db/schema";
 
 function sessionToRow(session: Session) {
-  const sessionParams = session.toObject()
+  const sessionParams = session.toObject();
 
   return {
     id: session.id,
@@ -32,7 +32,7 @@ function sessionToRow(session: Session) {
     refreshTokenExpires: sessionParams.refreshTokenExpires
       ? sessionParams.refreshTokenExpires.toISOString()
       : null,
-  }
+  };
 }
 
 function rowToSession(row: typeof sessions.$inferSelect): Session {
@@ -41,43 +41,63 @@ function rowToSession(row: typeof sessions.$inferSelect): Session {
     shop: row.shop,
     state: row.state,
     isOnline: row.isOnline,
-  }
+  };
 
-  if (row.userId != null) sessionParams.userId = String(row.userId)
-  if (row.firstName) sessionParams.firstName = row.firstName
-  if (row.lastName) sessionParams.lastName = row.lastName
-  if (row.email) sessionParams.email = row.email
-  if (row.locale) sessionParams.locale = row.locale
-  if (row.accountOwner != null) sessionParams.accountOwner = row.accountOwner
-  if (row.collaborator != null) sessionParams.collaborator = row.collaborator
-  if (row.emailVerified != null)
-    sessionParams.emailVerified = row.emailVerified
-  if (row.expires) sessionParams.expires = new Date(row.expires).getTime()
-  if (row.scope) sessionParams.scope = row.scope
-  if (row.accessToken) sessionParams.accessToken = row.accessToken
-  if (row.refreshToken) sessionParams.refreshToken = row.refreshToken
+  if (row.userId != null) {
+    sessionParams.userId = String(row.userId);
+  }
+  if (row.firstName) {
+    sessionParams.firstName = row.firstName;
+  }
+  if (row.lastName) {
+    sessionParams.lastName = row.lastName;
+  }
+  if (row.email) {
+    sessionParams.email = row.email;
+  }
+  if (row.locale) {
+    sessionParams.locale = row.locale;
+  }
+  if (row.accountOwner != null) {
+    sessionParams.accountOwner = row.accountOwner;
+  }
+  if (row.collaborator != null) {
+    sessionParams.collaborator = row.collaborator;
+  }
+  if (row.emailVerified != null) {
+    sessionParams.emailVerified = row.emailVerified;
+  }
+  if (row.expires) {
+    sessionParams.expires = new Date(row.expires).getTime();
+  }
+  if (row.scope) {
+    sessionParams.scope = row.scope;
+  }
+  if (row.accessToken) {
+    sessionParams.accessToken = row.accessToken;
+  }
+  if (row.refreshToken) {
+    sessionParams.refreshToken = row.refreshToken;
+  }
   if (row.refreshTokenExpires) {
     sessionParams.refreshTokenExpires = new Date(
-      row.refreshTokenExpires,
-    ).getTime()
+      row.refreshTokenExpires
+    ).getTime();
   }
 
-  return Session.fromPropertyArray(Object.entries(sessionParams), true)
+  return Session.fromPropertyArray(Object.entries(sessionParams), true);
 }
 
 export class DrizzleSessionStorage implements SessionStorage {
   async storeSession(session: Session): Promise<boolean> {
-    const data = sessionToRow(session)
+    const data = sessionToRow(session);
 
-    await db
-      .insert(sessions)
-      .values(data)
-      .onConflictDoUpdate({
-        target: sessions.id,
-        set: data,
-      })
+    await db.insert(sessions).values(data).onConflictDoUpdate({
+      target: sessions.id,
+      set: data,
+    });
 
-    return true
+    return true;
   }
 
   async loadSession(id: string): Promise<Session | undefined> {
@@ -85,20 +105,22 @@ export class DrizzleSessionStorage implements SessionStorage {
       .select()
       .from(sessions)
       .where(eq(sessions.id, id))
-      .limit(1)
+      .limit(1);
 
-    return row ? rowToSession(row) : undefined
+    return row ? rowToSession(row) : undefined;
   }
 
   async deleteSession(id: string): Promise<boolean> {
-    await db.delete(sessions).where(eq(sessions.id, id))
-    return true
+    await db.delete(sessions).where(eq(sessions.id, id));
+    return true;
   }
 
   async deleteSessions(ids: string[]): Promise<boolean> {
-    if (ids.length === 0) return true
-    await db.delete(sessions).where(inArray(sessions.id, ids))
-    return true
+    if (ids.length === 0) {
+      return true;
+    }
+    await db.delete(sessions).where(inArray(sessions.id, ids));
+    return true;
   }
 
   async findSessionsByShop(shop: string): Promise<Session[]> {
@@ -106,10 +128,10 @@ export class DrizzleSessionStorage implements SessionStorage {
       .select()
       .from(sessions)
       .where(eq(sessions.shop, shop))
-      .limit(25)
+      .limit(25);
 
-    return rows.map(rowToSession)
+    return rows.map(rowToSession);
   }
 }
 
-export const sessionStorage = new DrizzleSessionStorage()
+export const sessionStorage = new DrizzleSessionStorage();

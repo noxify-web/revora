@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
+import { useEffect } from "react";
 
 export function useRefreshOnFocus(refresh: () => void) {
   useEffect(() => {
     function handleFocus() {
-      refresh()
+      refresh();
     }
 
-    window.addEventListener("focus", handleFocus)
-    return () => window.removeEventListener("focus", handleFocus)
-  }, [refresh])
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [refresh]);
 }

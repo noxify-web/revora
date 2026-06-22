@@ -1,165 +1,161 @@
-import {
-  RequestedTokenType,
-  type Session,
-} from "@shopify/shopify-api"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { RequestedTokenType, type Session } from "@shopify/shopify-api";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { extensionJsonResponse } from "@/lib/extension/cors"
+import { extensionJsonResponse } from "@/lib/extension/cors";
 
-import { getShopify, sessionStorage } from "./shopify"
+import { getShopify, sessionStorage } from "./shopify";
 
-export type AuthenticatedAdmin = {
-  shop: string
-  session: Session
-  admin: InstanceType<ReturnType<typeof getShopify>["clients"]["Graphql"]>
+export interface AuthenticatedAdmin {
+  admin: InstanceType<ReturnType<typeof getShopify>["clients"]["Graphql"]>;
+  session: Session;
+  shop: string;
 }
 
 export class AdminAuthenticationError extends Error {
-  readonly status = 401
+  readonly status = 401;
 
-  constructor(
-    message = "Session expired. Reload Revora from Shopify admin.",
-  ) {
-    super(message)
-    this.name = "AdminAuthenticationError"
+  constructor(message = "Session expired. Reload Revora from Shopify admin.") {
+    super(message);
+    this.name = "AdminAuthenticationError";
   }
 }
 
 function getSessionToken(
   authorizationHeader: string | null,
-  idToken: string | null,
+  idToken: string | null
 ): string | null {
   if (authorizationHeader?.startsWith("Bearer ")) {
-    return authorizationHeader.replace("Bearer ", "")
+    return authorizationHeader.replace("Bearer ", "");
   }
 
-  return idToken
+  return idToken;
 }
 
-function buildBounceRedirectUrl(pathname: string, searchParams: URLSearchParams) {
-  const params = new URLSearchParams(searchParams)
-  params.delete("id_token")
+function buildBounceRedirectUrl(
+  pathname: string,
+  searchParams: URLSearchParams
+) {
+  const params = new URLSearchParams(searchParams);
+  params.delete("id_token");
 
   const reloadPath = params.toString()
     ? `${pathname}?${params.toString()}`
-    : pathname
+    : pathname;
 
-  params.set("shopify-reload", reloadPath)
+  params.set("shopify-reload", reloadPath);
 
-  return `/session-token-bounce?${params.toString()}`
+  return `/session-token-bounce?${params.toString()}`;
 }
 
 async function resolveAuthenticatedAdmin(
-  searchParams: URLSearchParams,
+  searchParams: URLSearchParams
 ): Promise<AuthenticatedAdmin> {
-  const headerStore = await headers()
+  const headerStore = await headers();
   const sessionToken = getSessionToken(
     headerStore.get("authorization"),
-    searchParams.get("id_token"),
-  )
+    searchParams.get("id_token")
+  );
 
   if (!sessionToken) {
-    throw new AdminAuthenticationError()
+    throw new AdminAuthenticationError();
   }
 
   try {
-    const shopify = getShopify()
-    const decoded = await shopify.session.decodeSessionToken(sessionToken)
-    const dest = new URL(decoded.dest)
-    const shop = dest.hostname
-    const offlineId = shopify.session.getOfflineId(shop)
-    let session = await sessionStorage.loadSession(offlineId)
+    const shopify = getShopify();
+    const decoded = await shopify.session.decodeSessionToken(sessionToken);
+    const dest = new URL(decoded.dest);
+    const shop = dest.hostname;
+    const offlineId = shopify.session.getOfflineId(shop);
+    let session = await sessionStorage.loadSession(offlineId);
 
     if (!session?.accessToken) {
       const { session: exchangedSession } = await shopify.auth.tokenExchange({
         shop,
         sessionToken,
         requestedTokenType: RequestedTokenType.OfflineAccessToken,
-      })
+      });
 
-      await sessionStorage.storeSession(exchangedSession)
-      session = exchangedSession
+      await sessionStorage.storeSession(exchangedSession);
+      session = exchangedSession;
     }
 
     return {
       shop,
       session: session as Session,
       admin: new shopify.clients.Graphql({ session }),
-    }
+    };
   } catch (error) {
-    console.error("Revora authenticateAdmin failed", error)
-    throw new AdminAuthenticationError()
+    console.error("Revora authenticateAdmin failed", error);
+    throw new AdminAuthenticationError();
   }
 }
 
 export async function authenticateAdmin(searchParams: URLSearchParams) {
   try {
-    return await resolveAuthenticatedAdmin(searchParams)
+    return await resolveAuthenticatedAdmin(searchParams);
   } catch (error) {
     if (error instanceof AdminAuthenticationError) {
-      redirect(buildBounceRedirectUrl("/", searchParams))
+      redirect(buildBounceRedirectUrl("/", searchParams));
     }
 
-    throw error
+    throw error;
   }
 }
 
-export async function authenticateAdminApi(searchParams: URLSearchParams) {
-  return resolveAuthenticatedAdmin(searchParams)
+export function authenticateAdminApi(searchParams: URLSearchParams) {
+  return resolveAuthenticatedAdmin(searchParams);
 }
 
 export function adminAuthFailureResponse(
   error: unknown,
-  respond: (body: unknown, status?: number) => Response,
+  respond: (body: unknown, status?: number) => Response
 ): Response | null {
   if (error instanceof AdminAuthenticationError) {
-    return respond({ error: error.message }, error.status)
+    return respond({ error: error.message }, error.status);
   }
 
-  return null
+  return null;
 }
 
-type AdminApiHandlerOptions = {
-  logPrefix?: string
-  defaultErrorStatus?: number
-  defaultErrorMessage?: string
+interface AdminApiHandlerOptions {
+  defaultErrorMessage?: string;
+  defaultErrorStatus?: number;
+  logPrefix?: string;
 }
 
 export async function withAdminApi(
   request: Request,
   handler: (ctx: AuthenticatedAdmin) => Promise<Response>,
-  options?: AdminApiHandlerOptions,
+  options?: AdminApiHandlerOptions
 ): Promise<Response> {
-  const headerStore = await headers()
-  const origin = headerStore.get("origin")
-  const url = new URL(request.url)
+  const headerStore = await headers();
+  const origin = headerStore.get("origin");
+  const url = new URL(request.url);
 
   try {
-    const ctx = await authenticateAdminApi(url.searchParams)
-    return await handler(ctx)
+    const ctx = await authenticateAdminApi(url.searchParams);
+    return await handler(ctx);
   } catch (error) {
     const authResponse = adminAuthFailureResponse(error, (body, status) =>
-      extensionJsonResponse(body, origin, { status }),
-    )
+      extensionJsonResponse(body, origin, { status })
+    );
 
     if (authResponse) {
-      return authResponse
+      return authResponse;
     }
 
     if (options?.logPrefix) {
-      console.error(options.logPrefix, error)
+      console.error(options.logPrefix, error);
     }
 
     const message =
       error instanceof Error
         ? error.message
-        : (options?.defaultErrorMessage ?? "Request failed")
+        : (options?.defaultErrorMessage ?? "Request failed");
 
-    return extensionJsonResponse(
-      { error: message },
-      origin,
-      { status: options?.defaultErrorStatus ?? 500 },
-    )
+    return extensionJsonResponse({ error: message }, origin, {
+      status: options?.defaultErrorStatus ?? 500,
+    });
   }
 }

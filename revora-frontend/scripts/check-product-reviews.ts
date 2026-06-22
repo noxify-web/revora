@@ -1,18 +1,21 @@
-import { getShopify, sessionStorage } from "@/lib/shopify/shopify"
+import { getShopify, sessionStorage } from "@/lib/shopify/shopify";
 
-const shop = process.argv[2] || "noxify-dvgwvtrt.myshopify.com"
-const handle = process.argv[3] || "selling-plans-ski-wax"
+const shop = process.argv[2] || "noxify-dvgwvtrt.myshopify.com";
+const handle = process.argv[3] || "selling-plans-ski-wax";
 
-const shopify = getShopify()
-const session = await sessionStorage.loadSession(shopify.session.getOfflineId(shop))
+const shopify = getShopify();
+const session = await sessionStorage.loadSession(
+  shopify.session.getOfflineId(shop)
+);
 
 if (!session?.accessToken) {
-  console.error("No app session")
-  process.exit(1)
+  console.error("No app session");
+  process.exit(1);
 }
 
-const client = new shopify.clients.Graphql({ session })
-const response = await client.request(`#graphql
+const client = new shopify.clients.Graphql({ session });
+const response = await client.request(
+  `#graphql
   query CheckRevoraProduct($handle: String!) {
     productByHandle(handle: $handle) {
       id
@@ -43,6 +46,8 @@ const response = await client.request(`#graphql
       name
     }
   }
-`, { variables: { handle } })
+`,
+  { variables: { handle } }
+);
 
-console.log(JSON.stringify(response.data, null, 2))
+console.log(JSON.stringify(response.data, null, 2));

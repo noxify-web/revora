@@ -1,15 +1,15 @@
 /// <reference types="@shopify/polaris-types" />
 
-export {}
+export {};
 
 declare global {
   interface Window {
+    revoraRestartOnboarding?: () => void;
     shopify?: {
-      idToken: () => Promise<string>
+      idToken: () => Promise<string>;
       toast?: {
-        show: (message: string) => void
-      }
-    }
-    revoraRestartOnboarding?: () => void
+        show: (message: string) => void;
+      };
+    };
   }
 }

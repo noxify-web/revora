@@ -1,9 +1,9 @@
 import {
+  integer,
   sqliteTable,
   text,
-  integer,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core"
+} from "drizzle-orm/sqlite-core";
 
 export const sessions = sqliteTable("Session", {
   id: text("id").primaryKey(),
@@ -23,14 +23,14 @@ export const sessions = sqliteTable("Session", {
   emailVerified: integer("emailVerified", { mode: "boolean" }),
   refreshToken: text("refreshToken"),
   refreshTokenExpires: text("refreshTokenExpires"),
-})
+});
 
 export const shopPlans = sqliteTable("ShopPlan", {
   shop: text("shop").primaryKey(),
   plan: text("plan").notNull().default("free"),
   subscriptionId: text("subscriptionId"),
   updatedAt: text("updatedAt").notNull(),
-})
+});
 
 export const extensionTokens = sqliteTable("ExtensionToken", {
   id: text("id").primaryKey(),
@@ -40,7 +40,7 @@ export const extensionTokens = sqliteTable("ExtensionToken", {
   createdAt: text("createdAt").notNull(),
   lastUsedAt: text("lastUsedAt"),
   revokedAt: text("revokedAt"),
-})
+});
 
 export const connectCodes = sqliteTable("ConnectCode", {
   id: text("id").primaryKey(),
@@ -49,13 +49,13 @@ export const connectCodes = sqliteTable("ConnectCode", {
   expiresAt: text("expiresAt").notNull(),
   usedAt: text("usedAt"),
   createdAt: text("createdAt").notNull(),
-})
+});
 
 export const rateLimits = sqliteTable("RateLimit", {
   key: text("key").primaryKey(),
   count: integer("count").notNull().default(0),
   windowStart: text("windowStart").notNull(),
-})
+});
 
 export const reviewImports = sqliteTable("ReviewImport", {
   id: text("id").primaryKey(),
@@ -75,7 +75,7 @@ export const reviewImports = sqliteTable("ReviewImport", {
   updatedAt: text("updatedAt").notNull(),
   completedAt: text("completedAt"),
   publishedAt: text("publishedAt"),
-})
+});
 
 export const importedReviews = sqliteTable(
   "ImportedReview",
@@ -104,4 +104,4 @@ export const importedReviews = sqliteTable(
       table.temuReviewId
     ),
   ]
-)
+);

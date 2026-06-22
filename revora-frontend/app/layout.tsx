@@ -1,24 +1,24 @@
-import type { Metadata } from "next"
-import Script from "next/script"
+import type { Metadata } from "next";
+import Script from "next/script";
 
-import { ExtensionBridge } from "@/components/extension-bridge"
+import { ExtensionBridge } from "@/components/extension-bridge";
 
 export const metadata: Metadata = {
   title: "Revora",
   description: "Import Temu reviews into your Shopify store",
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
-  const apiKey = process.env.SHOPIFY_API_KEY || ""
+  const apiKey = process.env.SHOPIFY_API_KEY || "";
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="shopify-api-key" content={apiKey} />
+        <meta content={apiKey} name="shopify-api-key" />
         <Script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
           strategy="beforeInteractive"
@@ -33,5 +33,5 @@ export default function RootLayout({
         {children}
       </body>
     </html>
-  )
+  );
 }

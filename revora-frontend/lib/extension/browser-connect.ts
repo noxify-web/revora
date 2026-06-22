@@ -1,60 +1,59 @@
-import { randomUUID } from "crypto"
-
+import { randomUUID } from "node:crypto";
+import { getAppBaseUrl } from "@/lib/extension/app-url";
 import {
   generateExtensionToken,
   revokeShopExtensionTokens,
-} from "@/lib/extension/auth"
-import { getAppBaseUrl } from "@/lib/extension/app-url"
-import { REVORA_PLAN } from "@/lib/plans"
-import { db } from "@/src/db"
-import { extensionTokens } from "@/src/db/schema"
+} from "@/lib/extension/auth";
+import { REVORA_PLAN } from "@/lib/plans";
+import { db } from "@/src/db";
+import { extensionTokens } from "@/src/db/schema";
 
-export const EXTENSION_REDIRECT_COOKIE = "revora_extension_redirect"
+export const EXTENSION_REDIRECT_COOKIE = "revora_extension_redirect";
 
-export type ExtensionBrowserConnectPayload = {
-  token: string
-  apiUrl: string
-  shop: string
-  plan: string
-  planName: string
-  reviewLimit: number | null
+export interface ExtensionBrowserConnectPayload {
+  apiUrl: string;
+  plan: string;
+  planName: string;
+  reviewLimit: number | null;
+  shop: string;
+  token: string;
 }
 
 export function isValidExtensionRedirectUri(uri: string) {
   try {
-    const parsed = new URL(uri)
+    const parsed = new URL(uri);
     return (
       parsed.protocol === "https:" &&
       parsed.hostname.endsWith(".chromiumapp.org")
-    )
+    );
   } catch {
-    return false
+    return false;
   }
 }
 
 export function normalizeShopDomain(shop: string) {
-  const trimmed = shop.trim().toLowerCase()
+  const trimmed = shop.trim().toLowerCase();
 
   if (!trimmed) {
-    return null
+    return null;
   }
 
   if (trimmed.endsWith(".myshopify.com")) {
-    return trimmed
+    return trimmed;
   }
 
-  return `${trimmed.replace(/\.myshopify\.com$/, "")}.myshopify.com`
+  return `${trimmed.replace(/\.myshopify\.com$/, "")}.myshopify.com`;
 }
 
 export async function mintExtensionTokenForShop(
   shop: string,
   request?: Request
 ): Promise<ExtensionBrowserConnectPayload> {
-  await revokeShopExtensionTokens(shop)
+  await revokeShopExtensionTokens(shop);
 
-  const { token, tokenHash } = generateExtensionToken()
-  const now = new Date().toISOString()
-  const apiUrl = await getAppBaseUrl(request)
+  const { token, tokenHash } = generateExtensionToken();
+  const now = new Date().toISOString();
+  const apiUrl = await getAppBaseUrl(request);
 
   await db.insert(extensionTokens).values({
     id: randomUUID(),
@@ -62,7 +61,7 @@ export async function mintExtensionTokenForShop(
     tokenHash,
     label: "Chrome extension",
     createdAt: now,
-  })
+  });
 
   return {
     token,
@@ -71,44 +70,44 @@ export async function mintExtensionTokenForShop(
     plan: REVORA_PLAN.id,
     planName: REVORA_PLAN.name,
     reviewLimit: REVORA_PLAN.reviewLimitPerImport,
-  }
+  };
 }
 
 export function buildExtensionErrorRedirectUrl(
   redirectUri: string,
   error: string
 ) {
-  const url = new URL(redirectUri)
-  url.searchParams.set("error", error)
-  return url.toString()
+  const url = new URL(redirectUri);
+  url.searchParams.set("error", error);
+  return url.toString();
 }
 
 export function buildExtensionRedirectUrl(
   redirectUri: string,
   payload: ExtensionBrowserConnectPayload
 ) {
-  const url = new URL(redirectUri)
+  const url = new URL(redirectUri);
 
-  url.searchParams.set("token", payload.token)
-  url.searchParams.set("api_url", payload.apiUrl)
-  url.searchParams.set("shop", payload.shop)
-  return url.toString()
+  url.searchParams.set("token", payload.token);
+  url.searchParams.set("api_url", payload.apiUrl);
+  url.searchParams.set("shop", payload.shop);
+  return url.toString();
 }
 
 export function renderShopPromptHtml({
   redirectUri,
   error,
 }: {
-  redirectUri: string
-  error?: string | null
+  redirectUri: string;
+  error?: string | null;
 }) {
   const safeRedirectUri = redirectUri
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
+    .replace(/</g, "&lt;");
   const errorBlock = error
     ? `<p style="color:#d9480f;margin:0 0 12px">${error.replace(/</g, "&lt;")}</p>`
-    : ""
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -192,5 +191,5 @@ export function renderShopPromptHtml({
       </form>
     </main>
   </body>
-</html>`
+</html>`;
 }

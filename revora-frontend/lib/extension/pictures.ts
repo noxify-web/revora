@@ -1,35 +1,39 @@
 export function normalizePictureUrl(item: unknown): string | null {
   if (typeof item === "string") {
-    const trimmed = item.trim()
-    return trimmed || null
+    const trimmed = item.trim();
+    return trimmed || null;
   }
 
   if (item && typeof item === "object" && "url" in item) {
-    const url = (item as { url?: unknown }).url
-    return typeof url === "string" && url.trim() ? url.trim() : null
+    const url = (item as { url?: unknown }).url;
+    return typeof url === "string" && url.trim() ? url.trim() : null;
   }
 
-  return null
+  return null;
 }
 
 export function normalizePictureUrls(value: unknown): string[] {
   if (!Array.isArray(value)) {
-    return []
+    return [];
   }
 
-  return value.map(normalizePictureUrl).filter((url): url is string => Boolean(url))
+  return value
+    .map(normalizePictureUrl)
+    .filter((url): url is string => Boolean(url));
 }
 
 export function parseStoredPictures(value: string | null): string[] {
-  if (!value) return []
+  if (!value) {
+    return [];
+  }
 
   try {
-    return normalizePictureUrls(JSON.parse(value))
+    return normalizePictureUrls(JSON.parse(value));
   } catch {
-    return []
+    return [];
   }
 }
 
 export function serializePictures(urls: string[]): string | null {
-  return urls.length ? JSON.stringify(urls) : null
+  return urls.length ? JSON.stringify(urls) : null;
 }

@@ -9,37 +9,37 @@
 }
 
 body {
-  margin: 0;
   width: 360px;
+  margin: 0;
   font-family: var(--revora-font);
   color: var(--revora-text);
   background: var(--revora-surface);
 }
 
 .popup-brand-bar {
-  background: var(--revora-brand);
-  color: #fff;
   padding: 14px var(--revora-space-400);
+  color: #fff;
+  background: var(--revora-brand);
 }
 
 .popup-brand-bar__content {
   display: flex;
-  align-items: center;
   gap: var(--revora-space-200);
+  align-items: center;
 }
 
 .popup-brand-mark {
   display: grid;
+  flex-shrink: 0;
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--revora-radius-sm);
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
-  flex-shrink: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--revora-radius-sm);
 }
 
 .popup-brand-copy {
@@ -78,8 +78,8 @@ main {
 }
 
 .revora-btn--destructive {
-  color: var(--revora-critical);
   font-weight: 500;
+  color: var(--revora-critical);
 }
 
 .revora-btn--destructive:hover:not(:disabled) {

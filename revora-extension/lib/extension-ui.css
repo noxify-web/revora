@@ -27,8 +27,8 @@
   --revora-info-subdued: #eaf4ff;
   --revora-warning: #b98900;
   --revora-warning-subdued: #fff5ea;
-  --revora-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
+  --revora-font:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --revora-font-size-base: 13px;
   --revora-font-size-small: 12px;
   --revora-font-size-heading: 14px;
@@ -52,10 +52,10 @@
 }
 
 .revora-icon {
+  display: block;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
-  flex-shrink: 0;
-  display: block;
 }
 
 .revora-icon--base {
@@ -98,8 +98,8 @@
 
 .revora-heading-row {
   display: flex;
-  align-items: center;
   gap: var(--revora-space-200);
+  align-items: center;
   min-width: 0;
 }
 
@@ -136,15 +136,15 @@
 
 .revora-well {
   padding: var(--revora-space-300);
-  border-radius: var(--revora-radius-sm);
   background: var(--revora-surface-subdued);
   border: 1px solid var(--revora-border-secondary);
+  border-radius: var(--revora-radius-sm);
 }
 
 .revora-status-row {
   display: flex;
-  align-items: flex-start;
   gap: var(--revora-space-200);
+  align-items: flex-start;
 }
 
 .revora-status-row .revora-text-subdued,
@@ -154,9 +154,9 @@
 }
 
 .revora-banner {
-  border-radius: var(--revora-radius-sm);
   padding: var(--revora-space-300);
   border: 1px solid transparent;
+  border-radius: var(--revora-radius-sm);
 }
 
 .revora-banner__heading {
@@ -173,9 +173,9 @@
 }
 
 .revora-banner--info {
+  color: var(--revora-text-info);
   background: var(--revora-info-subdued);
   border-color: #c8e4ff;
-  color: var(--revora-text-info);
 }
 
 .revora-banner--info .revora-banner__body {
@@ -183,9 +183,9 @@
 }
 
 .revora-banner--success {
+  color: var(--revora-text-success);
   background: var(--revora-success-subdued);
   border-color: #b4f0c8;
-  color: var(--revora-text-success);
 }
 
 .revora-banner--success .revora-banner__body {
@@ -193,9 +193,9 @@
 }
 
 .revora-banner--critical {
+  color: var(--revora-text-critical);
   background: var(--revora-critical-subdued);
   border-color: #ffc8c2;
-  color: var(--revora-text-critical);
 }
 
 .revora-banner--critical .revora-banner__body {
@@ -203,9 +203,9 @@
 }
 
 .revora-banner--warning {
+  color: var(--revora-text-warning);
   background: var(--revora-warning-subdued);
   border-color: #ffe2b8;
-  color: var(--revora-text-warning);
 }
 
 .revora-field {
@@ -229,21 +229,21 @@
   width: 100%;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--revora-border-strong);
-  border-radius: var(--revora-radius-sm);
-  background: var(--revora-surface);
-  color: var(--revora-text);
   font: inherit;
   font-size: var(--revora-font-size-base);
   line-height: 1.3;
+  color: var(--revora-text);
+  background: var(--revora-surface);
+  border: 1px solid var(--revora-border-strong);
+  border-radius: var(--revora-radius-sm);
 }
 
 .revora-select {
+  padding-right: 28px;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23616161' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
-  padding-right: 28px;
 }
 
 .revora-input:focus,
@@ -254,30 +254,33 @@
 
 .revora-btn {
   display: inline-flex;
+  gap: var(--revora-space-100);
   align-items: center;
   justify-content: center;
-  gap: var(--revora-space-100);
   min-height: 32px;
   padding: 6px 12px;
-  border-radius: var(--revora-radius-sm);
-  border: 1px solid transparent;
   font: inherit;
   font-size: var(--revora-font-size-base);
   font-weight: 550;
   line-height: 1;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  border: 1px solid transparent;
+  border-radius: var(--revora-radius-sm);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .revora-btn:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .revora-btn--primary {
   width: 100%;
-  background: var(--revora-fill-brand);
   color: var(--revora-text-on-fill);
+  background: var(--revora-fill-brand);
 }
 
 .revora-btn--primary:hover:not(:disabled) {
@@ -289,10 +292,10 @@
 }
 
 .revora-btn--secondary {
-  background: var(--revora-surface);
-  color: var(--revora-text);
-  border-color: var(--revora-border-strong);
   font-weight: 500;
+  color: var(--revora-text);
+  background: var(--revora-surface);
+  border-color: var(--revora-border-strong);
 }
 
 .revora-btn--secondary:hover:not(:disabled) {
@@ -301,12 +304,12 @@
 
 .revora-btn--tertiary {
   width: 100%;
-  background: transparent;
-  color: var(--revora-text-subdued);
-  font-size: var(--revora-font-size-small);
-  font-weight: 500;
   min-height: 28px;
   padding: 4px 8px;
+  font-size: var(--revora-font-size-small);
+  font-weight: 500;
+  color: var(--revora-text-subdued);
+  background: transparent;
 }
 
 .revora-btn--tertiary:hover:not(:disabled) {
@@ -319,14 +322,14 @@
   min-width: 32px;
   height: 32px;
   padding: 0;
-  background: var(--revora-surface);
   color: var(--revora-text-subdued);
+  background: var(--revora-surface);
   border-color: var(--revora-border);
 }
 
 .revora-btn--icon:hover:not(:disabled) {
-  background: var(--revora-surface-hover);
   color: var(--revora-text);
+  background: var(--revora-surface-hover);
 }
 
 .revora-btn-group {
@@ -340,16 +343,16 @@
 
 .revora-progress {
   height: 4px;
+  margin-bottom: var(--revora-space-300);
+  overflow: hidden;
   background: var(--revora-fill-secondary);
   border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: var(--revora-space-300);
 }
 
 .revora-progress > span {
   display: block;
-  height: 100%;
   width: 0%;
+  height: 100%;
   background: var(--revora-fill-brand);
   transition: width 0.2s ease;
 }

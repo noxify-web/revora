@@ -1,44 +1,44 @@
-import type { ExtensionStatusResponse } from "@revora/shared/extension-messages"
+import type { ExtensionStatusResponse } from "@revora/shared/extension-messages";
 
-const EXTENSION_STATUS_TIMEOUT_MS = 3000
+const EXTENSION_STATUS_TIMEOUT_MS = 3000;
 
-export type ExtensionClientStatus = {
-  installed: boolean
-  paired: boolean
-  verified: boolean
-  shop: string | null
+export interface ExtensionClientStatus {
+  installed: boolean;
+  paired: boolean;
+  shop: string | null;
+  verified: boolean;
 }
 
-export async function queryExtensionClientStatus(): Promise<ExtensionClientStatus> {
+export function queryExtensionClientStatus(): Promise<ExtensionClientStatus> {
   if (typeof window === "undefined") {
-    return {
+    return Promise.resolve({
       installed: false,
       paired: false,
       verified: false,
       shop: null,
-    }
+    });
   }
 
   return new Promise((resolve) => {
-    const requestId = crypto.randomUUID()
+    const requestId = crypto.randomUUID();
 
     const finish = (status: ExtensionClientStatus) => {
-      window.clearTimeout(timer)
-      window.removeEventListener("message", onResponse)
-      resolve(status)
-    }
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onResponse);
+      resolve(status);
+    };
 
     function onResponse(event: MessageEvent<ExtensionStatusResponse>) {
       if (event.origin !== "https://admin.shopify.com") {
-        return
+        return;
       }
 
       if (event.data?.type !== "REVORA_EXTENSION_STATUS_RESPONSE") {
-        return
+        return;
       }
 
       if (event.data.requestId !== requestId) {
-        return
+        return;
       }
 
       finish({
@@ -46,7 +46,7 @@ export async function queryExtensionClientStatus(): Promise<ExtensionClientStatu
         paired: Boolean(event.data.paired),
         verified: Boolean(event.data.verified),
         shop: event.data.shop ?? null,
-      })
+      });
     }
 
     const timer = window.setTimeout(() => {
@@ -55,16 +55,16 @@ export async function queryExtensionClientStatus(): Promise<ExtensionClientStatu
         paired: false,
         verified: false,
         shop: null,
-      })
-    }, EXTENSION_STATUS_TIMEOUT_MS)
+      });
+    }, EXTENSION_STATUS_TIMEOUT_MS);
 
-    window.addEventListener("message", onResponse)
+    window.addEventListener("message", onResponse);
     window.parent.postMessage(
       {
         type: "REVORA_REQUEST_EXTENSION_STATUS",
         requestId,
       },
-      "https://admin.shopify.com",
-    )
-  })
+      "https://admin.shopify.com"
+    );
+  });
 }

@@ -1,7 +1,8 @@
 {
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "strictNullChecks": true
   },
   "exclude": ["tests/**/*.test.ts"]
 }

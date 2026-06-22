@@ -53,7 +53,7 @@ export const REVORA_THEME = {
 
   shadow: "0 1px 0 rgba(0, 0, 0, 0.05)",
   shadowPopover: "0 4px 16px rgba(0, 0, 0, 0.12)",
-} as const
+} as const;
 
 /** Same Inter variable font Shopify Polaris serves from cdn.shopify.com/static/fonts/inter/v4 */
 export function getInterFontFace(fontUrl: string) {
@@ -65,11 +65,11 @@ export function getInterFontFace(fontUrl: string) {
       font-display: swap;
       src: url("${fontUrl}") format("woff2");
     }
-  `
+  `;
 }
 
 export function getRevoraCssVariables() {
-  const t = REVORA_THEME
+  const t = REVORA_THEME;
 
   return `
     --revora-brand: ${t.brand};
@@ -115,5 +115,5 @@ export function getRevoraCssVariables() {
     --revora-radius-lg: ${t.radiusLarge};
     --revora-shadow: ${t.shadow};
     --revora-shadow-popover: ${t.shadowPopover};
-  `
+  `;
 }

@@ -1,10 +1,9 @@
 import type {
   BackgroundRequest,
   BackgroundResponse,
-} from "@revora/shared/extension-messages"
-import type { ConnectTokenResponse } from "@revora/shared/extension-types"
-import { clearAdminPairingState } from "../lib/admin-tabs"
-import { connectViaBrowser } from "../lib/connect-browser"
+} from "@revora/shared/extension-messages";
+import type { ConnectTokenResponse } from "@revora/shared/extension-types";
+import { clearAdminPairingState } from "../lib/admin-tabs";
 import {
   clearConnection,
   enrichConnection,
@@ -12,8 +11,9 @@ import {
   persistApiBaseUrl,
   readConnectionState,
   verifyAndPersistConnection,
-} from "../lib/api-transport"
-import { mapTemuReview } from "../lib/review-mapper"
+} from "../lib/api-transport";
+import { connectViaBrowser } from "../lib/connect-browser";
+import { mapTemuReview } from "../lib/review-mapper";
 
 export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -23,21 +23,21 @@ export default defineBackground(() => {
         sendResponse({
           ok: false,
           error: error instanceof Error ? error.message : "Request failed",
-        } satisfies BackgroundResponse),
-      )
+        } satisfies BackgroundResponse)
+      );
 
-    return true
-  })
-})
+    return true;
+  });
+});
 
 async function handleMessage(
-  message: BackgroundRequest,
+  message: BackgroundRequest
 ): Promise<BackgroundResponse> {
   if (message.type === "REVORA_SET_API_URL") {
     const apiBaseUrl = await persistApiBaseUrl(message.apiBaseUrl, {
       requestPermission: false,
-    })
-    return { ok: true, apiBaseUrl }
+    });
+    return { ok: true, apiBaseUrl };
   }
 
   if (message.type === "REVORA_CONNECT_DIRECT") {
@@ -48,31 +48,31 @@ async function handleMessage(
       plan: "free",
       planName: "Free",
       reviewLimit: null,
-    }
+    };
 
-    await persistApiBaseUrl(data.apiUrl, { requestPermission: false })
-    await verifyAndPersistConnection(data)
-    return { ok: true, data }
+    await persistApiBaseUrl(data.apiUrl, { requestPermission: false });
+    await verifyAndPersistConnection(data);
+    return { ok: true, data };
   }
 
   if (message.type === "REVORA_CONNECT_BROWSER") {
-    await persistApiBaseUrl(message.apiBaseUrl, { requestPermission: true })
-    const data = await connectViaBrowser(message.apiBaseUrl)
-    await verifyAndPersistConnection(data)
-    return { ok: true, data }
+    await persistApiBaseUrl(message.apiBaseUrl, { requestPermission: true });
+    const data = await connectViaBrowser(message.apiBaseUrl);
+    await verifyAndPersistConnection(data);
+    return { ok: true, data };
   }
 
   if (message.type === "REVORA_GET_PLAN") {
-    const stored = await readConnectionState()
-    const data = await fetchRevora("/api/extension/plan")
+    const stored = await readConnectionState();
+    const data = await fetchRevora("/api/extension/plan");
     return {
       ok: true,
       data: enrichConnection(data as Record<string, unknown>, stored),
-    }
+    };
   }
 
   if (message.type === "REVORA_GET_CONNECTION_STATUS") {
-    const stored = await readConnectionState()
+    const stored = await readConnectionState();
 
     if (!stored.pairingToken) {
       return {
@@ -82,11 +82,11 @@ async function handleMessage(
           verified: false,
           shop: stored.shop || null,
         },
-      }
+      };
     }
 
     try {
-      const data = await fetchRevora("/api/extension/verify")
+      const data = await fetchRevora("/api/extension/verify");
       return {
         ok: true,
         data: {
@@ -97,7 +97,7 @@ async function handleMessage(
               ? (data as { shop: string }).shop
               : stored.shop || null,
         },
-      }
+      };
     } catch {
       return {
         ok: true,
@@ -106,41 +106,41 @@ async function handleMessage(
           verified: false,
           shop: stored.shop || null,
         },
-      }
+      };
     }
   }
 
   if (message.type === "REVORA_DISCONNECT") {
-    await clearConnection()
-    await clearAdminPairingState()
-    return { ok: true }
+    await clearConnection();
+    await clearAdminPairingState();
+    return { ok: true };
   }
 
   if (message.type === "REVORA_VERIFY") {
-    const stored = await readConnectionState()
+    const stored = await readConnectionState();
 
     if (!stored.pairingToken) {
-      throw new Error("Connect the extension from the popup first.")
+      throw new Error("Connect the extension from the popup first.");
     }
 
-    const data = await fetchRevora("/api/extension/verify")
+    const data = await fetchRevora("/api/extension/verify");
     return {
       ok: true,
       data: enrichConnection(data as Record<string, unknown>, stored),
-    }
+    };
   }
 
   if (message.type === "REVORA_GET_PRODUCTS") {
     const search = message.search
       ? `?search=${encodeURIComponent(message.search)}`
-      : ""
+      : "";
 
-    const data = await fetchRevora(`/api/products${search}`)
-    return { ok: true, data }
+    const data = await fetchRevora(`/api/products${search}`);
+    return { ok: true, data };
   }
 
   if (message.type === "REVORA_UPLOAD_BATCH") {
-    const reviews = (message.reviews || []).map(mapTemuReview)
+    const reviews = (message.reviews || []).map(mapTemuReview);
 
     const data = await fetchRevora("/api/reviews/import", {
       method: "POST",
@@ -156,10 +156,10 @@ async function handleMessage(
         isFinal: message.isFinal,
         reviews,
       },
-    })
+    });
 
-    return { ok: true, data }
+    return { ok: true, data };
   }
 
-  return { ok: false, error: "Unknown message type" }
+  return { ok: false, error: "Unknown message type" };
 }

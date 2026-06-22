@@ -1,4 +1,4 @@
 export {
   importBatchSchema,
   importReviewSchema,
-} from "@revora/shared/extension-schemas"
+} from "@revora/shared/extension-schemas";

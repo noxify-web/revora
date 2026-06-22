@@ -1,18 +1,21 @@
-import { getShopify, sessionStorage } from "@/lib/shopify/shopify"
+import { getShopify, sessionStorage } from "@/lib/shopify/shopify";
 
-const shop = process.argv[2] || "noxify-dvgwvtrt.myshopify.com"
-const handle = process.argv[3] || "selling-plans-ski-wax"
+const shop = process.argv[2] || "noxify-dvgwvtrt.myshopify.com";
+const handle = process.argv[3] || "selling-plans-ski-wax";
 
-const shopify = getShopify()
-const session = await sessionStorage.loadSession(shopify.session.getOfflineId(shop))
+const shopify = getShopify();
+const session = await sessionStorage.loadSession(
+  shopify.session.getOfflineId(shop)
+);
 
 if (!session?.accessToken) {
-  console.error("No app session")
-  process.exit(1)
+  console.error("No app session");
+  process.exit(1);
 }
 
-const client = new shopify.clients.Graphql({ session })
-const response = await client.request(`#graphql
+const client = new shopify.clients.Graphql({ session });
+const response = await client.request(
+  `#graphql
   query StorefrontReadiness($handle: String!) {
     productByHandle(handle: $handle) {
       id
@@ -25,18 +28,23 @@ const response = await client.request(`#graphql
       passwordProtection { enabled }
     }
   }
-`, { variables: { handle } })
+`,
+  { variables: { handle } }
+);
 
-const product = response.data?.productByHandle
-const jsonValue = product?.json?.value
-let parsed: { count?: number; averageRating?: number; reviews?: unknown[] } | null =
-  null
+const product = response.data?.productByHandle;
+const jsonValue = product?.json?.value;
+let parsed: {
+  count?: number;
+  averageRating?: number;
+  reviews?: unknown[];
+} | null = null;
 
 if (jsonValue) {
   try {
-    parsed = JSON.parse(jsonValue)
+    parsed = JSON.parse(jsonValue);
   } catch {
-    parsed = null
+    parsed = null;
   }
 }
 
@@ -45,7 +53,8 @@ console.log(
     {
       shop,
       handle,
-      passwordProtected: response.data?.onlineStore?.passwordProtection?.enabled,
+      passwordProtected:
+        response.data?.onlineStore?.passwordProtection?.enabled,
       productId: product?.id,
       title: product?.title,
       reviewCount: product?.count?.value,
@@ -65,6 +74,6 @@ console.log(
       themeExtensionVersion: "revora-6",
     },
     null,
-    2,
-  ),
-)
+    2
+  )
+);

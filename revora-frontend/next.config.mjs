@@ -8,6 +8,6 @@ const nextConfig = {
     "*.ngrok.io",
     "*.ngrok.app",
   ],
-}
+};
 
-export default nextConfig
+export default nextConfig;

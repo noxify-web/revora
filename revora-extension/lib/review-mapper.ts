@@ -1,20 +1,22 @@
 import type {
   ImportReviewInput,
   TemuReviewPayload,
-} from "@revora/shared/extension-types"
+} from "@revora/shared/extension-types";
 
 export function mapTemuReview(review: TemuReviewPayload): ImportReviewInput {
   const pictures = Array.isArray(review.pictures)
     ? review.pictures
         .map((item) => {
-          if (typeof item === "string") return item.trim()
-          if (item && typeof item === "object" && item.url) {
-            return String(item.url).trim()
+          if (typeof item === "string") {
+            return item.trim();
           }
-          return null
+          if (item && typeof item === "object" && item.url) {
+            return String(item.url).trim();
+          }
+          return null;
         })
         .filter((url): url is string => Boolean(url))
-    : []
+    : [];
 
   return {
     temuReviewId: String(review.review_id),
@@ -24,5 +26,5 @@ export function mapTemuReview(review: TemuReviewPayload): ImportReviewInput {
     authorName: review.name || "",
     reviewTime: review.time ?? null,
     pictures,
-  }
+  };
 }

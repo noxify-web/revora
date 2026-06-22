@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
 
-import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers"
+import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers";
 
-export async function GET() {
-  const apiKey = process.env.SHOPIFY_API_KEY || ""
+export function GET() {
+  const apiKey = process.env.SHOPIFY_API_KEY || "";
   const html = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -36,11 +36,11 @@ export async function GET() {
       })()
     </script>
   </body>
-</html>`
+</html>`;
 
   const response = new NextResponse(html, {
     headers: { "Content-Type": "text/html; charset=utf-8" },
-  })
+  });
 
-  return applyEmbeddedAppHeaders(response)
+  return applyEmbeddedAppHeaders(response);
 }

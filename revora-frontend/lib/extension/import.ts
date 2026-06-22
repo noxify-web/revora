@@ -1,21 +1,21 @@
-import { randomUUID } from "crypto"
-import { and, desc, eq } from "drizzle-orm"
+import { randomUUID } from "node:crypto";
+import { and, desc, eq } from "drizzle-orm";
 
 import {
   normalizePictureUrls,
   serializePictures,
-} from "@/lib/extension/pictures"
-import { REVORA_PLAN } from "@/lib/plans"
-import { db } from "@/src/db"
-import { importedReviews, reviewImports } from "@/src/db/schema"
+} from "@/lib/extension/pictures";
+import { REVORA_PLAN } from "@/lib/plans";
+import { db } from "@/src/db";
+import { importedReviews, reviewImports } from "@/src/db/schema";
 
-import type { ImportBatchRequest } from "./types"
+import type { ImportBatchRequest } from "./types";
 
 export async function processImportBatch(
   shop: string,
   body: ImportBatchRequest
 ) {
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
   let importRecord = body.importId
     ? await db.query.reviewImports.findFirst({
         where: and(
@@ -23,13 +23,38 @@ export async function processImportBatch(
           eq(reviewImports.shop, shop)
         ),
       })
-    : null
+    : null;
 
   if (body.importId && !importRecord) {
-    throw new Error("Import not found")
+    throw new Error("Import not found");
   }
 
-  if (!importRecord) {
+  if (importRecord) {
+    const updates: Partial<typeof importRecord> = {
+      updatedAt: now,
+    };
+
+    if (body.shopifyProductId) {
+      updates.shopifyProductId = body.shopifyProductId;
+    }
+    if (body.shopifyProductTitle) {
+      updates.shopifyProductTitle = body.shopifyProductTitle;
+    }
+    if (body.totalExpected != null) {
+      updates.totalExpected = body.totalExpected;
+    }
+    if (body.temuProductUrl) {
+      updates.temuProductUrl = body.temuProductUrl;
+    }
+    if (body.temuProductTitle) {
+      updates.temuProductTitle = body.temuProductTitle;
+    }
+
+    await db
+      .update(reviewImports)
+      .set(updates)
+      .where(eq(reviewImports.id, importRecord.id));
+  } else {
     importRecord = {
       id: randomUUID(),
       shop,
@@ -48,41 +73,16 @@ export async function processImportBatch(
       updatedAt: now,
       completedAt: null,
       publishedAt: null,
-    }
+    };
 
-    await db.insert(reviewImports).values(importRecord)
-  } else {
-    const updates: Partial<typeof importRecord> = {
-      updatedAt: now,
-    }
-
-    if (body.shopifyProductId) {
-      updates.shopifyProductId = body.shopifyProductId
-    }
-    if (body.shopifyProductTitle) {
-      updates.shopifyProductTitle = body.shopifyProductTitle
-    }
-    if (body.totalExpected != null) {
-      updates.totalExpected = body.totalExpected
-    }
-    if (body.temuProductUrl) {
-      updates.temuProductUrl = body.temuProductUrl
-    }
-    if (body.temuProductTitle) {
-      updates.temuProductTitle = body.temuProductTitle
-    }
-
-    await db
-      .update(reviewImports)
-      .set(updates)
-      .where(eq(reviewImports.id, importRecord.id))
+    await db.insert(reviewImports).values(importRecord);
   }
 
-  const currentTotal = importRecord.totalImported ?? 0
-  const reviewsToInsert = body.reviews
+  const currentTotal = importRecord.totalImported ?? 0;
+  const reviewsToInsert = body.reviews;
 
-  let inserted = 0
-  let skipped = 0
+  let inserted = 0;
+  let skipped = 0;
 
   for (const review of reviewsToInsert) {
     try {
@@ -102,15 +102,15 @@ export async function processImportBatch(
           body.shopifyProductId ?? importRecord.shopifyProductId,
         syncStatus: "pending",
         createdAt: now,
-      })
-      inserted += 1
+      });
+      inserted += 1;
     } catch {
-      skipped += 1
+      skipped += 1;
     }
   }
 
-  const totalImported = currentTotal + inserted
-  const status = body.isFinal ? "completed" : "uploading"
+  const totalImported = currentTotal + inserted;
+  const status = body.isFinal ? "completed" : "uploading";
 
   await db
     .update(reviewImports)
@@ -124,7 +124,7 @@ export async function processImportBatch(
       updatedAt: now,
       completedAt: body.isFinal ? now : null,
     })
-    .where(eq(reviewImports.id, importRecord.id))
+    .where(eq(reviewImports.id, importRecord.id));
 
   return {
     importId: importRecord.id,
@@ -137,13 +137,13 @@ export async function processImportBatch(
     reviewLimit: null,
     limitReached: false,
     planName: REVORA_PLAN.name,
-  }
+  };
 }
 
-export async function listRecentImports(shop: string, limit = 10) {
+export function listRecentImports(shop: string, limit = 10) {
   return db.query.reviewImports.findMany({
     where: eq(reviewImports.shop, shop),
     orderBy: [desc(reviewImports.createdAt)],
     limit,
-  })
+  });
 }

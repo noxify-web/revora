@@ -25,16 +25,19 @@ bun run extension:build
 bun run extension:test         # Vitest: revora-extension/tests/*.test.ts
 bun run extension:typecheck
 
+# Lint + format (Ultracite + Biome, whole monorepo)
+bun run check                  # lint without writes
+bun run fix                    # lint + format with safe auto-fixes
+
 # Frontend only (from revora-frontend/)
-bun run lint
 bun run typecheck
 bun run build
 bun run db:generate | db:migrate | db:push | db:studio
 ```
 
-No root script for frontend lint/typecheck — run them inside `revora-frontend/`. Frontend has **no** automated test suite in `package.json`.
+Lint/format config lives at the repo root (`biome.jsonc`, `ultracite`). `revora-frontend` also exposes `lint` / `format` scripts that delegate to the root checker. Frontend has **no** automated test suite in `package.json`.
 
-After code changes, verify at minimum: `revora-frontend` → `bun run lint && bun run typecheck`; extension API/shared changes → `bun run extension:test && bun run extension:typecheck`.
+After code changes, verify at minimum: `bun run check && cd revora-frontend && bun run typecheck`; extension API/shared changes → `bun run extension:test && bun run extension:typecheck`.
 
 ## Local Shopify dev (stable tunnel)
 

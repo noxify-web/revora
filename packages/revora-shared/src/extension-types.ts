@@ -1,99 +1,99 @@
-export type TemuReviewPayload = {
-  review_id: string
-  comment?: string
-  score?: number
-  name?: string
-  time?: number
-  pictures?: Array<string | { url?: string }>
+export interface TemuReviewPayload {
+  comment?: string;
+  name?: string;
+  pictures?: Array<string | { url?: string }>;
+  review_id: string;
   review_lang?: {
-    translate_comment?: string
-  }
+    translate_comment?: string;
+  };
+  score?: number;
+  time?: number;
 }
 
-export type ImportReviewInput = {
-  temuReviewId: string
-  comment?: string
-  translatedComment?: string
-  score?: number | null
-  authorName?: string
-  reviewTime?: number | null
-  pictures?: string[]
+export interface ImportReviewInput {
+  authorName?: string;
+  comment?: string;
+  pictures?: string[];
+  reviewTime?: number | null;
+  score?: number | null;
+  temuReviewId: string;
+  translatedComment?: string;
 }
 
-export type ImportBatchRequest = {
-  importId?: string
-  temuGoodsId: string
-  temuProductUrl?: string
-  temuProductTitle?: string
-  shopifyProductId?: string
-  shopifyProductTitle?: string
-  totalExpected?: number
-  batchIndex?: number
-  isFinal?: boolean
-  reviews: ImportReviewInput[]
+export interface ImportBatchRequest {
+  batchIndex?: number;
+  importId?: string;
+  isFinal?: boolean;
+  reviews: ImportReviewInput[];
+  shopifyProductId?: string;
+  shopifyProductTitle?: string;
+  temuGoodsId: string;
+  temuProductTitle?: string;
+  temuProductUrl?: string;
+  totalExpected?: number;
 }
 
-export type ShopifyProductSummary = {
-  id: string
-  title: string
-  handle: string
-  imageUrl: string | null
+export interface ShopifyProductSummary {
+  handle: string;
+  id: string;
+  imageUrl: string | null;
+  title: string;
 }
 
-export type ExtensionConnectPayload = {
-  shop: string
-  apiUrl: string
-  token: string
-  plan: string
-  planName: string
-  reviewLimit: number | null
+export interface ExtensionConnectPayload {
+  apiUrl: string;
+  plan: string;
+  planName: string;
+  reviewLimit: number | null;
+  shop: string;
+  token: string;
 }
 
 export type ConnectTokenResponse = ExtensionConnectPayload & {
-  label?: string
-  createdAt?: string
+  label?: string;
+  createdAt?: string;
+};
+
+export interface VerifyResponse {
+  label?: string;
+  paired: boolean;
+  shop: string;
 }
 
-export type VerifyResponse = {
-  shop: string
-  label?: string
-  paired: boolean
+export interface PlanResponse {
+  plan: string;
+  planName: string;
+  reviewLimit: number | null;
+  shop: string;
 }
 
-export type PlanResponse = {
-  shop: string
-  plan: string
-  planName: string
-  reviewLimit: number | null
+export interface ProductsResponse {
+  products: ShopifyProductSummary[];
 }
 
-export type ProductsResponse = {
-  products: ShopifyProductSummary[]
+export interface ImportBatchResponse {
+  importId: string;
+  limitReached?: boolean;
 }
 
-export type ImportBatchResponse = {
-  importId: string
-  limitReached?: boolean
-}
-
-export type ConnectionState = {
-  pairingToken: string
-  pairingCode?: string
-  apiBaseUrl: string
-  shop?: string
-  plan?: string
-  planName?: string
+export interface ConnectionState {
+  apiBaseUrl: string;
+  pairingCode?: string;
+  pairingToken: string;
+  plan?: string;
+  planName?: string;
+  shop?: string;
 }
 
 export type EnrichedConnection = ConnectionState & {
-  paired: boolean
-}
+  paired: boolean;
+};
 
-export type ImportFilter = "all" | "withText" | "withPictures"
+export type ImportFilter = "all" | "withText" | "withPictures";
 
-export type TemuReviewsInterceptPayload = {
-  reviews: TemuReviewPayload[]
-  maxListSize: number | null
-  page: number | null
-  goodsId: string | null
+export interface TemuReviewsInterceptPayload {
+  goodsId: string | null;
+  maxListSize: number | null;
+  page: number | null;
+  reviews: TemuReviewPayload[];
 }

@@ -4,9 +4,9 @@ export const ONBOARDING_STORAGE_KEYS = {
   flowComplete: "revora-onboarding-flow-complete",
   flowStep: "revora-onboarding-flow-step",
   flowRestarted: "revora-onboarding-flow-restarted",
-} as const
+} as const;
 
-export const LEGACY_SETUP_GUIDE_DISMISSED = "revora-setup-guide-dismissed"
+export const LEGACY_SETUP_GUIDE_DISMISSED = "revora-setup-guide-dismissed";
 
 /** Legacy + dashboard keys cleared by dev reset. */
 export const REVORA_CLIENT_STORAGE_KEYS = [
@@ -17,4 +17,4 @@ export const REVORA_CLIENT_STORAGE_KEYS = [
   ONBOARDING_STORAGE_KEYS.flowRestarted,
   LEGACY_SETUP_GUIDE_DISMISSED,
   "revora-auto-import",
-] as const
+] as const;

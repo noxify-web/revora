@@ -1,4 +1,4 @@
-import { defineConfig } from "wxt"
+import { defineConfig } from "wxt";
 
 export default defineConfig({
   srcDir: ".",
@@ -42,4 +42,4 @@ export default defineConfig({
       },
     },
   },
-})
+});

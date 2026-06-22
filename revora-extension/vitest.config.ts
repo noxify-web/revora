@@ -1,5 +1,5 @@
-import path from "node:path"
-import { defineConfig } from "vitest/config"
+import path from "node:path";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -7,43 +7,43 @@ export default defineConfig({
       {
         find: "@revora/shared/pairing-code",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/pairing-code.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/pairing-code.ts"
         ),
       },
       {
         find: "@revora/shared/extension-types",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/extension-types.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/extension-types.ts"
         ),
       },
       {
         find: "@revora/shared/extension-messages",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/extension-messages.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/extension-messages.ts"
         ),
       },
       {
         find: "@revora/shared/extension-schemas",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/extension-schemas.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/extension-schemas.ts"
         ),
       },
       {
         find: "@revora/shared/constants",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/constants.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/constants.ts"
         ),
       },
       {
         find: "@revora/shared",
         replacement: path.resolve(
-          __dirname,
-          "../packages/revora-shared/src/index.ts",
+          import.meta.dirname,
+          "../packages/revora-shared/src/index.ts"
         ),
       },
     ],
@@ -52,4 +52,4 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
   },
-})
+});

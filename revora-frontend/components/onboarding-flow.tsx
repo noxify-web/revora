@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react";
 
-import { ConnectExtension } from "@/components/connect-extension"
+import { ConnectExtension } from "@/components/connect-extension";
 import {
   ExtensionInstallActions,
   OnboardingActions,
@@ -11,44 +11,46 @@ import {
   OnboardingJourneyList,
   OnboardingProgress,
   useExtensionInstallAck,
-} from "@/components/onboarding-shared"
+} from "@/components/onboarding-shared";
 import {
   ONBOARDING_FLOW_STEPS,
+  type OnboardingFlowStepId,
   readOnboardingFlowStep,
   writeOnboardingFlowStep,
-  type OnboardingFlowStepId,
-} from "@/lib/onboarding"
+} from "@/lib/onboarding";
 import {
   completeOnboardingFlow,
   consumeFlowRestarted,
   skipOnboardingFlow,
-} from "@/lib/onboarding/store"
+} from "@/lib/onboarding/store";
 
-const CONNECT_SUCCESS_DELAY_MS = 3000
+const CONNECT_SUCCESS_DELAY_MS = 3000;
 
-type OnboardingFlowProps = {
-  hasConnectedExtension: boolean
-  onExtensionStatusChange?: () => void
+interface OnboardingFlowProps {
+  hasConnectedExtension: boolean;
+  onExtensionStatusChange?: () => void;
 }
 
 function getStepIndex(step: OnboardingFlowStepId) {
-  return ONBOARDING_FLOW_STEPS.findIndex((item) => item.id === step)
+  return ONBOARDING_FLOW_STEPS.findIndex((item) => item.id === step);
 }
 
-function getPreviousStep(step: OnboardingFlowStepId): OnboardingFlowStepId | null {
-  const index = getStepIndex(step)
+function getPreviousStep(
+  step: OnboardingFlowStepId
+): OnboardingFlowStepId | null {
+  const index = getStepIndex(step);
   if (index <= 0) {
-    return null
+    return null;
   }
 
-  return ONBOARDING_FLOW_STEPS[index - 1]?.id ?? null
+  return ONBOARDING_FLOW_STEPS[index - 1]?.id ?? null;
 }
 
-type OnboardingFlowHeaderProps = {
-  stepIndex: number
-  totalSteps: number
-  title: string
-  summary: string
+interface OnboardingFlowHeaderProps {
+  stepIndex: number;
+  summary: string;
+  title: string;
+  totalSteps: number;
 }
 
 function OnboardingFlowHeader({
@@ -63,129 +65,129 @@ function OnboardingFlowHeader({
       <s-heading>{title}</s-heading>
       {summary ? <s-paragraph color="subdued">{summary}</s-paragraph> : null}
     </s-stack>
-  )
+  );
 }
 
 export function OnboardingFlow({
   hasConnectedExtension,
   onExtensionStatusChange,
 }: OnboardingFlowProps) {
-  const [step, setStep] = useState<OnboardingFlowStepId>("welcome")
-  const [hydrated, setHydrated] = useState(false)
-  const [suppressAutoComplete, setSuppressAutoComplete] = useState(false)
-  const [connectCelebration, setConnectCelebration] = useState(false)
-  const { installAcked, acknowledgeExtensionInstall } = useExtensionInstallAck()
+  const [step, setStep] = useState<OnboardingFlowStepId>("welcome");
+  const [hydrated, setHydrated] = useState(false);
+  const [suppressAutoComplete, setSuppressAutoComplete] = useState(false);
+  const [connectCelebration, setConnectCelebration] = useState(false);
+  const { installAcked, acknowledgeExtensionInstall } =
+    useExtensionInstallAck();
 
   const goToStep = useCallback((nextStep: OnboardingFlowStepId) => {
-    setStep(nextStep)
-    writeOnboardingFlowStep(nextStep)
-  }, [])
+    setStep(nextStep);
+    writeOnboardingFlowStep(nextStep);
+  }, []);
 
   const finishFlow = useCallback((mode: "immediate" | "celebrate") => {
     if (mode === "celebrate") {
-      setConnectCelebration(true)
-      return
+      setConnectCelebration(true);
+      return;
     }
 
-    completeOnboardingFlow()
-  }, [])
+    completeOnboardingFlow();
+  }, []);
 
   useEffect(() => {
-    const nextStep = readOnboardingFlowStep()
-    const restarted = consumeFlowRestarted()
+    const nextStep = readOnboardingFlowStep();
+    const restarted = consumeFlowRestarted();
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate flow step from storage on mount
-    setStep(nextStep)
-    setSuppressAutoComplete(restarted)
-    setHydrated(true)
-  }, [])
+    setStep(nextStep);
+    setSuppressAutoComplete(restarted);
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (!hydrated || suppressAutoComplete || connectCelebration) {
-      return
+      return;
     }
 
     if (!hasConnectedExtension) {
-      return
+      return;
     }
 
-    finishFlow("immediate")
+    finishFlow("immediate");
   }, [
     hydrated,
     hasConnectedExtension,
     suppressAutoComplete,
     connectCelebration,
     finishFlow,
-  ])
+  ]);
 
   useEffect(() => {
     if (!connectCelebration) {
-      return
+      return;
     }
 
     const timer = window.setTimeout(() => {
-      finishFlow("immediate")
-    }, CONNECT_SUCCESS_DELAY_MS)
+      finishFlow("immediate");
+    }, CONNECT_SUCCESS_DELAY_MS);
 
-    return () => window.clearTimeout(timer)
-  }, [connectCelebration, finishFlow])
+    return () => window.clearTimeout(timer);
+  }, [connectCelebration, finishFlow]);
 
   function handleSkip() {
-    skipOnboardingFlow()
+    skipOnboardingFlow();
   }
 
   function handleBack() {
-    const previousStep = getPreviousStep(step)
+    const previousStep = getPreviousStep(step);
     if (previousStep) {
-      goToStep(previousStep)
+      goToStep(previousStep);
     }
   }
 
   function handleWelcomeContinue() {
-    goToStep("install")
+    goToStep("install");
   }
 
   function handleInstallContinue() {
-    acknowledgeExtensionInstall()
-    goToStep("connect")
+    acknowledgeExtensionInstall();
+    goToStep("connect");
   }
 
   function handleConnected() {
-    onExtensionStatusChange?.()
-    finishFlow("celebrate")
+    onExtensionStatusChange?.();
+    finishFlow("celebrate");
   }
 
   if (!hydrated) {
     return (
       <s-page inlineSize="small">
-        <s-stack direction="inline" gap="small" alignItems="center">
+        <s-stack alignItems="center" direction="inline" gap="small">
           <s-spinner accessibilityLabel="Loading onboarding" />
           <s-text color="subdued">Loading...</s-text>
         </s-stack>
       </s-page>
-    )
+    );
   }
 
-  const stepIndex = getStepIndex(step)
-  const stepMeta = ONBOARDING_FLOW_STEPS[stepIndex]
-  const showBack = Boolean(getPreviousStep(step))
+  const stepIndex = getStepIndex(step);
+  const stepMeta = ONBOARDING_FLOW_STEPS[stepIndex];
+  const showBack = Boolean(getPreviousStep(step));
 
   return (
     <s-page inlineSize="small">
       <s-stack gap="small-200">
         <OnboardingFlowHeader
           stepIndex={stepIndex}
-          totalSteps={ONBOARDING_FLOW_STEPS.length}
-          title={
-            connectCelebration && step === "connect"
-              ? "You're connected"
-              : stepMeta.title
-          }
           summary={
             connectCelebration && step === "connect"
               ? "Your Chrome extension is linked to this store."
               : stepMeta.summary
           }
+          title={
+            connectCelebration && step === "connect"
+              ? "You're connected"
+              : stepMeta.title
+          }
+          totalSteps={ONBOARDING_FLOW_STEPS.length}
         />
 
         <s-section accessibilityLabel="Revora onboarding step content">
@@ -202,18 +204,18 @@ export function OnboardingFlow({
         {step === "welcome" ? (
           <OnboardingActions
             compact
-            tertiary={
-              <s-button variant="tertiary" onClick={handleSkip}>
-                Skip onboarding
-              </s-button>
-            }
             primary={
               <s-button
-                variant="primary"
                 icon="arrow-right"
                 onClick={handleWelcomeContinue}
+                variant="primary"
               >
                 Continue
+              </s-button>
+            }
+            tertiary={
+              <s-button onClick={handleSkip} variant="tertiary">
+                Skip onboarding
               </s-button>
             }
           />
@@ -222,19 +224,19 @@ export function OnboardingFlow({
         {step === "install" ? (
           <OnboardingActions
             compact
-            tertiary={
-              showBack ? (
-                <s-button variant="tertiary" onClick={handleBack}>
-                  Back
-                </s-button>
-              ) : null
-            }
             primary={
               <ExtensionInstallActions
                 installComplete={installAcked}
                 onAcknowledgeInstall={acknowledgeExtensionInstall}
                 onInstalledClick={handleInstallContinue}
               />
+            }
+            tertiary={
+              showBack ? (
+                <s-button onClick={handleBack} variant="tertiary">
+                  Back
+                </s-button>
+              ) : null
             }
           />
         ) : null}
@@ -243,13 +245,13 @@ export function OnboardingFlow({
           <OnboardingActions
             compact
             tertiary={
-              <s-stack direction="inline" gap="small" alignItems="center">
+              <s-stack alignItems="center" direction="inline" gap="small">
                 {showBack ? (
-                  <s-button variant="tertiary" onClick={handleBack}>
+                  <s-button onClick={handleBack} variant="tertiary">
                     Back
                   </s-button>
                 ) : null}
-                <s-button variant="tertiary" onClick={handleSkip}>
+                <s-button onClick={handleSkip} variant="tertiary">
                   Skip onboarding
                 </s-button>
               </s-stack>
@@ -258,21 +260,24 @@ export function OnboardingFlow({
         ) : null}
       </s-stack>
     </s-page>
-  )
+  );
 }
 
 function WelcomeStep() {
   return (
-    <s-grid gridTemplateColumns="auto 1fr" gap="small" alignItems="start">
-      <OnboardingCalloutImage size="compact" alt="Revora onboarding illustration" />
+    <s-grid alignItems="start" gap="small" gridTemplateColumns="auto 1fr">
+      <OnboardingCalloutImage
+        alt="Revora onboarding illustration"
+        size="compact"
+      />
       <OnboardingJourneyList />
     </s-grid>
-  )
+  );
 }
 
 function InstallStepContent() {
   return (
-    <s-grid gridTemplateColumns="3fr 2fr" gap="small" alignItems="start">
+    <s-grid alignItems="start" gap="small" gridTemplateColumns="3fr 2fr">
       <OnboardingInstallDemoGif variant="split" />
       <s-banner heading="Extension required" tone="info">
         <s-paragraph>
@@ -280,21 +285,21 @@ function InstallStepContent() {
         </s-paragraph>
       </s-banner>
     </s-grid>
-  )
+  );
 }
 
-type ConnectStepContentProps = {
-  onConnected: () => void
+interface ConnectStepContentProps {
+  onConnected: () => void;
 }
 
 function ConnectStepContent({ onConnected }: ConnectStepContentProps) {
   return (
     <ConnectExtension
-      compact
       checkStatusOnMount={false}
+      compact
       onConnected={onConnected}
     />
-  )
+  );
 }
 
 function ConnectSuccessStep() {
@@ -307,5 +312,5 @@ function ConnectSuccessStep() {
         </s-paragraph>
       </s-stack>
     </s-banner>
-  )
+  );
 }

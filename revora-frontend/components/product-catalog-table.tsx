@@ -1,50 +1,51 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { PolarisEmptyState } from "@/components/polaris-empty-state"
-import { adminFetch } from "@/lib/admin-fetch"
+import { PolarisEmptyState } from "@/components/polaris-empty-state";
+import { adminFetch } from "@/lib/admin-fetch";
 
-type CatalogProduct = {
-  id: string
-  title: string
-  handle: string
-  reviewCount: number
-  pictureCount: number
-  publishStatus: string | null
-  importId: string | null
+interface CatalogProduct {
+  handle: string;
+  id: string;
+  importId: string | null;
+  pictureCount: number;
+  publishStatus: string | null;
+  reviewCount: number;
+  title: string;
 }
 
-type ImportRecord = {
-  id: string
-  shopifyProductId: string | null
-  totalImported: number
-  totalPublished: number
-  publishStatus: string
+interface ImportRecord {
+  id: string;
+  publishStatus: string;
+  shopifyProductId: string | null;
+  totalImported: number;
+  totalPublished: number;
 }
 
-type ProductCatalogTableProps = {
-  shop: string
-  id?: string
-  onPublished?: () => void
+interface ProductCatalogTableProps {
+  id?: string;
+  onPublished?: () => void;
+  shop: string;
 }
 
 function getShopSlug(shop: string) {
-  return shop.replace(/\.myshopify\.com$/i, "")
+  return shop.replace(/\.myshopify\.com$/i, "");
 }
 
 function getProductAdminUrl(shop: string, productId: string) {
-  const numericId = productId.split("/").pop() ?? productId
-  return `https://admin.shopify.com/store/${getShopSlug(shop)}/products/${numericId}`
+  const numericId = productId.split("/").pop() ?? productId;
+  return `https://admin.shopify.com/store/${getShopSlug(shop)}/products/${numericId}`;
 }
 
-function canPublish(
-  product: CatalogProduct,
-  importRecord?: ImportRecord,
-) {
-  if (!product.importId || !importRecord) return false
-  if (importRecord.totalImported === 0) return false
-  return importRecord.totalImported > importRecord.totalPublished
+function canPublish(product: CatalogProduct, importRecord?: ImportRecord) {
+  if (!(product.importId && importRecord)) {
+    return false;
+  }
+  if (importRecord.totalImported === 0) {
+    return false;
+  }
+  return importRecord.totalImported > importRecord.totalPublished;
 }
 
 export function ProductCatalogTable({
@@ -52,143 +53,142 @@ export function ProductCatalogTable({
   id,
   onPublished,
 }: ProductCatalogTableProps) {
-  const [products, setProducts] = useState<CatalogProduct[]>([])
-  const [imports, setImports] = useState<ImportRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
-  const [publishingId, setPublishingId] = useState<string | null>(null)
-  const [importHintProduct, setImportHintProduct] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [importHintProduct, setImportHintProduct] = useState<string | null>(
+    null
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
       const [catalogResponse, importsResponse] = await Promise.all([
         adminFetch("/api/admin/catalog"),
         adminFetch("/api/imports"),
-      ])
+      ]);
 
       if (!catalogResponse.ok) {
-        throw new Error("Failed to load product catalog")
+        throw new Error("Failed to load product catalog");
       }
 
       if (!importsResponse.ok) {
-        throw new Error("Failed to load imports")
+        throw new Error("Failed to load imports");
       }
 
-      const catalogData = await catalogResponse.json()
-      const importsData = await importsResponse.json()
+      const catalogData = await catalogResponse.json();
+      const importsData = await importsResponse.json();
 
-      setProducts(catalogData.catalog ?? [])
-      setImports(importsData.imports ?? [])
+      setProducts(catalogData.catalog ?? []);
+      setImports(importsData.imports ?? []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
           ? loadError.message
-          : "Failed to load products",
-      )
+          : "Failed to load products"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch catalog on mount
-    void loadData()
-  }, [loadData])
+    void loadData();
+  }, [loadData]);
 
   const importsByProductId = useMemo(() => {
-    const map = new Map<string, ImportRecord>()
+    const map = new Map<string, ImportRecord>();
     for (const item of imports) {
       if (item.shopifyProductId) {
-        map.set(item.shopifyProductId, item)
+        map.set(item.shopifyProductId, item);
       }
     }
-    return map
-  }, [imports])
+    return map;
+  }, [imports]);
 
   const filteredProducts = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return products
+    const query = search.trim().toLowerCase();
+    if (!query) {
+      return products;
+    }
     return products.filter(
       (product) =>
         product.title.toLowerCase().includes(query) ||
-        product.handle.toLowerCase().includes(query),
-    )
-  }, [products, search])
+        product.handle.toLowerCase().includes(query)
+    );
+  }, [products, search]);
 
   async function publishImport(importId: string) {
-    setPublishingId(importId)
-    setError(null)
-    setMessage(null)
+    setPublishingId(importId);
+    setError(null);
+    setMessage(null);
 
     try {
       const response = await adminFetch(`/api/imports/${importId}/publish`, {
         method: "POST",
-      })
+      });
 
-      const data = await response.json().catch(() => ({}))
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to publish reviews")
+        throw new Error(data.error || "Failed to publish reviews");
       }
 
       setMessage(
-        `Published ${data.published ?? 0} reviews. Enable the Revora Reviews app embed in your theme to display them on product pages.`,
-      )
-      window.shopify?.toast?.show(`Published ${data.published ?? 0} reviews`)
-      await loadData()
-      onPublished?.()
+        `Published ${data.published ?? 0} reviews. Enable the Revora Reviews app embed in your theme to display them on product pages.`
+      );
+      window.shopify?.toast?.show(`Published ${data.published ?? 0} reviews`);
+      await loadData();
+      onPublished?.();
     } catch (publishError) {
       setError(
         publishError instanceof Error
           ? publishError.message
-          : "Failed to publish reviews",
-      )
+          : "Failed to publish reviews"
+      );
     } finally {
-      setPublishingId(null)
+      setPublishingId(null);
     }
   }
 
   function handleSearchInput(event: Event) {
-    const target = event.currentTarget as HTMLInputElement
-    setSearch(target.value)
+    const target = event.currentTarget as HTMLInputElement;
+    setSearch(target.value);
   }
 
   const productSearchField = (
     <s-search-field
       label="Search products"
       labelAccessibilityVisibility="exclusive"
+      onInput={handleSearchInput}
       placeholder="Search products"
       value={search}
-      onInput={handleSearchInput}
     />
-  )
+  );
 
   return (
-    <s-section
-      heading="Products"
-      id={id}
-      accessibilityLabel="Product catalog"
-    >
+    <s-section accessibilityLabel="Product catalog" heading="Products" id={id}>
       <s-stack gap="base">
         {message ? (
-          <s-banner heading="Published" tone="success" dismissible>
+          <s-banner dismissible heading="Published" tone="success">
             {message}
           </s-banner>
         ) : null}
 
         {error ? (
-          <s-banner heading="Error" tone="critical" dismissible>
+          <s-banner dismissible heading="Error" tone="critical">
             {error}
           </s-banner>
         ) : null}
 
         {importHintProduct ? (
-          <s-banner heading="How to import" tone="info" dismissible>
+          <s-banner dismissible heading="How to import" tone="info">
             <s-stack gap="small">
               <s-paragraph>
                 Open a Temu product page in Chrome, use the Revora extension,
@@ -196,8 +196,8 @@ export function ProductCatalogTable({
                 <s-text type="strong">{importHintProduct}</s-text>.
               </s-paragraph>
               <s-button
-                variant="secondary"
                 onClick={() => setImportHintProduct(null)}
+                variant="secondary"
               >
                 Got it
               </s-button>
@@ -206,33 +206,29 @@ export function ProductCatalogTable({
         ) : null}
 
         {loading ? (
-          <s-stack direction="inline" gap="small" alignItems="center">
+          <s-stack alignItems="center" direction="inline" gap="small">
             <s-spinner accessibilityLabel="Loading products" />
             <s-text color="subdued">Loading products...</s-text>
           </s-stack>
         ) : products.length === 0 ? (
           <PolarisEmptyState
-            heading="No products yet"
             description="Import Temu reviews with the Revora Chrome extension and map them to your Shopify products."
+            heading="No products yet"
             imageAlt="No products illustration"
           />
         ) : filteredProducts.length === 0 ? (
           <s-stack gap="base">
             {productSearchField}
             <PolarisEmptyState
-              heading="No matching products"
               description="Try a different search term or import reviews from Temu using the Chrome extension."
+              heading="No matching products"
               imageAlt="No matching products illustration"
             />
           </s-stack>
         ) : (
-          <s-section padding="none" accessibilityLabel="Products table">
+          <s-section accessibilityLabel="Products table" padding="none">
             <s-table>
-              <s-grid
-                slot="filters"
-                gap="small-200"
-                gridTemplateColumns="1fr"
-              >
+              <s-grid gap="small-200" gridTemplateColumns="1fr" slot="filters">
                 {productSearchField}
               </s-grid>
               <s-table-header-row>
@@ -249,8 +245,8 @@ export function ProductCatalogTable({
                 {filteredProducts.map((product) => {
                   const importRecord = product.importId
                     ? imports.find((item) => item.id === product.importId)
-                    : importsByProductId.get(product.id)
-                  const showPublish = canPublish(product, importRecord)
+                    : importsByProductId.get(product.id);
+                  const showPublish = canPublish(product, importRecord);
 
                   return (
                     <s-table-row key={product.id}>
@@ -269,20 +265,24 @@ export function ProductCatalogTable({
                       <s-table-cell>
                         <s-stack direction="inline" gap="small">
                           <s-button
-                            variant="secondary"
                             icon="import"
                             onClick={() => setImportHintProduct(product.title)}
+                            variant="secondary"
                           >
                             Import
                           </s-button>
                           {showPublish && product.importId ? (
                             <s-button
-                              variant="primary"
                               icon="view"
                               loading={publishingId === product.importId}
-                              onClick={() =>
-                                void publishImport(product.importId!)
-                              }
+                              onClick={() => {
+                                if (!product.importId) {
+                                  return;
+                                }
+
+                                void publishImport(product.importId);
+                              }}
+                              variant="primary"
                             >
                               Publish
                             </s-button>
@@ -290,7 +290,7 @@ export function ProductCatalogTable({
                         </s-stack>
                       </s-table-cell>
                     </s-table-row>
-                  )
+                  );
                 })}
               </s-table-body>
             </s-table>
@@ -298,5 +298,5 @@ export function ProductCatalogTable({
         )}
       </s-stack>
     </s-section>
-  )
+  );
 }

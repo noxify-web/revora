@@ -1,27 +1,27 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
 
 import {
   isValidExtensionRedirectUri,
   normalizeShopDomain,
   renderShopPromptHtml,
-} from "@/lib/extension/browser-connect"
+} from "@/lib/extension/browser-connect";
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const url = new URL(request.url)
-  const redirectUri = url.searchParams.get("redirect_uri")?.trim() || ""
-  const shopInput = url.searchParams.get("shop")
+export function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const redirectUri = url.searchParams.get("redirect_uri")?.trim() || "";
+  const shopInput = url.searchParams.get("shop");
 
   if (!isValidExtensionRedirectUri(redirectUri)) {
     return NextResponse.json(
       { error: "Invalid extension redirect URI" },
       { status: 400 }
-    )
+    );
   }
 
-  const shop = shopInput ? normalizeShopDomain(shopInput) : null
+  const shop = shopInput ? normalizeShopDomain(shopInput) : null;
 
   if (!shop) {
     return new NextResponse(
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
       {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       }
-    )
+    );
   }
 
-  const authUrl = new URL("/api/extension/connect/auth", url.origin)
-  authUrl.searchParams.set("shop", shop)
-  authUrl.searchParams.set("redirect_uri", redirectUri)
+  const authUrl = new URL("/api/extension/connect/auth", url.origin);
+  authUrl.searchParams.set("shop", shop);
+  authUrl.searchParams.set("redirect_uri", redirectUri);
 
-  return NextResponse.redirect(authUrl)
+  return NextResponse.redirect(authUrl);
 }

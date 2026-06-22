@@ -1,6 +1,6 @@
 export {
+  type DecodedPairing,
   decodePairingCode,
   encodePairingCode,
-  type DecodedPairing,
   type PairingPayload,
-} from "@revora/shared/pairing-code"
+} from "@revora/shared/pairing-code";
