@@ -2,6 +2,11 @@ import {
   REVORA_APP_PATH_PATTERN,
   REVORA_CLIENT_ID,
 } from "@revora/shared/constants"
+import {
+  isExtensionContextValid,
+  safeSendResponse,
+  sendBackgroundMessage,
+} from "../lib/runtime-messaging"
 import type {
   AdminBridgeRequest,
   AdminProxyResponse,
@@ -12,6 +17,7 @@ import type {
 
 const PROXY_TIMEOUT_MS = 30_000
 const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000
+const ORIGIN_SYNC_INTERVAL_MS = 3_000
 
 type ConnectTokenPayload = {
   token: string
@@ -55,26 +61,26 @@ function cacheConnectToken(payload: ConnectTokenPayload) {
 }
 
 function persistConnectToken(payload: ConnectTokenPayload) {
+  if (!isExtensionContextValid()) {
+    return
+  }
+
   cacheConnectToken(payload)
 
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_CONNECT_DIRECT",
-      token: payload.token,
-      apiUrl: payload.apiUrl,
-      shop: payload.shop,
-      plan: payload.plan || undefined,
-      planName: payload.planName || undefined,
-      reviewLimit: payload.reviewLimit,
-    })
-    .catch(() => {})
+  sendBackgroundMessage({
+    type: "REVORA_CONNECT_DIRECT",
+    token: payload.token,
+    apiUrl: payload.apiUrl,
+    shop: payload.shop,
+    plan: payload.plan || undefined,
+    planName: payload.planName || undefined,
+    reviewLimit: payload.reviewLimit,
+  })
 
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_SET_API_URL",
-      apiBaseUrl: payload.apiUrl,
-    })
-    .catch(() => {})
+  sendBackgroundMessage({
+    type: "REVORA_SET_API_URL",
+    apiBaseUrl: payload.apiUrl,
+  })
 }
 
 function isRevoraAppPage() {
@@ -149,6 +155,11 @@ function proxyToRevoraApp({
   headers?: Record<string, string>
 }) {
   return new Promise<unknown>((resolve, reject) => {
+    if (!isExtensionContextValid()) {
+      reject(new Error("Extension context invalidated"))
+      return
+    }
+
     const match = findRevoraIframe()
     const iframeWindow = match?.iframe.contentWindow
 
@@ -163,13 +174,41 @@ function proxyToRevoraApp({
 
     const { origin } = match
     const requestId = crypto.randomUUID()
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
 
-    const timer = window.setTimeout(() => {
+    const cleanup = () => {
+      if (timer != null) {
+        clearTimeout(timer)
+        timer = null
+      }
       window.removeEventListener("message", onResponse)
-      reject(new Error("Revora admin request timed out. Refresh the app page."))
+    }
+
+    const finish = (handler: () => void) => {
+      if (settled) {
+        return
+      }
+
+      settled = true
+      cleanup()
+      handler()
+    }
+
+    timer = window.setTimeout(() => {
+      finish(() => {
+        reject(new Error("Revora admin request timed out. Refresh the app page."))
+      })
     }, PROXY_TIMEOUT_MS)
 
     function onResponse(event: MessageEvent<AdminProxyResponse>) {
+      if (!isExtensionContextValid()) {
+        finish(() => {
+          reject(new Error("Extension context invalidated"))
+        })
+        return
+      }
+
       if (event.origin !== origin) {
         return
       }
@@ -182,15 +221,16 @@ function proxyToRevoraApp({
         return
       }
 
-      window.clearTimeout(timer)
-      window.removeEventListener("message", onResponse)
-
       if (event.data.ok) {
-        resolve(event.data.data)
+        finish(() => {
+          resolve(event.data.data)
+        })
         return
       }
 
-      reject(new Error(event.data.error || "Request failed"))
+      finish(() => {
+        reject(new Error(event.data.error || "Request failed"))
+      })
     }
 
     window.addEventListener("message", onResponse)
@@ -211,6 +251,11 @@ function proxyToRevoraApp({
 
 function requestConnectTokenFromIframe() {
   return new Promise<ConnectTokenPayload | null>((resolve) => {
+    if (!isExtensionContextValid()) {
+      resolve(null)
+      return
+    }
+
     const match = findRevoraIframe()
     const iframeWindow = match?.iframe.contentWindow
 
@@ -222,12 +267,23 @@ function requestConnectTokenFromIframe() {
     const { origin } = match
     const requestId = crypto.randomUUID()
     let settled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const cleanup = () => {
+      if (timer != null) {
+        clearTimeout(timer)
+        timer = null
+      }
+      window.removeEventListener("message", onResponse)
+    }
 
     const finish = (payload: ConnectTokenPayload | null) => {
-      if (settled) return
+      if (settled) {
+        return
+      }
+
       settled = true
-      window.removeEventListener("message", onResponse)
-      clearTimeout(timer)
+      cleanup()
 
       if (payload?.token) {
         cacheConnectToken(payload)
@@ -237,6 +293,11 @@ function requestConnectTokenFromIframe() {
     }
 
     function onResponse(event: MessageEvent<ConnectTokenPullResponse>) {
+      if (!isExtensionContextValid()) {
+        finish(null)
+        return
+      }
+
       if (event.origin !== origin) {
         return
       }
@@ -266,7 +327,7 @@ function requestConnectTokenFromIframe() {
 
     window.addEventListener("message", onResponse)
 
-    const timer = window.setTimeout(() => {
+    timer = window.setTimeout(() => {
       finish(getFreshConnectToken())
     }, 2500)
 
@@ -280,56 +341,106 @@ function requestConnectTokenFromIframe() {
   })
 }
 
-function syncOrigin() {
-  const origin = findRevoraIframeOrigin()
-  if (!origin) {
-    return
-  }
-
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_SET_API_URL",
-      apiBaseUrl: origin,
-    })
-    .catch(() => {})
-}
-
 export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
   runAt: "document_idle",
-  main() {
-    window.addEventListener(
-      "message",
-      (event: MessageEvent<ConnectTokenBroadcast>) => {
-        if (event.data?.type !== "REVORA_CONNECT_TOKEN") {
-          return
-        }
+  main(ctx) {
+    let disposed = false
+    let lastSyncedOrigin: string | null = null
+    let originSyncInterval: ReturnType<typeof setInterval> | null = null
 
-        const revoraOrigin = findRevoraIframeOrigin()
-        if (!revoraOrigin || event.origin !== revoraOrigin) {
-          return
-        }
+    const dispose = () => {
+      if (disposed) {
+        return
+      }
 
-        if (!event.data.token || !event.data.apiUrl || !event.data.shop) {
-          return
-        }
+      disposed = true
 
-        persistConnectToken({
-          token: String(event.data.token),
-          apiUrl: String(event.data.apiUrl).replace(/\/$/, ""),
-          shop: String(event.data.shop),
-          plan: event.data.plan ? String(event.data.plan) : null,
-          planName: event.data.planName ? String(event.data.planName) : null,
-          reviewLimit: event.data.reviewLimit ?? null,
-        })
-      },
-    )
+      if (originSyncInterval != null) {
+        clearInterval(originSyncInterval)
+        originSyncInterval = null
+      }
 
-    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      window.removeEventListener("message", onWindowMessage)
+
+      try {
+        chrome.runtime.onMessage.removeListener(onRuntimeMessage)
+      } catch {
+        // Context already invalidated.
+      }
+    }
+
+    const isActive = () => {
+      if (disposed) {
+        return false
+      }
+
+      if (!isExtensionContextValid()) {
+        dispose()
+        return false
+      }
+
+      return true
+    }
+
+    const syncOrigin = () => {
+      if (!isActive()) {
+        return
+      }
+
+      const origin = findRevoraIframeOrigin()
+      if (!origin || origin === lastSyncedOrigin) {
+        return
+      }
+
+      lastSyncedOrigin = origin
+      sendBackgroundMessage({
+        type: "REVORA_SET_API_URL",
+        apiBaseUrl: origin,
+      })
+    }
+
+    const onWindowMessage = (event: MessageEvent<ConnectTokenBroadcast>) => {
+      if (!isActive()) {
+        return
+      }
+
+      if (event.data?.type !== "REVORA_CONNECT_TOKEN") {
+        return
+      }
+
+      const revoraOrigin = findRevoraIframeOrigin()
+      if (!revoraOrigin || event.origin !== revoraOrigin) {
+        return
+      }
+
+      if (!event.data.token || !event.data.apiUrl || !event.data.shop) {
+        return
+      }
+
+      persistConnectToken({
+        token: String(event.data.token),
+        apiUrl: String(event.data.apiUrl).replace(/\/$/, ""),
+        shop: String(event.data.shop),
+        plan: event.data.plan ? String(event.data.plan) : null,
+        planName: event.data.planName ? String(event.data.planName) : null,
+        reviewLimit: event.data.reviewLimit ?? null,
+      })
+
+      syncOrigin()
+    }
+
+    const onRuntimeMessage: Parameters<
+      typeof chrome.runtime.onMessage.addListener
+    >[0] = (message, _sender, sendResponse) => {
+      if (!isActive()) {
+        return false
+      }
+
       const request = message as AdminBridgeRequest
 
       if (request.type === "REVORA_PING") {
-        sendResponse({ ok: true })
+        safeSendResponse(sendResponse, { ok: true })
         return
       }
 
@@ -340,9 +451,9 @@ export default defineContentScript({
           body: request.body,
           headers: request.headers,
         })
-          .then((data) => sendResponse({ ok: true, data }))
+          .then((data) => safeSendResponse(sendResponse, { ok: true, data }))
           .catch((error: unknown) =>
-            sendResponse({
+            safeSendResponse(sendResponse, {
               ok: false,
               unavailable: /open revora in shopify admin/i.test(
                 error instanceof Error ? error.message : "",
@@ -354,7 +465,7 @@ export default defineContentScript({
       }
 
       if (request.type === "REVORA_GET_API_URL") {
-        sendResponse({
+        safeSendResponse(sendResponse, {
           apiBaseUrl:
             findRevoraIframeOrigin() || latestConnectToken?.apiUrl || null,
         })
@@ -368,7 +479,7 @@ export default defineContentScript({
               persistConnectToken(payload)
             }
 
-            sendResponse({
+            safeSendResponse(sendResponse, {
               token: payload?.token || null,
               apiUrl: payload?.apiUrl || findRevoraIframeOrigin() || null,
               shop: payload?.shop || null,
@@ -379,7 +490,7 @@ export default defineContentScript({
           })
           .catch(() => {
             const cached = getFreshConnectToken()
-            sendResponse({
+            safeSendResponse(sendResponse, {
               token: cached?.token || null,
               apiUrl: cached?.apiUrl || findRevoraIframeOrigin() || null,
               shop: cached?.shop || null,
@@ -392,21 +503,50 @@ export default defineContentScript({
       }
 
       return false
+    }
+
+    const swallowInvalidationErrors = (event: ErrorEvent) => {
+      const message = event.message || ""
+      if (/extension context invalidated|context invalidated/i.test(message)) {
+        dispose()
+        event.preventDefault()
+      }
+    }
+
+    const swallowInvalidationRejections = (event: PromiseRejectionEvent) => {
+      const reason = event.reason
+      const message =
+        reason instanceof Error ? reason.message : String(reason ?? "")
+      if (/extension context invalidated|context invalidated/i.test(message)) {
+        dispose()
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener("error", swallowInvalidationErrors)
+    window.addEventListener("unhandledrejection", swallowInvalidationRejections)
+    window.addEventListener("message", onWindowMessage)
+
+    try {
+      chrome.runtime.onMessage.addListener(onRuntimeMessage)
+    } catch {
+      return
+    }
+
+    ctx.onInvalidated(() => {
+      window.removeEventListener("error", swallowInvalidationErrors)
+      window.removeEventListener(
+        "unhandledrejection",
+        swallowInvalidationRejections,
+      )
+      dispose()
     })
 
     if (isRevoraAppPage()) {
       syncOrigin()
-
-      const observer = new MutationObserver(() => {
+      originSyncInterval = window.setInterval(() => {
         syncOrigin()
-      })
-
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      })
-
-      window.setInterval(syncOrigin, 3000)
+      }, ORIGIN_SYNC_INTERVAL_MS)
     }
   },
 })

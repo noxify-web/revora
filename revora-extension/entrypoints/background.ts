@@ -13,7 +13,31 @@ import {
 } from "../lib/api-transport"
 import { mapTemuReview } from "../lib/review-mapper"
 
+const SHOPIFY_ADMIN_TAB_URL = "https://admin.shopify.com/*"
+
+async function refreshShopifyAdminTabs() {
+  const tabs = await chrome.tabs.query({ url: SHOPIFY_ADMIN_TAB_URL })
+
+  for (const tab of tabs) {
+    if (!tab.id) {
+      continue
+    }
+
+    try {
+      await chrome.tabs.reload(tab.id)
+    } catch {
+      // Tab may have closed before reload.
+    }
+  }
+}
+
 export default defineBackground(() => {
+  chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === "install" || details.reason === "update") {
+      void refreshShopifyAdminTabs()
+    }
+  })
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void handleMessage(message as BackgroundRequest)
       .then((response) => sendResponse(response))

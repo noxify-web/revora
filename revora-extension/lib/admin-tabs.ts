@@ -2,7 +2,8 @@ import type { AdminBridgeRequest } from "@revora/shared/extension-messages"
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
 
 const SHOPIFY_ADMIN_URL = "https://admin.shopify.com/*"
-const ADMIN_BRIDGE_SCRIPT = "content-scripts/admin-bridge.js"
+const PING_RETRY_MS = 200
+const PING_MAX_ATTEMPTS = 8
 
 export type AdminConnectPayload = {
   token: string | null
@@ -24,26 +25,8 @@ export async function queryShopifyAdminTabs() {
   return chrome.tabs.query({ url: SHOPIFY_ADMIN_URL })
 }
 
-async function ensureAdminBridgeOnTab(tabId: number) {
+async function pingAdminBridge(tabId: number) {
   try {
-    const pong = await chrome.tabs.sendMessage(tabId, {
-      type: "REVORA_PING",
-    } satisfies AdminBridgeRequest)
-
-    if (pong?.ok) {
-      return true
-    }
-  } catch {
-    // Content script not ready yet.
-  }
-
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [ADMIN_BRIDGE_SCRIPT],
-    })
-    await new Promise((resolve) => setTimeout(resolve, 150))
-
     const pong = await chrome.tabs.sendMessage(tabId, {
       type: "REVORA_PING",
     } satisfies AdminBridgeRequest)
@@ -52,6 +35,18 @@ async function ensureAdminBridgeOnTab(tabId: number) {
   } catch {
     return false
   }
+}
+
+async function waitForAdminBridge(tabId: number) {
+  for (let attempt = 0; attempt < PING_MAX_ATTEMPTS; attempt += 1) {
+    if (await pingAdminBridge(tabId)) {
+      return true
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, PING_RETRY_MS))
+  }
+
+  return false
 }
 
 function isRevoraTabResponse(message: AdminBridgeRequest, response: unknown) {
@@ -92,7 +87,7 @@ export async function sendAdminBridgeMessage<T>(
       continue
     }
 
-    const ready = await ensureAdminBridgeOnTab(tab.id)
+    const ready = await waitForAdminBridge(tab.id)
     if (!ready) {
       continue
     }

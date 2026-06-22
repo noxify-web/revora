@@ -8,23 +8,25 @@
   </head>
   <body>
     <main>
-      <header class="brand-row">
+      <header class="header">
         <div class="brand">
           <span class="brand-mark" aria-hidden="true">R</span>
-          <span class="brand-name">Revora</span>
+          <div class="brand-copy">
+            <span class="brand-name">Revora</span>
+            <span class="brand-tagline">Temu review importer</span>
+          </div>
         </div>
+        <span class="status-badge" id="status-badge" hidden>
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="status-badge-label">Connected</span>
+        </span>
       </header>
 
-      <section class="panel">
-        <div class="status-row" id="status-row">
-          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
-          <p id="status" class="status-text">Not connected</p>
-        </div>
-
+      <section class="view" id="connect-view">
+        <p class="lead" id="status">Not connected</p>
         <p class="hint" id="status-hint">
           Open Revora in Shopify admin, then connect your store.
         </p>
-
         <button id="connect-btn" type="button" class="primary">
           Connect store
         </button>
@@ -33,19 +35,19 @@
         </button>
       </section>
 
-      <details class="advanced">
-        <summary>Advanced</summary>
-        <label for="reviews-selector">Temu reviews selector</label>
-        <input
-          id="reviews-selector"
-          type="text"
-          placeholder="Leave blank to auto-detect"
-          spellcheck="false"
-        />
-        <button id="save-btn" type="button" class="secondary full">
-          Save
+      <section class="view view-connected" id="connected-view" hidden>
+        <div class="connected-card">
+          <div class="connected-icon" aria-hidden="true">✓</div>
+          <div class="connected-copy">
+            <p class="connected-title" id="store-name">Store connected</p>
+            <p class="connected-meta">Ready to import from Temu</p>
+          </div>
+        </div>
+        <button id="open-admin-btn" type="button" class="primary">
+          Open Revora in Shopify
         </button>
-      </details>
+      </section>
+
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

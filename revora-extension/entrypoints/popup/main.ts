@@ -4,40 +4,63 @@ import type {
   BackgroundPlanResponse,
 } from "@revora/shared/extension-messages"
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
+import { getRevoraAdminAppUrl } from "@revora/shared"
 import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs"
 import { resolveApiBaseUrlForConnect } from "../../lib/api-transport"
 
-const reviewsSelectorInput = document.getElementById(
-  "reviews-selector",
-) as HTMLInputElement
 const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement
 const signInBtn = document.getElementById("sign-in-btn") as HTMLButtonElement
-const saveBtn = document.getElementById("save-btn") as HTMLButtonElement
+const openAdminBtn = document.getElementById(
+  "open-admin-btn",
+) as HTMLButtonElement
 const statusNode = document.getElementById("status") as HTMLParagraphElement
-const statusDot = document.getElementById("status-dot") as HTMLSpanElement
-const statusRow = document.getElementById("status-row") as HTMLDivElement
 const statusHint = document.getElementById("status-hint") as HTMLParagraphElement
+const statusBadge = document.getElementById("status-badge") as HTMLSpanElement
+const statusBadgeLabel = document.getElementById(
+  "status-badge-label",
+) as HTMLSpanElement
+const connectView = document.getElementById("connect-view") as HTMLElement
+const connectedView = document.getElementById("connected-view") as HTMLElement
+const storeNameNode = document.getElementById("store-name") as HTMLParagraphElement
 
-function setStatus(text: string, tone = "") {
-  statusNode.textContent = text
-  statusDot.className = `status-dot ${tone}`.trim()
-  statusRow.className = `status-row ${tone}`.trim()
-}
-
-function setConnecting(connecting: boolean) {
-  connectBtn.disabled = connecting
-  connectBtn.textContent = connecting ? "Connecting..." : "Connect store"
-}
+let connectedShop: string | null = null
 
 function formatShopLabel(shop: string) {
   return shop.replace(/\.myshopify\.com$/i, "")
 }
 
-function setConnected(shop: string) {
-  setStatus(`Connected to ${formatShopLabel(shop)}`, "ok")
+function setDisconnectedStatus(text: string, tone = "") {
+  connectView.hidden = false
+  connectedView.hidden = true
+  statusBadge.hidden = true
+  statusNode.textContent = text
+  statusNode.className = `lead ${tone}`.trim()
+  statusHint.hidden = false
+  connectBtn.hidden = false
+  signInBtn.hidden = false
+}
+
+function setPendingStatus(text: string) {
+  connectView.hidden = false
+  connectedView.hidden = true
+  statusBadge.hidden = false
+  statusBadge.className = "status-badge pending"
+  statusBadgeLabel.textContent = "Connecting"
+  statusNode.textContent = text
+  statusNode.className = "lead pending"
   statusHint.hidden = true
-  connectBtn.hidden = true
-  signInBtn.hidden = true
+}
+
+function setConnected(shop: string) {
+  connectedShop = shop
+  const label = formatShopLabel(shop)
+
+  connectView.hidden = true
+  connectedView.hidden = false
+  statusBadge.hidden = false
+  statusBadge.className = "status-badge"
+  statusBadgeLabel.textContent = "Connected"
+  storeNameNode.textContent = label
 }
 
 function applyConnection(data: ConnectTokenResponse) {
@@ -68,24 +91,34 @@ async function connectFromAdminToken() {
   return true
 }
 
+function setConnecting(connecting: boolean) {
+  connectBtn.disabled = connecting
+  signInBtn.disabled = connecting
+  connectBtn.textContent = connecting ? "Connecting..." : "Connect store"
+}
+
 async function handleConnect() {
   setConnecting(true)
-  setStatus("Connecting...", "pending")
+  setPendingStatus("Connecting to your store...")
 
   try {
     const connected = await connectFromAdminToken()
 
     if (!connected) {
-      setStatus(
-        "Open Revora in Shopify admin, then try again",
+      setDisconnectedStatus(
+        "Couldn't connect",
         "error",
       )
+      statusHint.textContent =
+        "Open Revora in Shopify admin, then try again."
     }
   } catch (error) {
-    setStatus(
+    setDisconnectedStatus(
       error instanceof Error ? error.message : "Connection failed",
       "error",
     )
+    statusHint.textContent =
+      "Open Revora in Shopify admin, then try again."
   } finally {
     setConnecting(false)
   }
@@ -93,12 +126,14 @@ async function handleConnect() {
 
 async function handleSignIn() {
   setConnecting(true)
-  setStatus("Opening sign-in...", "pending")
+  setPendingStatus("Opening sign-in...")
 
   const apiBaseUrl = await resolveApiBaseUrlForConnect()
 
   if (!apiBaseUrl) {
-    setStatus("Open Revora in Shopify admin first", "error")
+    setDisconnectedStatus("Open Revora in Shopify admin first", "error")
+    statusHint.textContent =
+      "Keep the Revora admin tab open while signing in."
     setConnecting(false)
     return
   }
@@ -117,10 +152,12 @@ async function handleSignIn() {
 
     applyConnection(response.data)
   } catch (error) {
-    setStatus(
+    setDisconnectedStatus(
       error instanceof Error ? error.message : "Sign-in failed",
       "error",
     )
+    statusHint.textContent =
+      "Keep the Revora admin tab open while signing in."
   } finally {
     setConnecting(false)
   }
@@ -134,21 +171,18 @@ signInBtn.addEventListener("click", () => {
   void handleSignIn()
 })
 
-saveBtn.addEventListener("click", async () => {
-  await chrome.storage.sync.set({
-    temuAllReviewsSelector: reviewsSelectorInput.value.trim(),
+openAdminBtn.addEventListener("click", () => {
+  if (!connectedShop) {
+    return
+  }
+
+  chrome.tabs.create({
+    url: getRevoraAdminAppUrl(connectedShop),
   })
-  setStatus("Settings saved", "ok")
 })
 
 async function loadSettings() {
-  const stored = await chrome.storage.sync.get([
-    "temuAllReviewsSelector",
-    "shop",
-    "pairingToken",
-  ])
-
-  reviewsSelectorInput.value = (stored.temuAllReviewsSelector as string) || ""
+  const stored = await chrome.storage.sync.get(["shop", "pairingToken"])
 
   if (stored.shop) {
     setConnected(stored.shop as string)
@@ -179,7 +213,7 @@ async function loadSettings() {
     // Background may not be ready yet.
   }
 
-  setStatus("Not connected")
+  setDisconnectedStatus("Not connected")
 }
 
 void loadSettings()

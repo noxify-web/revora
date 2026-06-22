@@ -161,7 +161,7 @@ export async function startImport() {
     setStatus(
       opened
         ? "Reviews panel did not open. Click 'See all reviews' on Temu, then click Import again."
-        : "Could not find reviews panel. Click 'See all reviews' on Temu, or set the button selector in the extension popup.",
+        : "Could not find reviews panel. Click 'See all reviews' on Temu, then try again.",
     )
   } else if (!state.scrollContainer) {
     setStatus("Reviews panel open, but scroll area not found yet...")
