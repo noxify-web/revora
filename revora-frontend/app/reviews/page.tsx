@@ -1,4 +1,4 @@
-import { RevoraDashboard } from "@/components/revora-dashboard";
+import { ReviewsPage } from "@/components/reviews-page";
 import { authenticatePage } from "@/lib/shopify/authenticate-page";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
-  const { shop, shopifyApiKey } = await authenticatePage(searchParams);
+  await authenticatePage(searchParams);
 
-  return <RevoraDashboard shop={shop} shopifyApiKey={shopifyApiKey} />;
+  return <ReviewsPage />;
 }

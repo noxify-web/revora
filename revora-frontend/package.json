@@ -12,6 +12,7 @@
     "lint": "cd .. && bun run check",
     "format": "cd .. && bun run fix",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -30,6 +31,7 @@
     "next": "16.1.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -41,6 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

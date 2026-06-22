@@ -63,7 +63,6 @@ export function ProductCatalogTable({
   );
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);

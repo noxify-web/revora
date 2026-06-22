@@ -88,7 +88,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }
 
   return (
-    <s-page heading="Revora" inlineSize="large">
+    <s-page heading="Dashboard" inlineSize="large">
       <ExtensionConnectBanner
         onConnected={() => void loadExtensionStatus()}
         refreshToken={refreshToken}

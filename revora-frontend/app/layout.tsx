@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 
+import { AppNav } from "@/components/app-nav";
 import { ExtensionBridge } from "@/components/extension-bridge";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <AppNav />
         <ExtensionBridge />
         {children}
       </body>
