@@ -15,6 +15,12 @@ export const ONBOARDING_JOURNEY_BULLETS = [
   "Import reviews from any Temu product page",
 ] as const;
 
+export const EXTENSION_IMPORT_STEPS = [
+  "Open a Temu product page in Chrome",
+  "Click the Revora extension and import reviews from that page",
+  "Map the reviews to a Shopify product in the table below",
+] as const;
+
 export const ONBOARDING_FLOW_STEPS = [
   {
     id: "welcome",
