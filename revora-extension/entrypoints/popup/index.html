@@ -7,45 +7,49 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main>
-      <header class="brand-row">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">R</span>
-          <span class="brand-name">Revora</span>
+    <header class="popup-brand-bar">
+      <div class="popup-brand-bar__content">
+        <span class="popup-brand-mark" aria-hidden="true">R</span>
+        <div class="popup-brand-copy">
+          <h1 class="popup-brand-title">Revora</h1>
+          <p class="popup-brand-subtitle">
+            Import Temu reviews to your Shopify store
+          </p>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <section class="panel">
-        <div class="status-row" id="status-row">
-          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
-          <p id="status" class="status-text">Not connected</p>
+    <main class="popup-stack">
+      <div class="revora-well">
+        <div class="revora-status-row">
+          <span id="status-icon" aria-hidden="true"></span>
+          <p id="status" class="revora-text-subdued">Not connected</p>
         </div>
+      </div>
 
-        <p class="hint" id="status-hint">
-          Open Revora in Shopify admin, then connect your store.
+      <div class="revora-banner revora-banner--info popup-hint" id="status-hint">
+        <p class="revora-banner__heading">Connect from Shopify admin</p>
+        <p class="revora-banner__body">
+          Open Revora in your Shopify admin, then click <strong>Connect</strong>
+          in the app. The extension will link automatically.
         </p>
+      </div>
 
-        <button id="connect-btn" type="button" class="primary">
-          Connect store
+      <div class="popup-actions" id="sync-actions">
+        <button id="sync-btn" type="button" class="revora-btn revora-btn--secondary">
+          <span id="sync-btn-label">Sync from admin</span>
         </button>
-        <button id="sign-in-btn" type="button" class="ghost">
-          Sign in manually
-        </button>
-      </section>
+      </div>
 
-      <details class="advanced">
-        <summary>Advanced</summary>
-        <label for="reviews-selector">Temu reviews selector</label>
-        <input
-          id="reviews-selector"
-          type="text"
-          placeholder="Leave blank to auto-detect"
-          spellcheck="false"
-        />
-        <button id="save-btn" type="button" class="secondary full">
-          Save
+      <div class="popup-actions" id="connected-actions" hidden>
+        <button
+          id="disconnect-btn"
+          type="button"
+          class="revora-btn revora-btn--secondary revora-btn--destructive"
+        >
+          <span id="disconnect-btn-label">Disconnect</span>
         </button>
-      </details>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

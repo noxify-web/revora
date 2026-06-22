@@ -139,6 +139,29 @@ export async function createConnectTokenFromAdmin(): Promise<ConnectTokenRespons
   return response.data
 }
 
+export async function clearAdminPairingState() {
+  const tabs = await queryShopifyAdminTabs()
+
+  for (const tab of tabs) {
+    if (!tab.id) {
+      continue
+    }
+
+    const ready = await ensureAdminBridgeOnTab(tab.id)
+    if (!ready) {
+      continue
+    }
+
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: "REVORA_CLEAR_PAIRING",
+      } satisfies AdminBridgeRequest)
+    } catch {
+      // Admin tab may not have the bridge ready.
+    }
+  }
+}
+
 export async function resolveConnectPayloadFromAdmin(): Promise<AdminConnectPayload | null> {
   const existing = await readConnectTokenFromAdmin()
 

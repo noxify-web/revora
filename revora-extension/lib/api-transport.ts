@@ -289,6 +289,11 @@ export async function verifyAndPersistConnection(
   await persistConnection(data)
 }
 
+export async function clearConnection() {
+  await chrome.storage.sync.remove(["pairingToken", "pairingCode", "shop"])
+  await chrome.storage.sync.set({ userDisconnected: true })
+}
+
 export async function persistConnection(
   data: ExtensionConnectPayload | ConnectTokenResponse,
 ) {
@@ -306,6 +311,7 @@ export async function persistConnection(
       token: data.token,
     }),
     shop: data.shop,
+    userDisconnected: false,
   })
 }
 

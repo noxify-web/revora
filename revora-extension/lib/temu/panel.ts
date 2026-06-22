@@ -7,7 +7,6 @@ import { getRevoraAdminAppUrl } from "@revora/shared"
 import { getPanelStyles } from "../ui-styles"
 import {
   PANEL_ID,
-  extractGoodsId,
   panelRef,
   sendRuntimeMessage,
   state,
@@ -30,57 +29,47 @@ export function createPanel(
   panelRef.shadow.innerHTML = `
     <style>${getPanelStyles()}</style>
     <div class="panel" id="revora-panel-body">
-      <div class="header">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">R</span>
-          <h3 class="title">Revora</h3>
-        </div>
-        <button class="icon-btn" id="revora-toggle-btn" type="button" title="Minimize">–</button>
-      </div>
-      <div id="revora-panel-content">
-        <div class="connection-badge" id="revora-connection-badge" hidden>
-          <span class="connection-dot" aria-hidden="true"></span>
-          <span id="revora-connection-label"></span>
-        </div>
-        <div class="setup" id="revora-setup-section">
-          <p class="context" id="revora-goods-label">Waiting for Temu product page...</p>
-          <div class="field">
+      <button class="revora-btn revora-btn--icon panel-collapse" id="revora-toggle-btn" type="button" title="Minimize">–</button>
+      <div id="revora-panel-content" class="revora-stack">
+        <div class="section setup" id="revora-setup-section">
+          <div class="revora-field">
             <label for="revora-product-select">Shopify product</label>
-            <select id="revora-product-select">
+            <select class="revora-select" id="revora-product-select">
               <option value="">Loading products...</option>
             </select>
           </div>
-          <div class="field">
+          <div class="revora-field">
             <label for="revora-import-filter">Review filter</label>
-            <select id="revora-import-filter">
+            <select class="revora-select" id="revora-import-filter">
               <option value="all">All reviews</option>
               <option value="withText">With text only</option>
               <option value="withPictures">With photos/videos only</option>
             </select>
           </div>
         </div>
-        <div class="activity" id="revora-activity-section">
+        <div class="section activity" id="revora-activity-section">
           <div class="success-state" id="revora-success-state" hidden>
-            <div class="success-icon" aria-hidden="true">✓</div>
-            <p class="success-count" id="revora-success-count">Import complete</p>
-            <p class="success-detail" id="revora-success-detail"></p>
-            <div class="success-actions">
-              <button class="action" id="revora-view-shopify-btn" type="button">
+            <div class="revora-banner revora-banner--success">
+              <p class="revora-banner__heading" id="revora-success-count">Import complete</p>
+              <p class="revora-banner__body" id="revora-success-detail"></p>
+            </div>
+            <div class="revora-btn-group">
+              <button class="revora-btn revora-btn--primary" id="revora-view-shopify-btn" type="button">
                 View in Shopify
               </button>
-              <button class="action secondary" id="revora-import-again-btn" type="button">
+              <button class="revora-btn revora-btn--secondary" id="revora-import-again-btn" type="button">
                 Import again
               </button>
             </div>
           </div>
           <div class="working-state" id="revora-working-state">
-            <div class="progress" id="revora-progress-wrap">
+            <div class="revora-progress" id="revora-progress-wrap">
               <span id="revora-progress-bar"></span>
             </div>
             <p class="status" id="revora-status">Connect the extension from the popup to begin.</p>
-            <div class="row">
-              <button class="action" id="revora-start-btn" type="button">Import reviews</button>
-              <button class="action secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
+            <div class="revora-btn-group">
+              <button class="revora-btn revora-btn--primary" id="revora-start-btn" type="button">Import reviews</button>
+              <button class="revora-btn revora-btn--secondary" id="revora-stop-btn" type="button" disabled>Stop</button>
             </div>
           </div>
         </div>
@@ -130,23 +119,8 @@ async function openRevoraInShopify() {
   window.open(getRevoraAdminAppUrl(shop), "_blank", "noopener,noreferrer")
 }
 
-function setConnectionBadge(shop: string | null) {
-  const badge = $("revora-connection-badge")
-  const label = $("revora-connection-label")
-
+function setConnectedShop(shop: string | null) {
   connectedShop = shop
-
-  if (!badge || !label) {
-    return
-  }
-
-  if (!shop) {
-    badge.setAttribute("hidden", "")
-    return
-  }
-
-  badge.removeAttribute("hidden")
-  label.textContent = shop.replace(/\.myshopify\.com$/i, "")
 }
 
 export function togglePanelCollapsed(forceCollapsed?: boolean) {
@@ -234,6 +208,7 @@ export function setImportRunning() {
   successState?.setAttribute("hidden", "")
   workingState?.removeAttribute("hidden")
   progressWrap?.removeAttribute("hidden")
+  progressWrap?.classList.remove("is-complete")
   setButtons(true)
   updateCollapsedLabel("Importing...")
   togglePanelCollapsed(false)
@@ -252,6 +227,7 @@ export function setImportComplete({
   const setup = $("revora-setup-section")
   const successState = $("revora-success-state")
   const workingState = $("revora-working-state")
+  const progressWrap = $("revora-progress-wrap")
   const successCount = $("revora-success-count")
   const successDetail = $("revora-success-detail")
 
@@ -260,6 +236,7 @@ export function setImportComplete({
   setup?.classList.add("is-complete")
   successState?.removeAttribute("hidden")
   workingState?.setAttribute("hidden", "")
+  progressWrap?.classList.add("is-complete")
   setProgress(count, count)
 
   const reviewLabel = count === 1 ? "review" : "reviews"
@@ -287,6 +264,7 @@ export function clearImportResult() {
   successState?.setAttribute("hidden", "")
   workingState?.removeAttribute("hidden")
   progressWrap?.removeAttribute("hidden")
+  progressWrap?.classList.remove("is-complete")
   setProgress(0, 0)
   setButtons(false)
   updateCollapsedLabel("Revora")
@@ -338,20 +316,13 @@ export async function loadProducts(search = "") {
 }
 
 export async function initializePanel() {
-  const goodsId = extractGoodsId()
-  const label = $("revora-goods-label")
-
-  if (goodsId && label) {
-    label.textContent = `Temu product ${goodsId}`
-  }
-
   try {
     const verify = await sendRuntimeMessage<BackgroundVerifyResponse>({
       type: "REVORA_VERIFY",
     })
 
     if (!verify.ok) {
-      setConnectionBadge(null)
+      setConnectedShop(null)
       setStatus(verify.error || "Extension is not connected yet")
       return
     }
@@ -361,17 +332,11 @@ export async function initializePanel() {
       verify.data?.label ||
       (await chrome.storage.sync.get(["shop"])).shop
 
-    if (typeof shop === "string" && shop) {
-      setConnectionBadge(shop)
-      setStatus("Choose a product and import reviews.")
-    } else {
-      setConnectionBadge(null)
-      setStatus("Connected")
-    }
-
+    setConnectedShop(typeof shop === "string" && shop ? shop : null)
+    setStatus("Choose a product and import reviews.")
     await loadProducts()
   } catch (error) {
-    setConnectionBadge(null)
+    setConnectedShop(null)
     setStatus(
       error instanceof Error ? error.message : "Extension is not connected yet",
     )

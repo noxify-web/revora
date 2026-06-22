@@ -22,6 +22,12 @@ export default defineConfig({
       "http://127.0.0.1/*",
     ],
     optional_host_permissions: ["https://*/*"],
+    web_accessible_resources: [
+      {
+        resources: ["fonts/*"],
+        matches: ["*://*.temu.com/*"],
+      },
+    ],
     icons: {
       16: "/icons/icon16.png",
       48: "/icons/icon48.png",

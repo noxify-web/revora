@@ -3,8 +3,10 @@ import type {
   BackgroundResponse,
 } from "@revora/shared/extension-messages"
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
+import { clearAdminPairingState } from "../lib/admin-tabs"
 import { connectViaBrowser } from "../lib/connect-browser"
 import {
+  clearConnection,
   enrichConnection,
   fetchRevora,
   persistApiBaseUrl,
@@ -67,6 +69,51 @@ async function handleMessage(
       ok: true,
       data: enrichConnection(data as Record<string, unknown>, stored),
     }
+  }
+
+  if (message.type === "REVORA_GET_CONNECTION_STATUS") {
+    const stored = await readConnectionState()
+
+    if (!stored.pairingToken) {
+      return {
+        ok: true,
+        data: {
+          paired: false,
+          verified: false,
+          shop: stored.shop || null,
+        },
+      }
+    }
+
+    try {
+      const data = await fetchRevora("/api/extension/verify")
+      return {
+        ok: true,
+        data: {
+          paired: true,
+          verified: true,
+          shop:
+            typeof (data as { shop?: string }).shop === "string"
+              ? (data as { shop: string }).shop
+              : stored.shop || null,
+        },
+      }
+    } catch {
+      return {
+        ok: true,
+        data: {
+          paired: true,
+          verified: false,
+          shop: stored.shop || null,
+        },
+      }
+    }
+  }
+
+  if (message.type === "REVORA_DISCONNECT") {
+    await clearConnection()
+    await clearAdminPairingState()
+    return { ok: true }
   }
 
   if (message.type === "REVORA_VERIFY") {

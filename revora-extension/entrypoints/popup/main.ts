@@ -1,32 +1,44 @@
 import type {
-  BackgroundBrowserConnectResponse,
   BackgroundDirectConnectResponse,
   BackgroundPlanResponse,
+  BackgroundResponse,
 } from "@revora/shared/extension-messages"
 import type { ConnectTokenResponse } from "@revora/shared/extension-types"
 import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs"
-import { resolveApiBaseUrlForConnect } from "../../lib/api-transport"
+import { statusIconForTone } from "../../lib/icons"
 
-const reviewsSelectorInput = document.getElementById(
-  "reviews-selector",
-) as HTMLInputElement
-const connectBtn = document.getElementById("connect-btn") as HTMLButtonElement
-const signInBtn = document.getElementById("sign-in-btn") as HTMLButtonElement
-const saveBtn = document.getElementById("save-btn") as HTMLButtonElement
+const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement
+const syncBtnLabel = document.getElementById("sync-btn-label") as HTMLSpanElement
+const disconnectBtn = document.getElementById(
+  "disconnect-btn",
+) as HTMLButtonElement
+const disconnectBtnLabel = document.getElementById(
+  "disconnect-btn-label",
+) as HTMLSpanElement
 const statusNode = document.getElementById("status") as HTMLParagraphElement
-const statusDot = document.getElementById("status-dot") as HTMLSpanElement
-const statusRow = document.getElementById("status-row") as HTMLDivElement
-const statusHint = document.getElementById("status-hint") as HTMLParagraphElement
+const statusIcon = document.getElementById("status-icon") as HTMLSpanElement
+const statusHint = document.getElementById("status-hint") as HTMLDivElement
+const syncActions = document.getElementById("sync-actions") as HTMLDivElement
+const connectedActions = document.getElementById(
+  "connected-actions",
+) as HTMLDivElement
+type StatusTone = "" | "ok" | "error" | "pending"
 
-function setStatus(text: string, tone = "") {
+function setStatus(text: string, tone: StatusTone = "") {
   statusNode.textContent = text
-  statusDot.className = `status-dot ${tone}`.trim()
-  statusRow.className = `status-row ${tone}`.trim()
+  statusIcon.innerHTML = statusIconForTone(tone)
 }
 
-function setConnecting(connecting: boolean) {
-  connectBtn.disabled = connecting
-  connectBtn.textContent = connecting ? "Connecting..." : "Connect store"
+function setSyncing(syncing: boolean) {
+  syncBtn.disabled = syncing
+  syncBtnLabel.textContent = syncing ? "Syncing..." : "Sync from admin"
+}
+
+function setDisconnecting(disconnecting: boolean) {
+  disconnectBtn.disabled = disconnecting
+  disconnectBtnLabel.textContent = disconnecting
+    ? "Disconnecting..."
+    : "Disconnect"
 }
 
 function formatShopLabel(shop: string) {
@@ -34,17 +46,24 @@ function formatShopLabel(shop: string) {
 }
 
 function setConnected(shop: string) {
-  setStatus(`Connected to ${formatShopLabel(shop)}`, "ok")
+  setStatus(`Connected · ${formatShopLabel(shop)}`, "ok")
   statusHint.hidden = true
-  connectBtn.hidden = true
-  signInBtn.hidden = true
+  syncActions.hidden = true
+  connectedActions.hidden = false
+}
+
+function setDisconnected() {
+  setStatus("Not connected", "")
+  statusHint.hidden = false
+  syncActions.hidden = false
+  connectedActions.hidden = true
 }
 
 function applyConnection(data: ConnectTokenResponse) {
   setConnected(data.shop)
 }
 
-async function connectFromAdminToken() {
+async function syncFromAdmin() {
   const payload = await resolveConnectPayloadFromAdmin()
 
   if (!payload?.token || !payload.apiUrl || !payload.shop) {
@@ -60,126 +79,91 @@ async function connectFromAdminToken() {
 
   if (!response?.ok || !response.data) {
     const message =
-      response && "error" in response ? response.error : "Connection failed"
-    throw new Error(message || "Connection failed")
+      response && "error" in response ? response.error : "Sync failed"
+    throw new Error(message || "Sync failed")
   }
 
   applyConnection(response.data)
   return true
 }
 
-async function handleConnect() {
-  setConnecting(true)
-  setStatus("Connecting...", "pending")
+async function handleSync() {
+  setSyncing(true)
+  setStatus("Syncing with Revora admin...", "pending")
 
   try {
-    const connected = await connectFromAdminToken()
+    const synced = await syncFromAdmin()
 
-    if (!connected) {
+    if (!synced) {
       setStatus(
-        "Open Revora in Shopify admin, then try again",
+        "Open Revora in Shopify admin and click Connect, then try again.",
         "error",
       )
     }
   } catch (error) {
-    setStatus(
-      error instanceof Error ? error.message : "Connection failed",
-      "error",
-    )
+    setStatus(error instanceof Error ? error.message : "Sync failed", "error")
   } finally {
-    setConnecting(false)
+    setSyncing(false)
   }
 }
 
-async function handleSignIn() {
-  setConnecting(true)
-  setStatus("Opening sign-in...", "pending")
-
-  const apiBaseUrl = await resolveApiBaseUrlForConnect()
-
-  if (!apiBaseUrl) {
-    setStatus("Open Revora in Shopify admin first", "error")
-    setConnecting(false)
-    return
-  }
+async function handleDisconnect() {
+  setDisconnecting(true)
 
   try {
     const response = (await chrome.runtime.sendMessage({
-      type: "REVORA_CONNECT_BROWSER",
-      apiBaseUrl,
-    })) as BackgroundBrowserConnectResponse
+      type: "REVORA_DISCONNECT",
+    })) as BackgroundResponse
 
-    if (!response?.ok || !response.data) {
+    if (!response?.ok) {
       const message =
-        response && "error" in response ? response.error : "Sign-in failed"
-      throw new Error(message || "Sign-in failed")
+        response && "error" in response ? response.error : "Disconnect failed"
+      throw new Error(message || "Disconnect failed")
     }
 
-    applyConnection(response.data)
+    setDisconnected()
   } catch (error) {
     setStatus(
-      error instanceof Error ? error.message : "Sign-in failed",
+      error instanceof Error ? error.message : "Disconnect failed",
       "error",
     )
   } finally {
-    setConnecting(false)
+    setDisconnecting(false)
   }
 }
 
-connectBtn.addEventListener("click", () => {
-  void handleConnect()
+syncBtn.addEventListener("click", () => {
+  void handleSync()
 })
 
-signInBtn.addEventListener("click", () => {
-  void handleSignIn()
-})
-
-saveBtn.addEventListener("click", async () => {
-  await chrome.storage.sync.set({
-    temuAllReviewsSelector: reviewsSelectorInput.value.trim(),
-  })
-  setStatus("Settings saved", "ok")
+disconnectBtn.addEventListener("click", () => {
+  void handleDisconnect()
 })
 
 async function loadSettings() {
-  const stored = await chrome.storage.sync.get([
-    "temuAllReviewsSelector",
-    "shop",
-    "pairingToken",
-  ])
-
-  reviewsSelectorInput.value = (stored.temuAllReviewsSelector as string) || ""
+  const stored = await chrome.storage.sync.get(["shop", "pairingToken"])
 
   if (stored.shop) {
     setConnected(stored.shop as string)
     return
   }
 
-  if (!stored.pairingToken) {
+  if (stored.pairingToken) {
     try {
-      const connected = await connectFromAdminToken()
-      if (connected) {
+      const planResponse = (await chrome.runtime.sendMessage({
+        type: "REVORA_GET_PLAN",
+      })) as BackgroundPlanResponse
+
+      if (planResponse?.ok && planResponse.data?.shop) {
+        setConnected(planResponse.data.shop)
         return
       }
     } catch {
-      // Admin token may be stale until permissions are granted.
+      // Background may not be ready yet.
     }
   }
 
-  try {
-    const planResponse = (await chrome.runtime.sendMessage({
-      type: "REVORA_GET_PLAN",
-    })) as BackgroundPlanResponse
-
-    if (planResponse?.ok && planResponse.data?.shop) {
-      setConnected(planResponse.data.shop)
-      return
-    }
-  } catch {
-    // Background may not be ready yet.
-  }
-
-  setStatus("Not connected")
+  setDisconnected()
 }
 
 void loadSettings()

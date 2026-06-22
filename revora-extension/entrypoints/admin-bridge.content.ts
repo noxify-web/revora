@@ -8,7 +8,14 @@ import type {
   ConnectTokenBroadcast,
   ConnectTokenRequest,
   ConnectTokenPullResponse,
+  ExtensionStatusRequest,
+  ExtensionStatusResponse,
+  RevoraClearConnectTokenMessage,
 } from "@revora/shared/extension-messages"
+import {
+  isExtensionContextValid,
+  sendRuntimeMessageSafe,
+} from "../lib/extension-context"
 
 const PROXY_TIMEOUT_MS = 30_000
 const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000
@@ -55,26 +62,26 @@ function cacheConnectToken(payload: ConnectTokenPayload) {
 }
 
 function persistConnectToken(payload: ConnectTokenPayload) {
+  if (!isExtensionContextValid()) {
+    return
+  }
+
   cacheConnectToken(payload)
 
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_CONNECT_DIRECT",
-      token: payload.token,
-      apiUrl: payload.apiUrl,
-      shop: payload.shop,
-      plan: payload.plan || undefined,
-      planName: payload.planName || undefined,
-      reviewLimit: payload.reviewLimit,
-    })
-    .catch(() => {})
+  void sendRuntimeMessageSafe({
+    type: "REVORA_CONNECT_DIRECT",
+    token: payload.token,
+    apiUrl: payload.apiUrl,
+    shop: payload.shop,
+    plan: payload.plan || undefined,
+    planName: payload.planName || undefined,
+    reviewLimit: payload.reviewLimit,
+  })
 
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_SET_API_URL",
-      apiBaseUrl: payload.apiUrl,
-    })
-    .catch(() => {})
+  void sendRuntimeMessageSafe({
+    type: "REVORA_SET_API_URL",
+    apiBaseUrl: payload.apiUrl,
+  })
 }
 
 function isRevoraAppPage() {
@@ -280,52 +287,115 @@ function requestConnectTokenFromIframe() {
   })
 }
 
+function clearRevoraIframeConnectToken() {
+  const match = findRevoraIframe()
+  const iframeWindow = match?.iframe.contentWindow
+
+  if (!match || !iframeWindow) {
+    return
+  }
+
+  iframeWindow.postMessage(
+    { type: "REVORA_CLEAR_CONNECT_TOKEN" } satisfies RevoraClearConnectTokenMessage,
+    match.origin,
+  )
+}
+
+function clearPairingState() {
+  clearConnectTokenCache()
+  clearRevoraIframeConnectToken()
+}
+
 function syncOrigin() {
+  if (!isExtensionContextValid()) {
+    return
+  }
+
   const origin = findRevoraIframeOrigin()
   if (!origin) {
     return
   }
 
-  chrome.runtime
-    .sendMessage({
-      type: "REVORA_SET_API_URL",
-      apiBaseUrl: origin,
-    })
-    .catch(() => {})
+  void sendRuntimeMessageSafe({
+    type: "REVORA_SET_API_URL",
+    apiBaseUrl: origin,
+  })
 }
 
 export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
   runAt: "document_idle",
-  main() {
-    window.addEventListener(
-      "message",
-      (event: MessageEvent<ConnectTokenBroadcast>) => {
-        if (event.data?.type !== "REVORA_CONNECT_TOKEN") {
-          return
-        }
+  main(ctx) {
+    ctx.addEventListener(window, "message", (event: MessageEvent) => {
+      if (!isExtensionContextValid()) {
+        return
+      }
 
-        const revoraOrigin = findRevoraIframeOrigin()
+      const revoraOrigin = findRevoraIframeOrigin()
+
+      if (event.data?.type === "REVORA_CONNECT_TOKEN") {
+        const payload = event.data as ConnectTokenBroadcast
         if (!revoraOrigin || event.origin !== revoraOrigin) {
           return
         }
 
-        if (!event.data.token || !event.data.apiUrl || !event.data.shop) {
+        if (!payload.token || !payload.apiUrl || !payload.shop) {
           return
         }
 
         persistConnectToken({
-          token: String(event.data.token),
-          apiUrl: String(event.data.apiUrl).replace(/\/$/, ""),
-          shop: String(event.data.shop),
-          plan: event.data.plan ? String(event.data.plan) : null,
-          planName: event.data.planName ? String(event.data.planName) : null,
-          reviewLimit: event.data.reviewLimit ?? null,
+          token: String(payload.token),
+          apiUrl: String(payload.apiUrl).replace(/\/$/, ""),
+          shop: String(payload.shop),
+          plan: payload.plan ? String(payload.plan) : null,
+          planName: payload.planName ? String(payload.planName) : null,
+          reviewLimit: payload.reviewLimit ?? null,
         })
-      },
-    )
+        return
+      }
+
+      if (event.data?.type === "REVORA_REQUEST_EXTENSION_STATUS") {
+        const request = event.data as ExtensionStatusRequest
+        if (!revoraOrigin || event.origin !== revoraOrigin) {
+          return
+        }
+
+        if (!request.requestId || event.source == null) {
+          return
+        }
+
+        void sendRuntimeMessageSafe({
+          type: "REVORA_GET_CONNECTION_STATUS",
+        }).then((response) => {
+          const data = response as {
+            ok?: boolean
+            data?: {
+              paired?: boolean
+              verified?: boolean
+              shop?: string | null
+            }
+          }
+
+          const status: ExtensionStatusResponse = {
+            type: "REVORA_EXTENSION_STATUS_RESPONSE",
+            requestId: request.requestId,
+            installed: true,
+            paired: Boolean(data?.ok && data.data?.paired),
+            verified: Boolean(data?.ok && data.data?.verified),
+            shop:
+              typeof data?.data?.shop === "string" ? data.data.shop : null,
+          }
+
+          ;(event.source as Window).postMessage(status, event.origin)
+        })
+      }
+    })
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (!isExtensionContextValid()) {
+        return false
+      }
+
       const request = message as AdminBridgeRequest
 
       if (request.type === "REVORA_PING") {
@@ -361,13 +431,15 @@ export default defineContentScript({
         return
       }
 
+      if (request.type === "REVORA_CLEAR_PAIRING") {
+        clearPairingState()
+        sendResponse({ ok: true })
+        return
+      }
+
       if (request.type === "REVORA_GET_CONNECT_TOKEN") {
         requestConnectTokenFromIframe()
           .then((payload) => {
-            if (payload?.token) {
-              persistConnectToken(payload)
-            }
-
             sendResponse({
               token: payload?.token || null,
               apiUrl: payload?.apiUrl || findRevoraIframeOrigin() || null,
@@ -398,6 +470,11 @@ export default defineContentScript({
       syncOrigin()
 
       const observer = new MutationObserver(() => {
+        if (!isExtensionContextValid()) {
+          observer.disconnect()
+          return
+        }
+
         syncOrigin()
       })
 
@@ -406,7 +483,10 @@ export default defineContentScript({
         subtree: true,
       })
 
-      window.setInterval(syncOrigin, 3000)
+      ctx.setInterval(syncOrigin, 3000)
+      ctx.onInvalidated(() => {
+        observer.disconnect()
+      })
     }
   },
 })

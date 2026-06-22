@@ -1,253 +1,93 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "../../lib/extension-ui.css";
 
-:root {
-  --revora-orange: #fb7701;
-  --revora-orange-dark: #e56b00;
-  --revora-orange-light: #fff4eb;
-  --revora-border: #e3e3e3;
-  --revora-border-strong: #c9c9c9;
-  --revora-text: #303030;
-  --revora-text-subdued: #616161;
-  --revora-surface: #ffffff;
-  --revora-surface-subdued: #f7f7f7;
-  --revora-success: #29845a;
-  --revora-success-subdued: #e3f1df;
-  --revora-critical: #e51c00;
-  --revora-critical-subdued: #fff1f0;
-  --revora-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
-  --revora-radius-sm: 8px;
-  --revora-radius: 12px;
-  --revora-radius-lg: 16px;
-  --revora-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-* {
-  box-sizing: border-box;
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable-latin.woff2") format("woff2");
 }
 
 body {
   margin: 0;
-  width: 320px;
+  width: 360px;
   font-family: var(--revora-font);
   color: var(--revora-text);
   background: var(--revora-surface);
 }
 
-main {
-  padding: 16px;
+.popup-brand-bar {
+  background: var(--revora-brand);
+  color: #fff;
+  padding: 14px var(--revora-space-400);
 }
 
-.brand-row {
+.popup-brand-bar__content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  gap: var(--revora-space-200);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-mark {
+.popup-brand-mark {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--revora-radius-sm);
-  background: var(--revora-orange);
+  background: rgba(255, 255, 255, 0.18);
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
-.brand-name {
-  font-size: 14px;
+.popup-brand-copy {
+  min-width: 0;
+}
+
+.popup-brand-title {
+  margin: 0;
+  font-size: var(--revora-font-size-heading);
   font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
   letter-spacing: -0.01em;
 }
 
-.panel {
-  border: 1px solid var(--revora-border);
-  border-radius: var(--revora-radius-lg);
-  padding: 16px;
-  background: var(--revora-surface);
-  box-shadow: var(--revora-shadow);
+.popup-brand-subtitle {
+  margin: 2px 0 0;
+  font-size: var(--revora-font-size-small);
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.88);
 }
 
-.status-row {
+main {
+  padding: var(--revora-space-400);
+}
+
+.popup-stack {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  border-radius: var(--revora-radius-sm);
-  background: var(--revora-surface-subdued);
+  flex-direction: column;
+  gap: var(--revora-space-300);
 }
 
-.status-row.ok {
-  background: var(--revora-success-subdued);
+.popup-actions[hidden],
+.popup-hint[hidden] {
+  display: none !important;
 }
 
-.status-row.error {
-  background: var(--revora-critical-subdued);
-}
-
-.status-row.pending {
-  background: var(--revora-orange-light);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--revora-border-strong);
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.status-dot.ok {
-  background: var(--revora-success);
-}
-
-.status-dot.error {
-  background: var(--revora-critical);
-}
-
-.status-dot.pending {
-  background: var(--revora-orange);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
-
-.status-text {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--revora-text);
-}
-
-.status-row.ok .status-text {
-  color: #0b5e35;
-}
-
-.status-row.error .status-text {
+.revora-btn--destructive {
   color: var(--revora-critical);
-}
-
-.hint {
-  margin: 0 0 14px;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--revora-text-subdued);
-}
-
-button {
-  width: 100%;
-  border: 0;
-  border-radius: var(--revora-radius-sm);
-  padding: 10px 12px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-button.primary {
-  background: var(--revora-orange);
-  color: #fff;
-}
-
-button.primary:hover:not(:disabled) {
-  background: var(--revora-orange-dark);
-}
-
-button.primary:disabled {
-  opacity: 0.55;
-  cursor: wait;
-}
-
-button.ghost {
-  margin-top: 8px;
-  background: transparent;
-  color: var(--revora-text-subdued);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px;
-}
-
-button.ghost:hover {
-  color: var(--revora-text);
-}
-
-button.secondary {
-  background: var(--revora-surface);
-  color: var(--revora-text);
-  border: 1px solid var(--revora-border);
   font-weight: 500;
 }
 
-button.secondary:hover:not(:disabled) {
-  background: var(--revora-surface-subdued);
+.revora-btn--destructive:hover:not(:disabled) {
+  color: var(--revora-text-critical);
+  background: var(--revora-critical-subdued);
+  border-color: var(--revora-border-strong);
 }
 
-button.full {
-  margin-top: 10px;
-}
-
-.advanced {
-  margin-top: 14px;
-}
-
-.advanced summary {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--revora-text-subdued);
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.advanced summary::-webkit-details-marker {
-  display: none;
-}
-
-.advanced[open] summary {
-  margin-bottom: 10px;
-}
-
-.advanced label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--revora-text);
-  margin-bottom: 4px;
-}
-
-.advanced input[type="text"] {
-  width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--revora-border);
-  border-radius: var(--revora-radius-sm);
-  font-size: 13px;
-  font-family: inherit;
-  color: var(--revora-text);
-}
-
-.advanced input[type="text"]:focus {
-  outline: 2px solid var(--revora-orange-light);
-  border-color: var(--revora-orange);
+.revora-btn--destructive:active:not(:disabled) {
+  background: #ffe2de;
 }
