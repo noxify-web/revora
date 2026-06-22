@@ -71,6 +71,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["revora-frontend/app/layout.tsx"],
+      "linter": {
+        "rules": {
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
+          }
+        }
+      }
     }
   ]
 }

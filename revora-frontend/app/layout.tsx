@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 
-import { AppNav } from "@/components/app-nav";
-import { AppNavMarkup } from "@/components/app-nav-markup";
 import { ExtensionBridge } from "@/components/extension-bridge";
+import {
+  APP_NAV_BOOTSTRAP_SCRIPT,
+  APP_NAV_FALLBACK_SCRIPT,
+} from "@/lib/shopify/app-nav-html";
 
 export const metadata: Metadata = {
   title: "Revora",
@@ -21,20 +22,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta content={apiKey} name="shopify-api-key" />
-        <Script
-          src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-          strategy="beforeInteractive"
+        <script
+          dangerouslySetInnerHTML={{ __html: APP_NAV_BOOTSTRAP_SCRIPT }}
         />
-        <Script
-          src="https://cdn.shopify.com/shopifycloud/polaris.js"
-          strategy="beforeInteractive"
-        />
-        <style>{"ui-nav-menu, s-app-nav { display: none; }"}</style>
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
+        <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
       </head>
       <body>
-        <script src="/revora-app-nav-bootstrap.js" />
-        <AppNavMarkup />
-        <AppNav />
+        <script dangerouslySetInnerHTML={{ __html: APP_NAV_FALLBACK_SCRIPT }} />
         <ExtensionBridge />
         {children}
       </body>

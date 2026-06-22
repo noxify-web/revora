@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { APP_NAV_HTML } from "@/lib/shopify/app-nav-html";
 import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers";
 
 export function GET() {
@@ -10,8 +11,10 @@ export function GET() {
     <meta charset="UTF-8" />
     <meta name="shopify-api-key" content="${apiKey}" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+    <script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>
   </head>
   <body>
+    ${APP_NAV_HTML}
     <p>Connecting to Shopify...</p>
     <script>
       (async () => {
