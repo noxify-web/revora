@@ -4,6 +4,13 @@ export default defineConfig({
   srcDir: ".",
   modulesDir: "modules",
   outDir: ".output",
+  // Next.js (bun run dev) uses 3000; keep extension HMR on a separate port.
+  dev: {
+    server: {
+      port: 3001,
+      strictPort: true,
+    },
+  },
   manifest: {
     name: "Revora — Temu Review Importer",
     version: "0.2.0",
