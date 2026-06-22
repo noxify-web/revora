@@ -13,9 +13,7 @@ interface ExtensionConnectBannerProps {
   refreshToken?: number;
 }
 
-function showToast(message: string) {
-  window.shopify?.toast?.show(message);
-}
+const CONNECTED_SUCCESS_DISMISS_MS = 8000;
 
 export function ExtensionConnectBanner({
   onConnected,
@@ -25,6 +23,7 @@ export function ExtensionConnectBanner({
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConnectedSuccess, setShowConnectedSuccess] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -46,6 +45,18 @@ export function ExtensionConnectBanner({
   useRefreshOnFocus(() => {
     void loadStatus();
   });
+
+  useEffect(() => {
+    if (!showConnectedSuccess) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowConnectedSuccess(false);
+    }, CONNECTED_SUCCESS_DISMISS_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [showConnectedSuccess]);
 
   async function connectExtension() {
     setConnecting(true);
@@ -71,10 +82,9 @@ export function ExtensionConnectBanner({
         shop: data.shop,
       });
 
-      showToast("Extension connected");
-
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       await loadStatus();
+      setShowConnectedSuccess(true);
       onConnected?.();
     } catch (connectError) {
       setError(
@@ -85,6 +95,33 @@ export function ExtensionConnectBanner({
     } finally {
       setConnecting(false);
     }
+  }
+
+  if (verified && showConnectedSuccess) {
+    return (
+      <s-banner
+        dismissible
+        heading="Extension connected"
+        onDismiss={() => setShowConnectedSuccess(false)}
+        tone="success"
+      >
+        <s-stack gap="small">
+          <s-paragraph>
+            Your Revora Chrome extension is linked to this store. Here&apos;s
+            how to import reviews:
+          </s-paragraph>
+          <s-ordered-list>
+            <s-list-item>Open a Temu product page in Chrome</s-list-item>
+            <s-list-item>
+              Click the Revora extension and import reviews from that page
+            </s-list-item>
+            <s-list-item>
+              Map the reviews to a Shopify product in the table below
+            </s-list-item>
+          </s-ordered-list>
+        </s-stack>
+      </s-banner>
+    );
   }
 
   if (verified) {
