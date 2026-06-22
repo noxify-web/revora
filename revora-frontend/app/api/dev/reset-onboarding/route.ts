@@ -9,7 +9,7 @@ import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export async function GET(request: Request) {
+export async function GET() {
   if (process.env.NODE_ENV !== "development") {
     return new NextResponse("Not found", { status: 404 })
   }
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
         params.delete("reset");
         var query = params.toString();
         window.location.replace(
-          window.location.pathname + (query ? "?" + query : "")
+          "/" + (query ? "?" + query : "")
         );
       })();
     </script>

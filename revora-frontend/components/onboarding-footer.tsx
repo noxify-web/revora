@@ -1,7 +1,9 @@
 "use client"
 
-import { reopenOnboardingGuide } from "@/components/onboarding-guide"
-import { restartOnboardingFlow } from "@/lib/onboarding"
+import {
+  reopenOnboardingGuide,
+  restartOnboardingFlow,
+} from "@/lib/onboarding/store"
 
 export function OnboardingFooter() {
   return (

@@ -1,37 +1,31 @@
 "use client"
 
-import { useCallback, useState, type ReactNode } from "react"
+import { useCallback, type ReactNode } from "react"
 
 import {
   CHROME_WEB_STORE_URL,
   ONBOARDING_CALLOUT_IMAGE,
   ONBOARDING_INSTALL_DEMO_GIF,
   ONBOARDING_JOURNEY_BULLETS,
-  ONBOARDING_STORAGE_KEYS,
 } from "@/lib/onboarding"
+import {
+  acknowledgeExtensionInstall,
+  useOnboardingStore,
+} from "@/lib/onboarding/store"
 
 export function openChromeWebStore() {
   window.open(CHROME_WEB_STORE_URL, "_blank", "noopener,noreferrer")
 }
 
 export function useExtensionInstallAck() {
-  const [installAcked, setInstallAcked] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.localStorage.getItem(
-        ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-      ) === "true",
-  )
+  const { extensionInstallAck } = useOnboardingStore()
 
-  const acknowledgeExtensionInstall = useCallback(() => {
-    setInstallAcked(true)
-    window.localStorage.setItem(
-      ONBOARDING_STORAGE_KEYS.extensionInstallAck,
-      "true",
-    )
-  }, [])
-
-  return { installAcked, acknowledgeExtensionInstall }
+  return {
+    installAcked: extensionInstallAck,
+    acknowledgeExtensionInstall: useCallback(() => {
+      acknowledgeExtensionInstall()
+    }, []),
+  }
 }
 
 type OnboardingProgressProps = {

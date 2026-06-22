@@ -8,30 +8,12 @@ import { OnboardingFlow } from "@/components/onboarding-flow"
 import { OnboardingFooter } from "@/components/onboarding-footer"
 import { OnboardingGuide } from "@/components/onboarding-guide"
 import { ProductCatalogTable } from "@/components/product-catalog-table"
+import { adminFetchJson } from "@/lib/admin-fetch"
 import {
-  hydrateOnboardingFlowComplete,
-  ONBOARDING_STORAGE_KEYS,
-  resetOnboardingForDev,
+  hydrateOnboardingStore,
   resetOnboardingWizardState,
-} from "@/lib/onboarding"
-
-function consumeWizardResetCookie() {
-  if (typeof document === "undefined") {
-    return false
-  }
-
-  const hasCookie = document.cookie
-    .split(";")
-    .some((entry) => entry.trim().startsWith("revora_wizard_reset=1"))
-
-  if (!hasCookie) {
-    return false
-  }
-
-  document.cookie = "revora_wizard_reset=; Max-Age=0; path=/"
-  return true
-}
-import { adminFetch } from "@/lib/admin-fetch"
+  useOnboardingStore,
+} from "@/lib/onboarding/store"
 
 const AUTO_IMPORT_STORAGE_KEY = "revora-auto-import"
 
@@ -47,34 +29,28 @@ type RevoraDashboardProps = {
 }
 
 export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
+  const { hydrated, flowComplete, dismissed } = useOnboardingStore()
   const [imports, setImports] = useState<ImportRecord[]>([])
   const [hasConnectedExtension, setHasConnectedExtension] = useState(false)
   const [autoImportEnabled, setAutoImportEnabled] = useState(false)
   const [refreshToken, setRefreshToken] = useState(0)
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
-  const [flowComplete, setFlowComplete] = useState(false)
-  const [flowHydrated, setFlowHydrated] = useState(false)
 
   const loadImports = useCallback(async () => {
     try {
-      const response = await adminFetch("/api/imports")
-      if (!response.ok) return
-      const data = await response.json()
+      const data = await adminFetchJson<{ imports?: ImportRecord[] }>(
+        "/api/imports",
+      )
       setImports(data.imports ?? [])
     } catch {
       // Progress indicators are best-effort.
     }
   }, [])
 
-  const handleFlowComplete = useCallback(() => {
-    setFlowComplete(true)
-  }, [])
-
   const loadExtensionStatus = useCallback(async () => {
     try {
-      const response = await adminFetch("/api/extension/token")
-      if (!response.ok) return
-      const data = await response.json()
+      const data = await adminFetchJson<{ tokens?: unknown[] }>(
+        "/api/extension/token",
+      )
       setHasConnectedExtension((data.tokens ?? []).length > 0)
     } catch {
       // Connection status is best-effort.
@@ -82,34 +58,13 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }, [])
 
   useEffect(() => {
-    let nextAutoImport =
+    hydrateOnboardingStore()
+
+    const nextAutoImport =
       window.localStorage.getItem(AUTO_IMPORT_STORAGE_KEY) === "true"
-    let nextOnboardingDismissed =
-      window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true"
-    let nextFlowComplete = false
-
-    const params = new URLSearchParams(window.location.search)
-    const shouldReset =
-      process.env.NODE_ENV === "development" &&
-      (params.get("reset") === "1" || consumeWizardResetCookie())
-
-    if (shouldReset) {
-      resetOnboardingForDev()
-      nextOnboardingDismissed = false
-      nextAutoImport = false
-      params.delete("reset")
-      const nextQuery = params.toString()
-      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
-      window.history.replaceState({}, "", nextUrl)
-    } else {
-      nextFlowComplete = hydrateOnboardingFlowComplete()
-    }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate dashboard prefs on mount
     setAutoImportEnabled(nextAutoImport)
-    setOnboardingDismissed(nextOnboardingDismissed)
-    setFlowComplete(nextFlowComplete)
-    setFlowHydrated(true)
     void loadImports()
     void loadExtensionStatus()
   }, [loadImports, loadExtensionStatus])
@@ -117,54 +72,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   useEffect(() => {
     window.revoraRestartOnboarding = () => {
       resetOnboardingWizardState()
-      setFlowComplete(false)
-      setOnboardingDismissed(false)
       window.scrollTo({ top: 0, behavior: "smooth" })
-    }
-
-    function handleOnboardingReopen() {
-      setOnboardingDismissed(false)
-    }
-
-    function handleOnboardingDismissed() {
-      setOnboardingDismissed(true)
-    }
-
-    function handleFlowComplete() {
-      setFlowComplete(true)
-    }
-
-    function handleFlowReset() {
-      setFlowComplete(false)
-    }
-
-    window.addEventListener("revora:reopen-onboarding", handleOnboardingReopen)
-    window.addEventListener(
-      "revora:onboarding-dismissed",
-      handleOnboardingDismissed,
-    )
-    window.addEventListener(
-      "revora:onboarding-flow-complete",
-      handleFlowComplete,
-    )
-    window.addEventListener("revora:onboarding-flow-reset", handleFlowReset)
-    return () => {
-      window.removeEventListener(
-        "revora:reopen-onboarding",
-        handleOnboardingReopen,
-      )
-      window.removeEventListener(
-        "revora:onboarding-dismissed",
-        handleOnboardingDismissed,
-      )
-      window.removeEventListener(
-        "revora:onboarding-flow-complete",
-        handleFlowComplete,
-      )
-      window.removeEventListener(
-        "revora:onboarding-flow-reset",
-        handleFlowReset,
-      )
     }
   }, [])
 
@@ -197,9 +105,9 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
       item.totalPublished > 0,
   )
 
-  const showOnboarding = !onboardingDismissed
+  const showOnboarding = !dismissed
 
-  if (!flowHydrated) {
+  if (!hydrated) {
     return (
       <s-page inlineSize="small">
         <s-section>
@@ -216,7 +124,6 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
     return (
       <OnboardingFlow
         hasConnectedExtension={hasConnectedExtension}
-        onComplete={handleFlowComplete}
         onExtensionStatusChange={() => void loadExtensionStatus()}
       />
     )
@@ -261,7 +168,7 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
 
       <ImportActivityLog refreshToken={refreshToken} />
 
-      {onboardingDismissed ? (
+      {dismissed ? (
         <s-section heading="Auto-import">
           <s-stack gap="base">
             <s-paragraph color="subdued">

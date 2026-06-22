@@ -37,25 +37,3 @@ export const REVORA_THEME = {
 
 export const REVORA_FONT_IMPORT =
   '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");'
-
-export const REVORA_CSS_VARIABLES = `
-  --revora-orange: ${REVORA_THEME.orange};
-  --revora-orange-dark: ${REVORA_THEME.orangeDark};
-  --revora-orange-light: ${REVORA_THEME.orangeLight};
-  --revora-border: ${REVORA_THEME.border};
-  --revora-border-strong: ${REVORA_THEME.borderStrong};
-  --revora-text: ${REVORA_THEME.text};
-  --revora-text-subdued: ${REVORA_THEME.textSubdued};
-  --revora-surface: ${REVORA_THEME.surface};
-  --revora-surface-subdued: ${REVORA_THEME.surfaceSubdued};
-  --revora-success: ${REVORA_THEME.success};
-  --revora-success-subdued: ${REVORA_THEME.successSubdued};
-  --revora-success-text: ${REVORA_THEME.successText};
-  --revora-critical: ${REVORA_THEME.critical};
-  --revora-critical-subdued: ${REVORA_THEME.criticalSubdued};
-  --revora-font: ${REVORA_THEME.fontFamily};
-  --revora-radius-sm: ${REVORA_THEME.radiusSmall};
-  --revora-radius: ${REVORA_THEME.radiusBase};
-  --revora-radius-lg: ${REVORA_THEME.radiusLarge};
-  --revora-shadow: ${REVORA_THEME.shadow};
-`

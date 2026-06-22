@@ -13,20 +13,21 @@ import {
   useExtensionInstallAck,
 } from "@/components/onboarding-shared"
 import {
-  completeOnboardingFlow,
-  consumeFlowRestarted,
   ONBOARDING_FLOW_STEPS,
   readOnboardingFlowStep,
-  skipOnboardingFlow,
   writeOnboardingFlowStep,
   type OnboardingFlowStepId,
 } from "@/lib/onboarding"
+import {
+  completeOnboardingFlow,
+  consumeFlowRestarted,
+  skipOnboardingFlow,
+} from "@/lib/onboarding/store"
 
 const CONNECT_SUCCESS_DELAY_MS = 3000
 
 type OnboardingFlowProps = {
   hasConnectedExtension: boolean
-  onComplete: () => void
   onExtensionStatusChange?: () => void
 }
 
@@ -67,18 +68,26 @@ function OnboardingFlowHeader({
 
 export function OnboardingFlow({
   hasConnectedExtension,
-  onComplete,
   onExtensionStatusChange,
 }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingFlowStepId>("welcome")
   const [hydrated, setHydrated] = useState(false)
   const [suppressAutoComplete, setSuppressAutoComplete] = useState(false)
   const [connectCelebration, setConnectCelebration] = useState(false)
-  const { acknowledgeExtensionInstall } = useExtensionInstallAck()
+  const { installAcked, acknowledgeExtensionInstall } = useExtensionInstallAck()
 
   const goToStep = useCallback((nextStep: OnboardingFlowStepId) => {
     setStep(nextStep)
     writeOnboardingFlowStep(nextStep)
+  }, [])
+
+  const finishFlow = useCallback((mode: "immediate" | "celebrate") => {
+    if (mode === "celebrate") {
+      setConnectCelebration(true)
+      return
+    }
+
+    completeOnboardingFlow()
   }, [])
 
   useEffect(() => {
@@ -92,23 +101,21 @@ export function OnboardingFlow({
   }, [])
 
   useEffect(() => {
-    if (
-      !hydrated ||
-      !hasConnectedExtension ||
-      suppressAutoComplete ||
-      connectCelebration
-    ) {
+    if (!hydrated || suppressAutoComplete || connectCelebration) {
       return
     }
 
-    completeOnboardingFlow()
-    onComplete()
+    if (!hasConnectedExtension) {
+      return
+    }
+
+    finishFlow("immediate")
   }, [
     hydrated,
     hasConnectedExtension,
     suppressAutoComplete,
     connectCelebration,
-    onComplete,
+    finishFlow,
   ])
 
   useEffect(() => {
@@ -117,16 +124,14 @@ export function OnboardingFlow({
     }
 
     const timer = window.setTimeout(() => {
-      completeOnboardingFlow()
-      onComplete()
+      finishFlow("immediate")
     }, CONNECT_SUCCESS_DELAY_MS)
 
     return () => window.clearTimeout(timer)
-  }, [connectCelebration, onComplete])
+  }, [connectCelebration, finishFlow])
 
   function handleSkip() {
     skipOnboardingFlow()
-    onComplete()
   }
 
   function handleBack() {
@@ -147,7 +152,7 @@ export function OnboardingFlow({
 
   function handleConnected() {
     onExtensionStatusChange?.()
-    setConnectCelebration(true)
+    finishFlow("celebrate")
   }
 
   if (!hydrated) {
@@ -190,10 +195,7 @@ export function OnboardingFlow({
             <ConnectSuccessStep />
           ) : null}
           {step === "connect" && !connectCelebration ? (
-            <ConnectStepContent
-              onConnected={handleConnected}
-              onExtensionStatusChange={onExtensionStatusChange}
-            />
+            <ConnectStepContent onConnected={handleConnected} />
           ) : null}
         </s-section>
 
@@ -229,7 +231,7 @@ export function OnboardingFlow({
             }
             primary={
               <ExtensionInstallActions
-                installComplete={false}
+                installComplete={installAcked}
                 onAcknowledgeInstall={acknowledgeExtensionInstall}
                 onInstalledClick={handleInstallContinue}
               />
@@ -283,21 +285,14 @@ function InstallStepContent() {
 
 type ConnectStepContentProps = {
   onConnected: () => void
-  onExtensionStatusChange?: () => void
 }
 
-function ConnectStepContent({
-  onConnected,
-  onExtensionStatusChange,
-}: ConnectStepContentProps) {
+function ConnectStepContent({ onConnected }: ConnectStepContentProps) {
   return (
     <ConnectExtension
       compact
       checkStatusOnMount={false}
-      onConnected={() => {
-        onExtensionStatusChange?.()
-        onConnected()
-      }}
+      onConnected={onConnected}
     />
   )
 }

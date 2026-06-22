@@ -7,15 +7,9 @@ import {
   generateExtensionToken,
   revokeShopExtensionTokens,
 } from "@/lib/extension/auth"
-import {
-  extensionJsonResponse,
-  extensionOptionsResponse,
-} from "@/lib/extension/cors"
-import {
-  adminAuthFailureResponse,
-  authenticateAdminApi,
-} from "@/lib/shopify/authenticate-admin"
+import { extensionJsonResponse, extensionOptionsResponse } from "@/lib/extension/cors"
 import { resolveShopPlan } from "@/lib/shopify/resolve-plan"
+import { withAdminApi } from "@/lib/shopify/authenticate-admin"
 import { db } from "@/src/db"
 import { extensionTokens } from "@/src/db/schema"
 
@@ -30,138 +24,105 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   const headerStore = await headers()
   const origin = headerStore.get("origin")
-  const url = new URL(request.url)
 
-  try {
-    const { shop } = await authenticateAdminApi(url.searchParams)
-    const body = (await request.json().catch(() => ({}))) as { label?: string }
+  return withAdminApi(
+    request,
+    async ({ shop }) => {
+      const body = (await request.json().catch(() => ({}))) as { label?: string }
 
-    await revokeShopExtensionTokens(shop)
+      await revokeShopExtensionTokens(shop)
 
-    const { token, tokenHash } = generateExtensionToken()
-    const now = new Date().toISOString()
-    const resolved = await resolveShopPlan(shop)
+      const { token, tokenHash } = generateExtensionToken()
+      const now = new Date().toISOString()
+      const resolved = await resolveShopPlan(shop)
+      const label = body.label?.trim() || "Chrome extension"
 
-    await db.insert(extensionTokens).values({
-      id: randomUUID(),
-      shop,
-      tokenHash,
-      label: body.label?.trim() || "Chrome extension",
-      createdAt: now,
-    })
-
-    const apiUrl = await getAppBaseUrl(request)
-
-    return extensionJsonResponse(
-      {
-        token,
-        apiUrl,
+      await db.insert(extensionTokens).values({
+        id: randomUUID(),
         shop,
-        plan: resolved.plan,
-        planName: resolved.planName,
-        reviewLimit: resolved.reviewLimit,
-        label: body.label?.trim() || "Chrome extension",
+        tokenHash,
+        label,
         createdAt: now,
-      },
-      origin,
-      { status: 201 },
-    )
-  } catch (error) {
-    const authResponse = adminAuthFailureResponse(error, (body, status) =>
-      extensionJsonResponse(body, origin, { status }),
-    )
+      })
 
-    if (authResponse) {
-      return authResponse
-    }
+      const apiUrl = await getAppBaseUrl(request)
 
-    console.error("Revora extension token POST failed", error)
-
-    return extensionJsonResponse(
-      { error: "Failed to connect extension" },
-      origin,
-      { status: 500 },
-    )
-  }
+      return extensionJsonResponse(
+        {
+          token,
+          apiUrl,
+          shop,
+          plan: resolved.plan,
+          planName: resolved.planName,
+          reviewLimit: resolved.reviewLimit,
+          label,
+          createdAt: now,
+        },
+        origin,
+        { status: 201 },
+      )
+    },
+    {
+      logPrefix: "Revora extension token POST failed",
+      defaultErrorMessage: "Failed to connect extension",
+    },
+  )
 }
 
 export async function GET(request: Request) {
   const headerStore = await headers()
   const origin = headerStore.get("origin")
-  const url = new URL(request.url)
 
-  try {
-    const { shop } = await authenticateAdminApi(url.searchParams)
+  return withAdminApi(
+    request,
+    async ({ shop }) => {
+      const tokens = await db.query.extensionTokens.findMany({
+        where: and(eq(extensionTokens.shop, shop), isNull(extensionTokens.revokedAt)),
+        orderBy: [desc(extensionTokens.createdAt)],
+        columns: {
+          id: true,
+          label: true,
+          createdAt: true,
+          lastUsedAt: true,
+        },
+      })
 
-    const tokens = await db.query.extensionTokens.findMany({
-      where: and(eq(extensionTokens.shop, shop), isNull(extensionTokens.revokedAt)),
-      orderBy: [desc(extensionTokens.createdAt)],
-      columns: {
-        id: true,
-        label: true,
-        createdAt: true,
-        lastUsedAt: true,
-      },
-    })
-
-    return extensionJsonResponse({ tokens }, origin)
-  } catch (error) {
-    const authResponse = adminAuthFailureResponse(error, (body, status) =>
-      extensionJsonResponse(body, origin, { status }),
-    )
-
-    if (authResponse) {
-      return authResponse
-    }
-
-    console.error("Revora extension token GET failed", error)
-
-    return extensionJsonResponse(
-      { error: "Failed to load extension status" },
-      origin,
-      { status: 500 },
-    )
-  }
+      return extensionJsonResponse({ tokens }, origin)
+    },
+    {
+      logPrefix: "Revora extension token GET failed",
+      defaultErrorMessage: "Failed to load extension status",
+    },
+  )
 }
 
 export async function DELETE(request: Request) {
   const headerStore = await headers()
   const origin = headerStore.get("origin")
   const url = new URL(request.url)
+  const tokenId = url.searchParams.get("id")
 
-  try {
-    const { shop } = await authenticateAdminApi(url.searchParams)
-    const tokenId = url.searchParams.get("id")
-
-    if (!tokenId) {
-      return extensionJsonResponse({ error: "Missing token id" }, origin, {
-        status: 400,
-      })
-    }
-
-    await db
-      .update(extensionTokens)
-      .set({ revokedAt: new Date().toISOString() })
-      .where(
-        and(eq(extensionTokens.id, tokenId), eq(extensionTokens.shop, shop)),
-      )
-
-    return extensionJsonResponse({ revoked: true }, origin)
-  } catch (error) {
-    const authResponse = adminAuthFailureResponse(error, (body, status) =>
-      extensionJsonResponse(body, origin, { status }),
-    )
-
-    if (authResponse) {
-      return authResponse
-    }
-
-    console.error("Revora extension token DELETE failed", error)
-
-    return extensionJsonResponse(
-      { error: "Failed to revoke extension token" },
-      origin,
-      { status: 500 },
-    )
+  if (!tokenId) {
+    return extensionJsonResponse({ error: "Missing token id" }, origin, {
+      status: 400,
+    })
   }
+
+  return withAdminApi(
+    request,
+    async ({ shop }) => {
+      await db
+        .update(extensionTokens)
+        .set({ revokedAt: new Date().toISOString() })
+        .where(
+          and(eq(extensionTokens.id, tokenId), eq(extensionTokens.shop, shop)),
+        )
+
+      return extensionJsonResponse({ revoked: true }, origin)
+    },
+    {
+      logPrefix: "Revora extension token DELETE failed",
+      defaultErrorMessage: "Failed to revoke extension token",
+    },
+  )
 }

@@ -1,4 +1,4 @@
-import { REVORA_CSS_VARIABLES, REVORA_FONT_IMPORT, REVORA_THEME } from "./theme"
+import { REVORA_FONT_IMPORT, REVORA_THEME } from "./theme"
 
 export function getPanelStyles() {
   const t = REVORA_THEME

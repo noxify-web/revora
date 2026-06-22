@@ -103,3 +103,17 @@ export async function readAdminJson<T>(response: Response): Promise<T> {
     throw new Error("Unexpected server response. Try again.")
   }
 }
+
+export async function adminFetchJson<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await adminFetch(path, init)
+  const data = await readAdminJson<T & { error?: string }>(response)
+
+  if (!response.ok) {
+    throw new Error(data.error ?? "Request failed")
+  }
+
+  return data
+}

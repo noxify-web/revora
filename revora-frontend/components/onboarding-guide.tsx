@@ -18,11 +18,11 @@ import {
   openChromeWebStore,
   useExtensionInstallAck,
 } from "@/components/onboarding-shared"
+import { ONBOARDING_STEPS, type OnboardingStepId } from "@/lib/onboarding"
 import {
-  ONBOARDING_STEPS,
-  ONBOARDING_STORAGE_KEYS,
-  type OnboardingStepId,
-} from "@/lib/onboarding"
+  dismissOnboardingGuide,
+  useOnboardingStore,
+} from "@/lib/onboarding/store"
 
 type OnboardingGuideProps = {
   hasConnectedExtension: boolean
@@ -53,23 +53,10 @@ export function OnboardingGuide({
   onScrollToDisplay,
   onExtensionStatusChange,
 }: OnboardingGuideProps) {
-  const [visible, setVisible] = useState(false)
+  const { dismissed } = useOnboardingStore()
+  const visible = !dismissed
   const [expanded, setExpanded] = useState<ExpandedSteps>(getInitialExpanded)
   const { installAcked, acknowledgeExtensionInstall } = useExtensionInstallAck()
-
-  useEffect(() => {
-    function syncFromStorage() {
-      setVisible(
-        window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) !==
-          "true",
-      )
-    }
-
-    syncFromStorage()
-    window.addEventListener("revora:reopen-onboarding", syncFromStorage)
-    return () =>
-      window.removeEventListener("revora:reopen-onboarding", syncFromStorage)
-  }, [])
 
   const stepCompletion = useMemo(
     () => ({
@@ -132,9 +119,7 @@ export function OnboardingGuide({
   }, [visible, completedCount, focusNextIncompleteStep])
 
   function dismissGuide() {
-    setVisible(false)
-    window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.dismissed, "true")
-    window.dispatchEvent(new CustomEvent("revora:onboarding-dismissed"))
+    dismissOnboardingGuide()
   }
 
   function toggleStep(step: OnboardingStepId) {
@@ -439,7 +424,3 @@ function OnboardingStep({
   )
 }
 
-export function reopenOnboardingGuide() {
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.dismissed)
-  window.dispatchEvent(new CustomEvent("revora:reopen-onboarding"))
-}

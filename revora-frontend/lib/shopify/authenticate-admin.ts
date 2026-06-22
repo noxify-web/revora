@@ -4,7 +4,8 @@ import {
 } from "@shopify/shopify-api"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import type { NextResponse } from "next/server"
+
+import { extensionJsonResponse } from "@/lib/extension/cors"
 
 import { getShopify, sessionStorage } from "./shopify"
 
@@ -110,11 +111,55 @@ export async function authenticateAdminApi(searchParams: URLSearchParams) {
 
 export function adminAuthFailureResponse(
   error: unknown,
-  respond: (body: unknown, status?: number) => NextResponse,
-): NextResponse | null {
+  respond: (body: unknown, status?: number) => Response,
+): Response | null {
   if (error instanceof AdminAuthenticationError) {
     return respond({ error: error.message }, error.status)
   }
 
   return null
+}
+
+type AdminApiHandlerOptions = {
+  logPrefix?: string
+  defaultErrorStatus?: number
+  defaultErrorMessage?: string
+}
+
+export async function withAdminApi(
+  request: Request,
+  handler: (ctx: AuthenticatedAdmin) => Promise<Response>,
+  options?: AdminApiHandlerOptions,
+): Promise<Response> {
+  const headerStore = await headers()
+  const origin = headerStore.get("origin")
+  const url = new URL(request.url)
+
+  try {
+    const ctx = await authenticateAdminApi(url.searchParams)
+    return await handler(ctx)
+  } catch (error) {
+    const authResponse = adminAuthFailureResponse(error, (body, status) =>
+      extensionJsonResponse(body, origin, { status }),
+    )
+
+    if (authResponse) {
+      return authResponse
+    }
+
+    if (options?.logPrefix) {
+      console.error(options.logPrefix, error)
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : (options?.defaultErrorMessage ?? "Request failed")
+
+    return extensionJsonResponse(
+      { error: message },
+      origin,
+      { status: options?.defaultErrorStatus ?? 500 },
+    )
+  }
 }
