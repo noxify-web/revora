@@ -6,9 +6,15 @@ import { getShopify } from "@/lib/shopify/shopify";
 import { db } from "@/src/db";
 import { importedReviews, reviewImports } from "@/src/db/schema";
 
+const PRODUCTS_PAGE_SIZE = 250;
+
 const PRODUCTS_QUERY = `#graphql
-  query RevoraCatalogProducts($first: Int!) {
-    products(first: $first) {
+  query RevoraCatalogProducts($first: Int!, $after: String) {
+    products(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       edges {
         node {
           id
@@ -20,6 +26,41 @@ const PRODUCTS_QUERY = `#graphql
   }
 `;
 
+interface CatalogProductNode {
+  handle: string;
+  id: string;
+  title: string;
+}
+
+async function fetchAllCatalogProducts(
+  admin: InstanceType<ReturnType<typeof getShopify>["clients"]["Graphql"]>
+): Promise<CatalogProductNode[]> {
+  const products: CatalogProductNode[] = [];
+  let after: string | undefined;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const response = await admin.request(PRODUCTS_QUERY, {
+      variables: { first: PRODUCTS_PAGE_SIZE, after },
+    });
+
+    const connection = (
+      response.data as {
+        products?: {
+          pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+          edges?: { node: CatalogProductNode }[];
+        };
+      }
+    )?.products;
+
+    products.push(...(connection?.edges?.map((edge) => edge.node) ?? []));
+    hasNextPage = connection?.pageInfo?.hasNextPage ?? false;
+    after = connection?.pageInfo?.endCursor ?? undefined;
+  }
+
+  return products;
+}
+
 interface ProductStats {
   importId: string | null;
   pictureCount: number;
@@ -30,20 +71,7 @@ interface ProductStats {
 export async function getProductCatalogWithStats(session: Session) {
   const shopify = getShopify();
   const admin = new shopify.clients.Graphql({ session });
-  const response = await admin.request(PRODUCTS_QUERY, {
-    variables: { first: 50 },
-  });
-
-  const products =
-    (
-      response.data as {
-        products?: {
-          edges?: {
-            node: { id: string; title: string; handle: string };
-          }[];
-        };
-      }
-    )?.products?.edges?.map((edge) => edge.node) ?? [];
+  const products = await fetchAllCatalogProducts(admin);
 
   const [imports, allReviews] = await Promise.all([
     db.query.reviewImports.findMany({

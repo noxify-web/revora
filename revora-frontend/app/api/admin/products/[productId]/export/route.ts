@@ -47,11 +47,21 @@ export async function GET(request: Request, context: RouteContext) {
     request,
     async ({ session }) => {
       try {
+        const customFields =
+          format === "custom" ? parseCustomExportFields(fields) : undefined;
+
+        if (format === "custom" && customFields === null) {
+          return extensionJsonResponse(
+            { error: "Select at least one field for custom export" },
+            origin,
+            { status: 400 }
+          );
+        }
+
         const result = await exportProductReviews(session, productId, {
           format,
           fileType,
-          fields:
-            format === "custom" ? parseCustomExportFields(fields) : undefined,
+          fields: customFields ?? undefined,
         });
 
         return attachmentResponse(

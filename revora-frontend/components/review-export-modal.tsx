@@ -82,8 +82,10 @@ export function ReviewExportModal({ product }: ReviewExportModalProps) {
     );
   }
 
+  const canExport = format !== "custom" || selectedFields.length > 0;
+
   async function handleExport() {
-    if (!product) {
+    if (!(product && canExport)) {
       return;
     }
 
@@ -94,9 +96,7 @@ export function ReviewExportModal({ product }: ReviewExportModalProps) {
       const params = new URLSearchParams({ format });
       if (format === "custom") {
         params.set("fileType", fileType);
-        if (selectedFields.length > 0) {
-          params.set("fields", selectedFields.join(","));
-        }
+        params.set("fields", selectedFields.join(","));
       }
 
       const numericProductId = getNumericProductId(product.id);
@@ -233,6 +233,7 @@ export function ReviewExportModal({ product }: ReviewExportModalProps) {
       </s-stack>
 
       <s-button
+        disabled={!canExport}
         loading={exporting}
         onClick={() => void handleExport()}
         slot="primary-action"

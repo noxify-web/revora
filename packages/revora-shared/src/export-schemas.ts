@@ -17,9 +17,9 @@ export type ExportQueryInput = z.infer<typeof exportQuerySchema>;
 const customExportFieldSchema = z.enum(CUSTOM_EXPORT_FIELD_KEYS);
 
 export function parseCustomExportFields(
-  fieldsParam: string | undefined
-): (typeof CUSTOM_EXPORT_FIELD_KEYS)[number][] {
-  if (!fieldsParam?.trim()) {
+  fieldsParam: string | undefined | null
+): (typeof CUSTOM_EXPORT_FIELD_KEYS)[number][] | null {
+  if (fieldsParam == null) {
     return DEFAULT_CUSTOM_EXPORT_FIELDS;
   }
 
@@ -29,9 +29,9 @@ export function parseCustomExportFields(
     .filter(Boolean);
 
   const parsed = z.array(customExportFieldSchema).safeParse(requested);
-  if (!parsed.success) {
-    return DEFAULT_CUSTOM_EXPORT_FIELDS;
+  if (!parsed.success || parsed.data.length === 0) {
+    return null;
   }
 
-  return parsed.data.length > 0 ? parsed.data : DEFAULT_CUSTOM_EXPORT_FIELDS;
+  return parsed.data;
 }

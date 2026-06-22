@@ -20,12 +20,6 @@ interface CatalogProduct {
   title: string;
 }
 
-interface ImportRecord {
-  id: string;
-  shopifyProductId: string | null;
-  totalImported: number;
-}
-
 interface ProductExportTableProps {
   shop: string;
 }
@@ -41,7 +35,6 @@ function getProductAdminUrl(shop: string, productId: string) {
 
 export function ProductExportTable({ shop }: ProductExportTableProps) {
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [imports, setImports] = useState<ImportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -54,24 +47,15 @@ export function ProductExportTable({ shop }: ProductExportTableProps) {
     setError(null);
 
     try {
-      const [catalogResponse, importsResponse] = await Promise.all([
-        adminFetch("/api/admin/catalog"),
-        adminFetch("/api/imports"),
-      ]);
+      const catalogResponse = await adminFetch("/api/admin/catalog");
 
       if (!catalogResponse.ok) {
         throw new Error("Failed to load product catalog");
       }
 
-      if (!importsResponse.ok) {
-        throw new Error("Failed to load imports");
-      }
-
       const catalogData = await catalogResponse.json();
-      const importsData = await importsResponse.json();
 
       setProducts(catalogData.catalog ?? []);
-      setImports(importsData.imports ?? []);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -87,33 +71,9 @@ export function ProductExportTable({ shop }: ProductExportTableProps) {
     void loadData();
   }, [loadData]);
 
-  const importsByProductId = useMemo(() => {
-    const map = new Map<string, ImportRecord>();
-    for (const item of imports) {
-      if (item.shopifyProductId) {
-        map.set(item.shopifyProductId, item);
-      }
-    }
-    return map;
-  }, [imports]);
-
   const exportableProducts = useMemo(
-    () =>
-      products
-        .map((product) => {
-          const importRecord = product.importId
-            ? imports.find((item) => item.id === product.importId)
-            : importsByProductId.get(product.id);
-          const reviewCount =
-            importRecord?.totalImported ?? product.reviewCount;
-
-          return {
-            ...product,
-            reviewCount,
-          };
-        })
-        .filter((product) => product.reviewCount > 0),
-    [imports, importsByProductId, products]
+    () => products.filter((product) => product.reviewCount > 0),
+    [products]
   );
 
   const filteredProducts = useMemo(() => {

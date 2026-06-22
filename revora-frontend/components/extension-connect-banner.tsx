@@ -21,7 +21,7 @@ export function ExtensionConnectBanner({
   onConnected,
   refreshToken = 0,
 }: ExtensionConnectBannerProps) {
-  const linkedInSessionRef = useRef(false);
+  const optimisticVerifiedRef = useRef(false);
   const [verified, setVerified] = useState(false);
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -31,11 +31,13 @@ export function ExtensionConnectBanner({
     try {
       const status = await queryExtensionClientStatus();
       setExtensionInstalled(status.installed);
-      setVerified(status.verified || linkedInSessionRef.current);
+      setVerified(
+        status.verified || (optimisticVerifiedRef.current && status.installed)
+      );
       setError(null);
     } catch {
       setExtensionInstalled(false);
-      setVerified(linkedInSessionRef.current);
+      setVerified(optimisticVerifiedRef.current);
     }
   }, []);
 
@@ -72,7 +74,16 @@ export function ExtensionConnectBanner({
         shop: data.shop,
       });
 
-      linkedInSessionRef.current = true;
+      const status = await queryExtensionClientStatus();
+      setExtensionInstalled(status.installed);
+
+      if (!status.installed) {
+        throw new Error(
+          "Token created but the Revora extension was not detected. Install the extension, keep this tab open, and click Connect again."
+        );
+      }
+
+      optimisticVerifiedRef.current = true;
       setVerified(true);
       openExtensionConnectedModal();
       onConnected?.();
