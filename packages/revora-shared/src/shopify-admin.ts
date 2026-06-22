@@ -11,3 +11,13 @@ export function getShopSlug(shop: string) {
 export function getRevoraAdminAppUrl(shop: string) {
   return `https://admin.shopify.com/store/${getShopSlug(shop)}/apps/${REVORA_CLIENT_ID}`
 }
+
+export function getThemeEditorProductUrl(shop: string, shopifyApiKey: string) {
+  const params = new URLSearchParams({
+    template: "product",
+    context: "apps",
+    activateAppId: shopifyApiKey,
+  })
+
+  return `https://admin.shopify.com/store/${getShopSlug(shop)}/themes/current/editor?${params.toString()}`
+}

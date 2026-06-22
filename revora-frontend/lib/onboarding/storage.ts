@@ -41,7 +41,6 @@ export function readStorageSnapshot() {
   if (!isBrowser()) {
     return {
       flowComplete: false,
-      dismissed: false,
       extensionInstallAck: false,
       flowRestarted: false,
     }
@@ -51,8 +50,6 @@ export function readStorageSnapshot() {
     flowComplete:
       window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.flowComplete) ===
       "true",
-    dismissed:
-      window.localStorage.getItem(ONBOARDING_STORAGE_KEYS.dismissed) === "true",
     extensionInstallAck:
       window.localStorage.getItem(
         ONBOARDING_STORAGE_KEYS.extensionInstallAck,
@@ -90,22 +87,6 @@ export function persistSkipFlow() {
   window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.flowComplete, "true")
   window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.dismissed, "true")
   window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.flowStep)
-}
-
-export function persistDismissed() {
-  if (!isBrowser()) {
-    return
-  }
-
-  window.localStorage.setItem(ONBOARDING_STORAGE_KEYS.dismissed, "true")
-}
-
-export function persistReopenGuide() {
-  if (!isBrowser()) {
-    return
-  }
-
-  window.localStorage.removeItem(ONBOARDING_STORAGE_KEYS.dismissed)
 }
 
 export function persistExtensionInstallAck() {

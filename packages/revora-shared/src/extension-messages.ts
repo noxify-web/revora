@@ -22,6 +22,8 @@ export type BackgroundRequest =
     }
   | { type: "REVORA_CONNECT_BROWSER"; apiBaseUrl: string }
   | { type: "REVORA_GET_PLAN" }
+  | { type: "REVORA_GET_CONNECTION_STATUS" }
+  | { type: "REVORA_DISCONNECT" }
   | { type: "REVORA_VERIFY" }
   | { type: "REVORA_GET_PRODUCTS"; search?: string }
   | {
@@ -62,6 +64,11 @@ export type AdminBridgeRequest =
     }
   | { type: "REVORA_GET_API_URL" }
   | { type: "REVORA_GET_CONNECT_TOKEN" }
+  | { type: "REVORA_CLEAR_PAIRING" }
+
+export type RevoraClearConnectTokenMessage = {
+  type: "REVORA_CLEAR_CONNECT_TOKEN"
+}
 
 export type AdminBridgeResponse<T = unknown> =
   | { ok: true; data?: T }
@@ -118,6 +125,20 @@ export type ConnectTokenBroadcast = {
   plan?: string | null
   planName?: string | null
   reviewLimit?: number | null
+}
+
+export type ExtensionStatusRequest = {
+  type: "REVORA_REQUEST_EXTENSION_STATUS"
+  requestId: string
+}
+
+export type ExtensionStatusResponse = {
+  type: "REVORA_EXTENSION_STATUS_RESPONSE"
+  requestId: string
+  installed: boolean
+  paired: boolean
+  verified: boolean
+  shop: string | null
 }
 
 export const TEMU_REVIEWS_MESSAGE_TYPE = "REVORA_TEMU_REVIEWS" as const

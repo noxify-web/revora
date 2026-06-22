@@ -44,39 +44,3 @@ export const CHROME_WEB_STORE_URL =
   process.env.NEXT_PUBLIC_CHROME_WEB_STORE_URL ??
   "https://chrome.google.com/webstore/detail/revora-temu-reviews/PLACEHOLDER_EXTENSION_ID"
 
-const DEFAULT_ONBOARDING_YOUTUBE_VIDEO_ID = "T-YyHx8kc9I"
-
-function sanitizeYoutubeVideoId(raw: string | undefined) {
-  const trimmed = raw?.trim() ?? ""
-  return /^[\w-]{6,32}$/.test(trimmed) ? trimmed : ""
-}
-
-/** Onboarding walkthrough embed. Override with NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID. */
-export const ONBOARDING_YOUTUBE_VIDEO_ID =
-  sanitizeYoutubeVideoId(process.env.NEXT_PUBLIC_ONBOARDING_YOUTUBE_ID) ||
-  DEFAULT_ONBOARDING_YOUTUBE_VIDEO_ID
-
-export const ONBOARDING_STEPS = [
-  {
-    id: "install",
-    title: "Install the Chrome extension",
-    summary: "Add Revora from the Chrome Web Store — it runs on Temu product pages.",
-  },
-  {
-    id: "connect",
-    title: "Connect extension to your store",
-    summary: "Link the extension to this Shopify store while this admin tab is open.",
-  },
-  {
-    id: "import",
-    title: "Import Temu reviews",
-    summary: "Open a Temu listing in Chrome, pick a Shopify product, and import.",
-  },
-  {
-    id: "publish",
-    title: "Publish and display reviews",
-    summary: "Publish imported reviews and enable the storefront widget.",
-  },
-] as const
-
-export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]["id"]

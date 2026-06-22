@@ -49,9 +49,8 @@ async function main() {
   console.log("")
   console.log("Browser (Revora admin in Shopify):")
   console.log(
-    "  Use footer → Restart onboarding, or open the app with ?reset=1,",
+    "  Open the app with ?reset=1, or run in DevTools console:",
   )
-  console.log("  or run in DevTools console:")
   console.log(
     '  ["revora-onboarding-dismissed","revora-onboarding-extension-install-ack","revora-onboarding-flow-complete","revora-onboarding-flow-step","revora-setup-guide-dismissed","revora-auto-import"].forEach(k=>localStorage.removeItem(k))',
   )

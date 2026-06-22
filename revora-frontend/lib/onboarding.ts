@@ -4,10 +4,7 @@ export {
   ONBOARDING_FLOW_STEPS,
   ONBOARDING_INSTALL_DEMO_GIF,
   ONBOARDING_JOURNEY_BULLETS,
-  ONBOARDING_STEPS,
-  ONBOARDING_YOUTUBE_VIDEO_ID,
   type OnboardingFlowStepId,
-  type OnboardingStepId,
 } from "./onboarding/constants"
 
 export {

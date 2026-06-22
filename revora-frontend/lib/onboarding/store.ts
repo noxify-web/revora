@@ -5,11 +5,9 @@ import { useSyncExternalStore } from "react"
 import {
   clearFlowRestarted,
   clearRevoraClientStorageKeys,
-  persistDismissed,
   persistExtensionInstallAck,
   persistFlowComplete,
   persistFlowRestarted,
-  persistReopenGuide,
   persistSkipFlow,
   readStorageSnapshot,
   shouldMigrateLegacyFlowComplete,
@@ -18,14 +16,12 @@ import {
 export type OnboardingSnapshot = {
   hydrated: boolean
   flowComplete: boolean
-  dismissed: boolean
   extensionInstallAck: boolean
 }
 
 const serverSnapshot: OnboardingSnapshot = {
   hydrated: false,
   flowComplete: false,
-  dismissed: false,
   extensionInstallAck: false,
 }
 
@@ -43,7 +39,6 @@ function applyStorageToSnapshot() {
   snapshot = {
     hydrated: snapshot.hydrated,
     flowComplete: stored.flowComplete,
-    dismissed: stored.dismissed,
     extensionInstallAck: stored.extensionInstallAck,
   }
 }
@@ -117,18 +112,6 @@ export function skipOnboardingFlow() {
   notify()
 }
 
-export function dismissOnboardingGuide() {
-  persistDismissed()
-  applyStorageToSnapshot()
-  notify()
-}
-
-export function reopenOnboardingGuide() {
-  persistReopenGuide()
-  applyStorageToSnapshot()
-  notify()
-}
-
 export function acknowledgeExtensionInstall() {
   persistExtensionInstallAck()
   applyStorageToSnapshot()
@@ -141,17 +124,12 @@ export function resetOnboardingWizardState() {
   snapshot = {
     hydrated: true,
     flowComplete: false,
-    dismissed: false,
     extensionInstallAck: false,
   }
   notify()
 }
 
 export const resetOnboardingForDev = resetOnboardingWizardState
-
-export function restartOnboardingFlow() {
-  resetOnboardingWizardState()
-}
 
 export function useOnboardingStore(): OnboardingSnapshot {
   return useSyncExternalStore(

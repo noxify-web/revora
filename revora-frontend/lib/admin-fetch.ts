@@ -1,3 +1,6 @@
+const ADMIN_URL_PARAM_BLOCKLIST = new Set(["id_token"])
+const SESSION_RETRY_WAIT_ATTEMPTS = [10, 20, 30] as const
+
 async function buildAdminRequest(
   path: string,
   init: RequestInit | undefined,
@@ -7,6 +10,10 @@ async function buildAdminRequest(
   const pageParams = new URLSearchParams(window.location.search)
 
   pageParams.forEach((value, key) => {
+    if (ADMIN_URL_PARAM_BLOCKLIST.has(key)) {
+      return
+    }
+
     if (!url.searchParams.has(key)) {
       url.searchParams.set(key, value)
     }
@@ -58,16 +65,42 @@ async function readShopifyIdToken(waitAttempts: number) {
   return null
 }
 
-export async function getSessionToken(retryAttempt = 0) {
-  const waitAttempts = retryAttempt > 0 ? 12 : 4
-  const fromBridge = await readShopifyIdToken(waitAttempts)
-
-  if (fromBridge) {
-    return fromBridge
+export function stripStaleIdTokenFromUrl() {
+  if (typeof window === "undefined") {
+    return
   }
 
   const params = new URLSearchParams(window.location.search)
-  return params.get("id_token")
+  if (!params.has("id_token")) {
+    return
+  }
+
+  params.delete("id_token")
+  const nextQuery = params.toString()
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`
+  window.history.replaceState({}, "", nextUrl)
+}
+
+function redirectToSessionBounce() {
+  const params = new URLSearchParams(window.location.search)
+  params.delete("id_token")
+
+  const reloadPath = params.toString()
+    ? `${window.location.pathname}?${params.toString()}`
+    : window.location.pathname
+
+  const bounceParams = new URLSearchParams(params)
+  bounceParams.set("shopify-reload", reloadPath)
+
+  window.location.assign(`/session-token-bounce?${bounceParams.toString()}`)
+}
+
+export async function getSessionToken(retryAttempt = 0) {
+  const waitAttempts =
+    SESSION_RETRY_WAIT_ATTEMPTS[retryAttempt] ??
+    SESSION_RETRY_WAIT_ATTEMPTS[SESSION_RETRY_WAIT_ATTEMPTS.length - 1]
+
+  return readShopifyIdToken(waitAttempts)
 }
 
 export async function adminFetch(
@@ -76,11 +109,26 @@ export async function adminFetch(
   attempt = 0,
 ): Promise<Response> {
   const token = await getSessionToken(attempt)
+
+  if (!token) {
+    if (attempt < 2) {
+      return adminFetch(path, init, attempt + 1)
+    }
+
+    redirectToSessionBounce()
+    throw new Error("Session expired. Reload Revora from Shopify admin.")
+  }
+
   const request = await buildAdminRequest(path, init, token)
   const response = await fetch(request.url, request.init)
 
   if (response.status === 401 && attempt < 2) {
     return adminFetch(path, init, attempt + 1)
+  }
+
+  if (response.status === 401) {
+    redirectToSessionBounce()
+    throw new Error("Session expired. Reload Revora from Shopify admin.")
   }
 
   return response

@@ -36,7 +36,7 @@ export function getShopify() {
       apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
       scopes: (
         process.env.SCOPES ||
-        "read_products,write_products,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects"
+        "read_products,write_products,read_metaobject_definitions,write_metaobject_definitions,read_metaobjects,write_metaobjects,read_themes"
       ).split(","),
       hostName,
       hostScheme,

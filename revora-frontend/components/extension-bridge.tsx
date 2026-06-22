@@ -5,7 +5,9 @@ import { useEffect } from "react"
 import type {
   ConnectTokenBroadcast,
   ConnectTokenRequest,
+  RevoraClearConnectTokenMessage,
 } from "@revora/shared/extension-messages"
+import { stripStaleIdTokenFromUrl } from "@/lib/admin-fetch"
 
 const ALLOWED_PROXY_PREFIXES = [
   "/api/extension/",
@@ -54,6 +56,12 @@ function writeConnectTokenToDom(payload: ConnectTokenPayload) {
   document.documentElement.dataset.revoraShop = payload.shop
 }
 
+function clearConnectTokenFromDom() {
+  delete document.documentElement.dataset.revoraConnectToken
+  delete document.documentElement.dataset.revoraApiUrl
+  delete document.documentElement.dataset.revoraShop
+}
+
 function broadcastConnectToken(payload: ConnectTokenPayload) {
   writeConnectTokenToDom(payload)
 
@@ -70,19 +78,28 @@ function broadcastConnectToken(payload: ConnectTokenPayload) {
 
 export function ExtensionBridge() {
   useEffect(() => {
+    stripStaleIdTokenFromUrl()
+
     const existingToken = readConnectTokenFromDom()
     if (existingToken) {
       broadcastConnectToken(existingToken)
     }
 
     function handleMessage(
-      event: MessageEvent<ProxyRequest | ConnectTokenRequest>
+      event: MessageEvent<
+        ProxyRequest | ConnectTokenRequest | RevoraClearConnectTokenMessage
+      >,
     ) {
       if (event.source !== window.parent) {
         return
       }
 
       if (!event.origin.endsWith("admin.shopify.com")) {
+        return
+      }
+
+      if (event.data?.type === "REVORA_CLEAR_CONNECT_TOKEN") {
+        clearConnectTokenFromDom()
         return
       }
 

@@ -174,16 +174,16 @@ export function ConnectExtension({
       {compact ? (
         <s-banner heading="Connect your extension" tone="info">
           <s-paragraph>
-            Click Connect to link the Chrome extension to this store.
+            Click Connect below to link the Chrome extension to this store.
+            Keep this tab open while importing from Temu.
           </s-paragraph>
         </s-banner>
       ) : null}
 
       {compact ? null : (
         <s-text color="subdued">
-          Keep this Revora admin tab open while importing from Temu. If automatic
-          pairing does not work, open the extension popup and click{" "}
-          <s-text type="strong">Sign in with Revora</s-text>.
+          Click Connect to link the Chrome extension. The extension syncs
+          automatically when this Revora tab stays open.
         </s-text>
       )}
 

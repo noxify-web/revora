@@ -137,7 +137,7 @@ export function ProductCatalogTable({
       }
 
       setMessage(
-        `Published ${data.published ?? 0} reviews. Enable the Revora Reviews Widget in your theme to display them.`,
+        `Published ${data.published ?? 0} reviews. Enable the Revora Reviews app embed in your theme to display them on product pages.`,
       )
       window.shopify?.toast?.show(`Published ${data.published ?? 0} reviews`)
       await loadData()
