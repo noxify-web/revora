@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { REVORA_LOGO_ASSETS } from "@revora/shared/constants";
+import { getRevoraConnectPageStyles, REVORA_THEME } from "@revora/shared/theme";
 import { getAppBaseUrl } from "@/lib/extension/app-url";
 import {
   generateExtensionToken,
@@ -106,7 +108,7 @@ export function renderShopPromptHtml({
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;");
   const errorBlock = error
-    ? `<p style="color:#d9480f;margin:0 0 12px">${error.replace(/</g, "&lt;")}</p>`
+    ? `<p style="color:${REVORA_THEME.textCritical};margin:0 0 12px">${error.replace(/</g, "&lt;")}</p>`
     : "";
 
   return `<!DOCTYPE html>
@@ -115,65 +117,18 @@ export function renderShopPromptHtml({
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Connect Revora Extension</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #fff4eb;
-        color: #1a1a1a;
-      }
-      main {
-        width: min(420px, calc(100vw - 32px));
-        padding: 28px;
-        border-radius: 16px;
-        background: #fff;
-        border: 1px solid #f0e4d8;
-        box-shadow: 0 12px 40px rgba(251, 119, 1, 0.08);
-      }
-      h1 {
-        margin: 0 0 8px;
-        font-size: 22px;
-      }
-      p {
-        margin: 0 0 16px;
-        color: #5c5c5c;
-        line-height: 1.5;
-      }
-      label {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 13px;
-        font-weight: 600;
-      }
-      input {
-        width: 100%;
-        box-sizing: border-box;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid #e8dfd4;
-        font-size: 14px;
-      }
-      button {
-        width: 100%;
-        margin-top: 14px;
-        padding: 12px 14px;
-        border: 0;
-        border-radius: 10px;
-        background: #fb7701;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-    </style>
+    <link rel="icon" href="${REVORA_LOGO_ASSETS.ico}" type="image/x-icon" />
+    <style>${getRevoraConnectPageStyles()}</style>
   </head>
   <body>
     <main>
-      <h1>Connect Revora extension</h1>
-      <p>Sign in with your Shopify store to link the Revora Chrome extension.</p>
+      <header class="connect-brand">
+        <img src="${REVORA_LOGO_ASSETS.svg}" alt="" width="40" height="40" decoding="async" />
+        <div class="connect-brand-copy">
+          <h1>Connect Revora extension</h1>
+          <p>Sign in with your Shopify store to link the Revora Chrome extension.</p>
+        </div>
+      </header>
       ${errorBlock}
       <form method="GET" action="/api/extension/connect/browser">
         <input type="hidden" name="redirect_uri" value="${safeRedirectUri}" />

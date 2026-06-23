@@ -21,6 +21,14 @@ export const EXTENSION_IMPORT_STEPS = [
   "Map the reviews to a Shopify product in the table below",
 ] as const;
 
+export const EXTENSION_CONNECT_GUIDE = {
+  heading: "Connect the Chrome extension",
+  notInstalled:
+    "Install the extension, connect it here, then open a Temu product page to import reviews.",
+  installed:
+    "Click Connect to link your extension. Then open a Temu product page in Chrome to import reviews.",
+} as const;
+
 export const ONBOARDING_FLOW_STEPS = [
   {
     id: "welcome",

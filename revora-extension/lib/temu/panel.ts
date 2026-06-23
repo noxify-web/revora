@@ -7,6 +7,7 @@ import type {
   ImportFilter,
   ShopifyProductSummary,
 } from "@revora/shared/extension-types";
+import { revoraLogoImg } from "../brand";
 import {
   checkCircleIcon,
   closeIcon,
@@ -35,7 +36,7 @@ export function createPanel(
       <div class="revora-panel" id="revora-panel-body">
         <header class="revora-panel-header">
           <div class="revora-panel-brand">
-            <span class="revora-panel-brand-mark" aria-hidden="true">R</span>
+            ${revoraLogoImg({ className: "revora-panel-brand-mark", size: 32 })}
             <div class="revora-panel-brand-copy">
               <h2 class="revora-panel-title">Revora</h2>
               <p class="revora-panel-subtitle">Import Temu reviews</p>
@@ -108,7 +109,7 @@ export function createPanel(
         aria-controls="revora-panel-body"
       >
         <span class="revora-fab-hint">Import reviews</span>
-        <span class="revora-fab-mark" aria-hidden="true">R</span>
+        <span class="revora-fab-mark" aria-hidden="true">${revoraLogoImg({ className: "revora-fab-mark-img", size: 24 })}</span>
         <span class="revora-fab-spinner" aria-hidden="true">${spinnerIcon()}</span>
         <span class="revora-fab-check" aria-hidden="true">${checkCircleIcon("on-fill")}</span>
         <span class="revora-fab-badge" id="revora-fab-badge" hidden></span>

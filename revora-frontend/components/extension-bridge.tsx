@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  clearConnectTokenDom,
+  readConnectTokenDom,
+  writeConnectTokenDom,
+} from "@revora/shared/bridge-dom";
 import type {
   ConnectTokenBroadcast,
   ConnectTokenRequest,
@@ -23,63 +28,33 @@ interface ProxyRequest {
   type: "REVORA_ADMIN_PROXY_REQUEST";
 }
 
-interface ConnectTokenPayload {
-  apiUrl: string;
-  shop: string;
-  token: string;
-}
-
 function isAllowedProxyPath(path: string) {
   return ALLOWED_PROXY_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
-function readConnectTokenFromDom(): ConnectTokenPayload | null {
-  const token = document.documentElement.dataset.revoraConnectToken?.trim();
-  const apiUrl = document.documentElement.dataset.revoraApiUrl?.trim();
-  const shop = document.documentElement.dataset.revoraShop?.trim();
+function broadcastConnectToken(payload: {
+  apiUrl: string;
+  shop: string;
+  token: string;
+}) {
+  writeConnectTokenDom(payload);
 
-  if (!(token && apiUrl && shop)) {
-    return null;
-  }
+  const message = {
+    type: "REVORA_CONNECT_TOKEN",
+    token: payload.token,
+    apiUrl: payload.apiUrl,
+    shop: payload.shop,
+  } satisfies ConnectTokenBroadcast;
 
-  return {
-    token,
-    apiUrl,
-    shop,
-  };
-}
-
-function writeConnectTokenToDom(payload: ConnectTokenPayload) {
-  document.documentElement.dataset.revoraConnectToken = payload.token;
-  document.documentElement.dataset.revoraApiUrl = payload.apiUrl;
-  document.documentElement.dataset.revoraShop = payload.shop;
-}
-
-function clearConnectTokenFromDom() {
-  delete document.documentElement.dataset.revoraConnectToken;
-  delete document.documentElement.dataset.revoraApiUrl;
-  delete document.documentElement.dataset.revoraShop;
-}
-
-function broadcastConnectToken(payload: ConnectTokenPayload) {
-  writeConnectTokenToDom(payload);
-
-  window.parent.postMessage(
-    {
-      type: "REVORA_CONNECT_TOKEN",
-      token: payload.token,
-      apiUrl: payload.apiUrl,
-      shop: payload.shop,
-    } satisfies ConnectTokenBroadcast,
-    "https://admin.shopify.com"
-  );
+  window.postMessage(message, window.location.origin);
+  window.parent.postMessage(message, "https://admin.shopify.com");
 }
 
 export function ExtensionBridge() {
   useEffect(() => {
     stripStaleIdTokenFromUrl();
 
-    const existingToken = readConnectTokenFromDom();
+    const existingToken = readConnectTokenDom();
     if (existingToken) {
       broadcastConnectToken(existingToken);
     }
@@ -98,12 +73,12 @@ export function ExtensionBridge() {
       }
 
       if (event.data?.type === "REVORA_CLEAR_CONNECT_TOKEN") {
-        clearConnectTokenFromDom();
+        clearConnectTokenDom();
         return;
       }
 
       if (event.data?.type === "REVORA_REQUEST_CONNECT_TOKEN") {
-        const payload = readConnectTokenFromDom();
+        const payload = readConnectTokenDom();
         window.parent.postMessage(
           {
             type: "REVORA_CONNECT_TOKEN_RESPONSE",

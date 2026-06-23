@@ -40,6 +40,20 @@ export default defineConfig({
         ),
       },
       {
+        find: "@revora/shared/theme",
+        replacement: path.resolve(
+          import.meta.dirname,
+          "../packages/revora-shared/src/theme.ts"
+        ),
+      },
+      {
+        find: "@revora/shared/bridge-dom",
+        replacement: path.resolve(
+          import.meta.dirname,
+          "../packages/revora-shared/src/bridge-dom.ts"
+        ),
+      },
+      {
         find: "@revora/shared",
         replacement: path.resolve(
           import.meta.dirname,

@@ -11,6 +11,7 @@
     "extension:dev": "cd revora-extension && bun run dev",
     "extension:build": "cd revora-extension && bun run build",
     "extension:test": "cd revora-extension && bun run test",
+    "shared:test": "cd packages/revora-shared && bun run test",
     "extension:typecheck": "cd revora-extension && bun run typecheck",
     "check": "ultracite check",
     "fix": "ultracite fix",

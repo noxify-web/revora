@@ -5,91 +5,43 @@ import {
 import type {
   AdminBridgeRequest,
   AdminProxyResponse,
-  ConnectTokenBroadcast,
   ConnectTokenPullResponse,
   ConnectTokenRequest,
-  ExtensionStatusRequest,
-  ExtensionStatusResponse,
   RevoraClearConnectTokenMessage,
 } from "@revora/shared/extension-messages";
+import {
+  type ConnectTokenPayload,
+  cacheConnectToken,
+  clearConnectTokenCache,
+  getFreshConnectToken,
+  handleBridgeMessageEvent,
+} from "../lib/bridge-connect";
 import {
   isExtensionContextValid,
   sendRuntimeMessageSafe,
 } from "../lib/extension-context";
 
 const PROXY_TIMEOUT_MS = 30_000;
-const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000;
 
-interface ConnectTokenPayload {
-  apiUrl: string;
-  plan: string | null;
-  planName: string | null;
-  reviewLimit: number | null;
-  shop: string;
-  token: string;
-}
-
-let latestConnectToken: ConnectTokenPayload | null = null;
-let latestConnectTokenCreatedAt = 0;
-
-function clearConnectTokenCache() {
-  latestConnectToken = null;
-  latestConnectTokenCreatedAt = 0;
-}
-
-function getFreshConnectToken() {
-  if (!latestConnectToken?.token) {
-    return null;
-  }
-
-  if (Date.now() - latestConnectTokenCreatedAt > CONNECT_TOKEN_CACHE_TTL_MS) {
-    clearConnectTokenCache();
-    return null;
-  }
-
-  return latestConnectToken;
-}
-
-function cacheConnectToken(payload: ConnectTokenPayload) {
-  if (latestConnectToken?.token !== payload.token) {
-    latestConnectToken = payload;
-    latestConnectTokenCreatedAt = Date.now();
-    return;
-  }
-
-  latestConnectToken = payload;
-  latestConnectTokenCreatedAt = Date.now();
-}
-
-function persistConnectToken(payload: ConnectTokenPayload) {
-  if (!isExtensionContextValid()) {
-    return;
-  }
-
-  cacheConnectToken(payload);
-
-  void sendRuntimeMessageSafe({
-    type: "REVORA_CONNECT_DIRECT",
-    token: payload.token,
-    apiUrl: payload.apiUrl,
-    shop: payload.shop,
-    plan: payload.plan || undefined,
-    planName: payload.planName || undefined,
-    reviewLimit: payload.reviewLimit,
-  });
-
-  void sendRuntimeMessageSafe({
-    type: "REVORA_SET_API_URL",
-    apiBaseUrl: payload.apiUrl,
-  });
-}
-
-function isRevoraAppPage() {
-  const path = window.location.pathname;
+function isRevoraAppPath(path: string) {
   return (
     REVORA_APP_PATH_PATTERN.test(path) ||
     path.includes(`/apps/${REVORA_CLIENT_ID}`)
   );
+}
+
+function isRevoraAppPage() {
+  const paths = [window.location.pathname];
+
+  try {
+    if (window.top && window.top !== window) {
+      paths.push(window.top.location.pathname);
+    }
+  } catch {
+    // Cross-origin top frame.
+  }
+
+  return paths.some((path) => isRevoraAppPath(path));
 }
 
 function isRevoraEmbeddedIframe(url: URL) {
@@ -330,70 +282,16 @@ function syncOrigin() {
 
 export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
+  allFrames: true,
   runAt: "document_idle",
   main(ctx) {
     ctx.addEventListener(window, "message", (event: MessageEvent) => {
-      if (!isExtensionContextValid()) {
-        return;
-      }
-
-      const revoraOrigin = findRevoraIframeOrigin();
-
-      if (event.data?.type === "REVORA_CONNECT_TOKEN") {
-        const payload = event.data as ConnectTokenBroadcast;
-        if (!revoraOrigin || event.origin !== revoraOrigin) {
-          return;
-        }
-
-        if (!(payload.token && payload.apiUrl && payload.shop)) {
-          return;
-        }
-
-        persistConnectToken({
-          token: String(payload.token),
-          apiUrl: String(payload.apiUrl).replace(/\/$/, ""),
-          shop: String(payload.shop),
-          plan: payload.plan ? String(payload.plan) : null,
-          planName: payload.planName ? String(payload.planName) : null,
-          reviewLimit: payload.reviewLimit ?? null,
-        });
-        return;
-      }
-
-      if (event.data?.type === "REVORA_REQUEST_EXTENSION_STATUS") {
-        const request = event.data as ExtensionStatusRequest;
-        if (!revoraOrigin || event.origin !== revoraOrigin) {
-          return;
-        }
-
-        if (!request.requestId || event.source == null) {
-          return;
-        }
-
-        void sendRuntimeMessageSafe({
-          type: "REVORA_GET_CONNECTION_STATUS",
-        }).then((response) => {
-          const data = response as {
-            ok?: boolean;
-            data?: {
-              paired?: boolean;
-              verified?: boolean;
-              shop?: string | null;
-            };
-          };
-
-          const status: ExtensionStatusResponse = {
-            type: "REVORA_EXTENSION_STATUS_RESPONSE",
-            requestId: request.requestId,
-            installed: true,
-            paired: Boolean(data?.ok && data.data?.paired),
-            verified: Boolean(data?.ok && data.data?.verified),
-            shop: typeof data?.data?.shop === "string" ? data.data.shop : null,
-          };
-
-          (event.source as Window).postMessage(status, event.origin);
-        });
-      }
+      handleBridgeMessageEvent(event, {
+        acceptOrigin: (origin) => {
+          const revoraOrigin = findRevoraIframeOrigin();
+          return revoraOrigin !== null && origin === revoraOrigin;
+        },
+      });
     });
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -431,7 +329,7 @@ export default defineContentScript({
       if (request.type === "REVORA_GET_API_URL") {
         sendResponse({
           apiBaseUrl:
-            findRevoraIframeOrigin() || latestConnectToken?.apiUrl || null,
+            findRevoraIframeOrigin() || getFreshConnectToken()?.apiUrl || null,
         });
         return;
       }

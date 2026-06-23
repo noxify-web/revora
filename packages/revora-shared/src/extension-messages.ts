@@ -47,6 +47,15 @@ export type BackgroundDirectConnectResponse =
   BackgroundResponse<ConnectTokenResponse>;
 export type BackgroundBrowserConnectResponse =
   BackgroundResponse<ConnectTokenResponse>;
+export interface ExtensionConnectionStatusData {
+  paired: boolean;
+  shop: string | null;
+  verified: boolean;
+}
+
+export type BackgroundConnectionStatusResponse =
+  BackgroundResponse<ExtensionConnectionStatusData>;
+
 export type BackgroundPlanResponse = BackgroundResponse<PlanResponse>;
 export type BackgroundVerifyResponse = BackgroundResponse<
   VerifyResponse & EnrichedConnection

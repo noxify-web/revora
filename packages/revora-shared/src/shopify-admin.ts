@@ -1,4 +1,7 @@
-import { REVORA_CLIENT_ID } from "./constants";
+import {
+  REVORA_CLIENT_ID,
+  REVORA_REVIEWS_EMBED_BLOCK_HANDLE,
+} from "./constants";
 
 export function getShopSlug(shop: string) {
   return shop.replace(/\.myshopify\.com$/i, "");
@@ -16,7 +19,7 @@ export function getThemeEditorProductUrl(shop: string, shopifyApiKey: string) {
   const params = new URLSearchParams({
     template: "product",
     context: "apps",
-    activateAppId: shopifyApiKey,
+    activateAppId: `${shopifyApiKey}/${REVORA_REVIEWS_EMBED_BLOCK_HANDLE}`,
   });
 
   return `https://admin.shopify.com/store/${getShopSlug(shop)}/themes/current/editor?${params.toString()}`;

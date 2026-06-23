@@ -9,7 +9,11 @@ import {
 } from "@/components/extension-connected-modal";
 import { openChromeWebStore } from "@/components/onboarding-shared";
 import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
-import { queryExtensionClientStatus } from "@/lib/extension/client-status";
+import {
+  queryExtensionClientStatus,
+  waitForExtensionClientStatus,
+} from "@/lib/extension/client-status";
+import { EXTENSION_CONNECT_GUIDE } from "@/lib/onboarding/constants";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
 interface ExtensionConnectBannerProps {
@@ -74,7 +78,7 @@ export function ExtensionConnectBanner({
         shop: data.shop,
       });
 
-      const status = await queryExtensionClientStatus();
+      const status = await waitForExtensionClientStatus();
       setExtensionInstalled(status.installed);
 
       if (!status.installed) {
@@ -102,12 +106,12 @@ export function ExtensionConnectBanner({
   return (
     <>
       {verified ? null : (
-        <s-banner heading="Connect your Chrome extension" tone="warning">
+        <s-banner heading={EXTENSION_CONNECT_GUIDE.heading} tone="warning">
           <s-stack gap="base">
             <s-paragraph>
               {extensionInstalled
-                ? "The Revora Chrome extension is installed but not linked to this store yet. Keep this admin tab open and click Connect."
-                : "Install the Revora Chrome extension, then return here and click Connect while this admin tab stays open."}
+                ? EXTENSION_CONNECT_GUIDE.installed
+                : EXTENSION_CONNECT_GUIDE.notInstalled}
             </s-paragraph>
             <s-stack alignItems="center" direction="inline" gap="small">
               <s-button

@@ -1,3 +1,4 @@
+import { REVORA_DEV_TUNNEL_MATCHES } from "@revora/shared/constants";
 import { defineConfig } from "wxt";
 
 export default defineConfig({
@@ -20,13 +21,7 @@ export default defineConfig({
     host_permissions: [
       "*://*.temu.com/*",
       "https://admin.shopify.com/*",
-      "https://*.trycloudflare.com/*",
-      "https://*.ngrok-free.app/*",
-      "https://*.ngrok-free.dev/*",
-      "https://*.ngrok.io/*",
-      "https://*.ngrok.app/*",
-      "http://localhost/*",
-      "http://127.0.0.1/*",
+      ...REVORA_DEV_TUNNEL_MATCHES,
     ],
     optional_host_permissions: ["https://*/*"],
     web_accessible_resources: [

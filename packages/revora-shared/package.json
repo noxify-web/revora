@@ -10,9 +10,18 @@
     "./extension-messages": "./src/extension-messages.ts",
     "./extension-schemas": "./src/extension-schemas.ts",
     "./constants": "./src/constants.ts",
-    "./shopify-admin": "./src/shopify-admin.ts"
+    "./shopify-admin": "./src/shopify-admin.ts",
+    "./theme": "./src/theme.ts",
+    "./theme-storefront": "./src/theme-storefront.ts",
+    "./bridge-dom": "./src/bridge-dom.ts"
   },
   "dependencies": {
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  },
+  "scripts": {
+    "test": "vitest run"
   }
 }

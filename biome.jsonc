@@ -63,6 +63,17 @@
       }
     },
     {
+      "includes": [
+        "revora-frontend/extensions/revora-reviews/assets/revora-widget.js"
+      ],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
       "includes": ["revora-frontend/components/onboarding-shared.tsx"],
       "linter": {
         "rules": {

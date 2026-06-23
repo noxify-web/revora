@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:stable": "bash scripts/dev-stable.sh",
-    "build": "next build",
+    "build:widget": "bun build lib/storefront/revora-widget.ts --outfile extensions/revora-reviews/assets/revora-widget.js --target browser --format iife",
+    "build": "bun run build:widget && next build",
     "start": "next start",
     "lint": "cd .. && bun run check",
     "format": "cd .. && bun run fix",
@@ -43,6 +44,7 @@
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "happy-dom": "^20.10.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

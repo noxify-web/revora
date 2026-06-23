@@ -1,5 +1,9 @@
 import extensionUi from "./extension-ui.css?inline";
-import { getInterFontFace, getRevoraCssVariables } from "./theme";
+import {
+  getInterFontFace,
+  getRevoraBrandShadow,
+  getRevoraCssVariables,
+} from "./theme";
 
 export function getPanelStyles() {
   const fontUrl = chrome.runtime.getURL("fonts/InterVariable-latin.woff2");
@@ -44,7 +48,7 @@ export function getPanelStyles() {
       border: none;
       border-radius: 50%;
       box-shadow:
-        0 2px 8px rgba(251, 119, 1, 0.35),
+        0 2px 8px ${getRevoraBrandShadow(0.35)},
         0 4px 20px rgba(0, 0, 0, 0.15);
       transition:
         transform 0.2s ease,
@@ -54,7 +58,7 @@ export function getPanelStyles() {
     .revora-fab:hover {
       transform: scale(1.05);
       box-shadow:
-        0 4px 12px rgba(251, 119, 1, 0.45),
+        0 4px 12px ${getRevoraBrandShadow(0.45)},
         0 6px 24px rgba(0, 0, 0, 0.18);
     }
 
@@ -68,11 +72,15 @@ export function getPanelStyles() {
     }
 
     .revora-fab-mark {
-      font-size: 20px;
-      font-weight: 700;
-      line-height: 1;
-      color: #fff;
-      letter-spacing: -0.02em;
+      display: grid;
+      place-items: center;
+      line-height: 0;
+    }
+
+    .revora-fab-mark-img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
     }
 
     .revora-fab .revora-icon {
@@ -103,7 +111,7 @@ export function getPanelStyles() {
 
     .revora-fab .revora-fab-spinner .revora-icon,
     .revora-fab .revora-fab-check .revora-icon {
-      color: #fff;
+      color: var(--revora-text-on-fill);
     }
 
     .revora-btn--primary .revora-icon {
@@ -120,10 +128,10 @@ export function getPanelStyles() {
       font-size: 10px;
       font-weight: 700;
       line-height: 18px;
-      color: #fff;
+      color: var(--revora-text-on-fill);
       text-align: center;
       background: var(--revora-fill-brand);
-      border: 2px solid #fff;
+      border: 2px solid var(--revora-surface);
       border-radius: 999px;
     }
 
@@ -194,7 +202,7 @@ export function getPanelStyles() {
       align-items: center;
       justify-content: space-between;
       padding: 14px var(--revora-space-400);
-      color: #fff;
+      color: var(--revora-text-on-fill);
       background: var(--revora-brand);
     }
 
@@ -206,16 +214,11 @@ export function getPanelStyles() {
     }
 
     .revora-panel-brand-mark {
-      display: grid;
       flex-shrink: 0;
-      place-items: center;
       width: 32px;
       height: 32px;
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1;
-      color: #fff;
-      background: rgba(255, 255, 255, 0.18);
+      object-fit: contain;
+      background: color-mix(in srgb, var(--revora-text-on-fill) 18%, transparent);
       border-radius: var(--revora-radius-sm);
     }
 
@@ -228,7 +231,7 @@ export function getPanelStyles() {
       font-size: var(--revora-font-size-heading);
       font-weight: 600;
       line-height: 1.25;
-      color: #fff;
+      color: var(--revora-text-on-fill);
       letter-spacing: -0.01em;
     }
 
@@ -236,7 +239,7 @@ export function getPanelStyles() {
       margin: 2px 0 0;
       font-size: var(--revora-font-size-small);
       line-height: 1.3;
-      color: rgba(255, 255, 255, 0.88);
+      color: color-mix(in srgb, var(--revora-text-on-fill) 88%, transparent);
     }
 
     .revora-panel-close {
@@ -247,14 +250,14 @@ export function getPanelStyles() {
       height: 32px;
       padding: 0;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.14);
+      background: color-mix(in srgb, var(--revora-text-on-fill) 14%, transparent);
       border: none;
       border-radius: var(--revora-radius-sm);
       transition: background 0.15s ease;
     }
 
     .revora-panel-close:hover {
-      background: rgba(255, 255, 255, 0.24);
+      background: color-mix(in srgb, var(--revora-text-on-fill) 24%, transparent);
     }
 
     .revora-panel-close .revora-icon {

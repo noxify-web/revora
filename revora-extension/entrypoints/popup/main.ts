@@ -6,6 +6,9 @@ import type {
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs";
 import { statusIconForTone } from "../../lib/icons";
+import { injectRevoraRootTheme } from "../../lib/inject-theme";
+
+injectRevoraRootTheme();
 
 const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement;
 const syncBtnLabel = document.getElementById(
