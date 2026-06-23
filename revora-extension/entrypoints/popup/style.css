@@ -34,15 +34,12 @@ body {
   place-items: center;
   width: 32px;
   height: 32px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--revora-text-on-fill) 18%, transparent);
-  border-radius: var(--revora-radius-sm);
 }
 
-.popup-brand-mark img {
+.popup-brand-mark svg {
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
 }
 
 .popup-brand-copy {

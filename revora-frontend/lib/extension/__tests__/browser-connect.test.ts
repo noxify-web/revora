@@ -24,7 +24,7 @@ describe("renderShopPromptHtml", () => {
     expect(html).toContain(`background: ${REVORA_THEME.surface}`);
     expect(html).toContain(`background: ${REVORA_THEME.fillBrand}`);
     expect(html).toContain(`href="${REVORA_LOGO_ASSETS.ico}"`);
-    expect(html).toContain(`src="${REVORA_LOGO_ASSETS.svg}"`);
+    expect(html).toContain(`src="${REVORA_LOGO_ASSETS.transparentSvg}"`);
     expect(html).toContain('class="connect-brand"');
   });
 

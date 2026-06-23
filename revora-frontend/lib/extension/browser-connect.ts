@@ -123,7 +123,7 @@ export function renderShopPromptHtml({
   <body>
     <main>
       <header class="connect-brand">
-        <img src="${REVORA_LOGO_ASSETS.svg}" alt="" width="40" height="40" decoding="async" />
+        <img src="${REVORA_LOGO_ASSETS.transparentSvg}" alt="" width="40" height="40" decoding="async" />
         <div class="connect-brand-copy">
           <h1>Connect Revora extension</h1>
           <p>Sign in with your Shopify store to link the Revora Chrome extension.</p>

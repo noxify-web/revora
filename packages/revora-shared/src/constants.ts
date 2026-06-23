@@ -8,9 +8,9 @@ export const REVORA_LOGO_ASSETS = {
   ico: "/revora-logo.ico",
   png: "/revora-logo.png",
   svg: "/revora-logo.svg",
+  /** Dark transparent mark for light surfaces (connect page, etc.). */
+  transparentSvg: "/revora-logo-transparent.svg",
 } as const;
-
-export const REVORA_LOGO_EXTENSION_FILE = "revora-logo.svg";
 
 /** Shopify admin app path uses the app handle, e.g. /apps/revora-1 */
 export const REVORA_APP_PATH_PATTERN = /\/apps\/revora(?:-\d+)?(?:\/|$)/i;

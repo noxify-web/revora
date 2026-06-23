@@ -5,10 +5,16 @@ import type {
 } from "@revora/shared/extension-messages";
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs";
+import { revoraBrandLogoMarkup } from "../../lib/brand";
 import { statusIconForTone } from "../../lib/icons";
 import { injectRevoraRootTheme } from "../../lib/inject-theme";
 
 injectRevoraRootTheme();
+
+const popupBrandMark = document.querySelector(".popup-brand-mark");
+if (popupBrandMark) {
+  popupBrandMark.innerHTML = revoraBrandLogoMarkup("popup-brand-mark-img", 32);
+}
 
 const syncBtn = document.getElementById("sync-btn") as HTMLButtonElement;
 const syncBtnLabel = document.getElementById(

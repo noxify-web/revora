@@ -43,6 +43,7 @@ export function getPanelStyles() {
       width: 56px;
       height: 56px;
       padding: 0;
+      color: var(--revora-text-on-fill);
       cursor: pointer;
       background: var(--revora-brand);
       border: none;
@@ -78,9 +79,9 @@ export function getPanelStyles() {
     }
 
     .revora-fab-mark-img {
+      display: block;
       width: 24px;
       height: 24px;
-      object-fit: contain;
     }
 
     .revora-fab .revora-icon {
@@ -214,12 +215,10 @@ export function getPanelStyles() {
     }
 
     .revora-panel-brand-mark {
+      display: block;
       flex-shrink: 0;
       width: 32px;
       height: 32px;
-      object-fit: contain;
-      background: color-mix(in srgb, var(--revora-text-on-fill) 18%, transparent);
-      border-radius: var(--revora-radius-sm);
     }
 
     .revora-panel-brand-copy {
