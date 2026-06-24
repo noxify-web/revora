@@ -10,8 +10,12 @@ import type {
 } from "@revora/shared/extension-messages";
 import {
   isExtensionContextValid,
+  sendRuntimeMessage,
   sendRuntimeMessageSafe,
 } from "./extension-context";
+
+const BACKGROUND_RELAY_ATTEMPTS = 5;
+const BACKGROUND_RELAY_DELAY_MS = 200;
 
 const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -47,6 +51,32 @@ export function cacheConnectToken(payload: ConnectTokenPayload) {
   latestConnectTokenCreatedAt = Date.now();
 }
 
+async function relayConnectTokenToBackground(payload: ConnectTokenPayload) {
+  for (let attempt = 0; attempt < BACKGROUND_RELAY_ATTEMPTS; attempt += 1) {
+    const response = await sendRuntimeMessage<{ ok?: boolean }>({
+      type: "REVORA_CONNECT_DIRECT",
+      token: payload.token,
+      apiUrl: payload.apiUrl,
+      shop: payload.shop,
+      plan: payload.plan || undefined,
+      planName: payload.planName || undefined,
+      reviewLimit: payload.reviewLimit,
+    });
+
+    if (response?.ok) {
+      return true;
+    }
+
+    if (attempt < BACKGROUND_RELAY_ATTEMPTS - 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, BACKGROUND_RELAY_DELAY_MS)
+      );
+    }
+  }
+
+  return false;
+}
+
 export function persistConnectToken(payload: ConnectTokenPayload) {
   if (!isExtensionContextValid()) {
     return;
@@ -54,20 +84,12 @@ export function persistConnectToken(payload: ConnectTokenPayload) {
 
   cacheConnectToken(payload);
 
-  void sendRuntimeMessageSafe({
-    type: "REVORA_CONNECT_DIRECT",
-    token: payload.token,
-    apiUrl: payload.apiUrl,
-    shop: payload.shop,
-    plan: payload.plan || undefined,
-    planName: payload.planName || undefined,
-    reviewLimit: payload.reviewLimit,
-  });
-
-  void sendRuntimeMessageSafe({
+  void sendRuntimeMessage({
     type: "REVORA_SET_API_URL",
     apiBaseUrl: payload.apiUrl,
   });
+
+  void relayConnectTokenToBackground(payload);
 }
 
 export function markExtensionInstalledOnPage() {

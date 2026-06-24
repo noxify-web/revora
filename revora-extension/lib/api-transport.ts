@@ -8,7 +8,11 @@ import {
   decodePairingCode,
   encodePairingCode,
 } from "@revora/shared/pairing-code";
-import { readApiBaseUrlFromAdmin, sendAdminBridgeMessage } from "./admin-tabs";
+import {
+  clearAdminPairingState,
+  readApiBaseUrlFromAdmin,
+  sendAdminBridgeMessage,
+} from "./admin-tabs";
 
 interface StoredConnection {
   apiBaseUrl?: string;
@@ -292,6 +296,17 @@ export async function verifyAndPersistConnection(
 }
 
 export async function clearConnection() {
+  try {
+    const stored = await readConnectionState();
+
+    if (stored.pairingToken && stored.apiBaseUrl) {
+      await fetchRevora("/api/extension/disconnect", { method: "POST" });
+    }
+  } catch {
+    // Best-effort server revoke.
+  }
+
+  await clearAdminPairingState();
   await chrome.storage.sync.remove(["pairingToken", "pairingCode", "shop"]);
   await chrome.storage.sync.set({ userDisconnected: true });
 }

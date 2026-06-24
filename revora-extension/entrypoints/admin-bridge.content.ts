@@ -16,6 +16,7 @@ import {
   clearConnectTokenCache,
   getFreshConnectToken,
   handleBridgeMessageEvent,
+  persistConnectToken,
 } from "../lib/bridge-connect";
 import {
   isExtensionContextValid,
@@ -284,25 +285,61 @@ function syncOrigin() {
   });
 }
 
+/** Same pull path as the popup "Sync from admin" button, but automatic. */
+function syncConnectTokenFromAdminIframe() {
+  if (!isExtensionContextValid()) {
+    return;
+  }
+
+  void requestConnectTokenFromIframe().then((payload) => {
+    if (!(payload?.token && payload.apiUrl && payload.shop)) {
+      return;
+    }
+
+    persistConnectToken(payload);
+  });
+}
+
+function syncRevoraAdminBridge() {
+  syncOrigin();
+  syncConnectTokenFromAdminIframe();
+}
+
 export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
   allFrames: true,
   runAt: "document_idle",
   main(ctx) {
     ctx.addEventListener(window, "message", (event: MessageEvent) => {
+      if (
+        event.data?.type === "REVORA_CONNECT_TOKEN_READY" &&
+        isRevoraAppPage()
+      ) {
+        const origin = event.origin;
+        const allowedOrigin =
+          isRevoraDevTunnelOrigin(origin) ||
+          origin === "https://admin.shopify.com";
+
+        if (allowedOrigin) {
+          syncConnectTokenFromAdminIframe();
+        }
+      }
+
       handleBridgeMessageEvent(event, {
         acceptOrigin: (origin) => {
-          if (!isRevoraDevTunnelOrigin(origin)) {
-            return false;
+          if (isRevoraDevTunnelOrigin(origin) && isRevoraAppPage()) {
+            return true;
           }
 
-          const revoraOrigin = findRevoraIframeOrigin();
-          if (revoraOrigin !== null) {
-            return origin === revoraOrigin;
+          if (origin === "https://admin.shopify.com" && isRevoraAppPage()) {
+            return true;
           }
 
-          return isRevoraAppPage();
+          return false;
         },
+        getStatusReplyOrigin: () => event.origin,
+        getStatusReplyTarget: () =>
+          event.source instanceof Window ? event.source : null,
       });
     });
 
@@ -382,26 +419,7 @@ export default defineContentScript({
     });
 
     if (isRevoraAppPage()) {
-      syncOrigin();
-
-      const observer = new MutationObserver(() => {
-        if (!isExtensionContextValid()) {
-          observer.disconnect();
-          return;
-        }
-
-        syncOrigin();
-      });
-
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-
-      ctx.setInterval(syncOrigin, 3000);
-      ctx.onInvalidated(() => {
-        observer.disconnect();
-      });
+      syncRevoraAdminBridge();
     }
   },
 });

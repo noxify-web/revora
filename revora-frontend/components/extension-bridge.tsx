@@ -7,11 +7,21 @@ import {
 } from "@revora/shared/bridge-dom";
 import type {
   ConnectTokenBroadcast,
+  ConnectTokenReadyNudge,
   ConnectTokenRequest,
   RevoraClearConnectTokenMessage,
 } from "@revora/shared/extension-messages";
 import { useEffect } from "react";
-import { stripStaleIdTokenFromUrl } from "@/lib/admin-fetch";
+import {
+  captureIdTokenFromUrl,
+  getSessionTokenForProxy,
+  stripStaleIdTokenFromUrl,
+} from "@/lib/admin-fetch";
+import {
+  clearPendingConnectToken,
+  persistPendingConnectToken,
+  readPendingConnectToken,
+} from "@/lib/extension/pending-connect-token";
 
 const ALLOWED_PROXY_PREFIXES = [
   "/api/extension/",
@@ -38,6 +48,7 @@ function broadcastConnectToken(payload: {
   token: string;
 }) {
   writeConnectTokenDom(payload);
+  persistPendingConnectToken(payload);
 
   const message = {
     type: "REVORA_CONNECT_TOKEN",
@@ -47,14 +58,29 @@ function broadcastConnectToken(payload: {
   } satisfies ConnectTokenBroadcast;
 
   window.postMessage(message, window.location.origin);
-  window.parent.postMessage(message, "https://admin.shopify.com");
+
+  const nudge = {
+    type: "REVORA_CONNECT_TOKEN_READY",
+  } satisfies ConnectTokenReadyNudge;
+
+  let parent: Window | null = window.parent;
+  while (parent && parent !== window) {
+    parent.postMessage(message, "*");
+    parent.postMessage(nudge, "*");
+    try {
+      parent = parent.parent;
+    } catch {
+      break;
+    }
+  }
 }
 
 export function ExtensionBridge() {
   useEffect(() => {
+    captureIdTokenFromUrl();
     stripStaleIdTokenFromUrl();
 
-    const existingToken = readConnectTokenDom();
+    const existingToken = readConnectTokenDom() ?? readPendingConnectToken();
     if (existingToken) {
       broadcastConnectToken(existingToken);
     }
@@ -74,11 +100,12 @@ export function ExtensionBridge() {
 
       if (event.data?.type === "REVORA_CLEAR_CONNECT_TOKEN") {
         clearConnectTokenDom();
+        clearPendingConnectToken();
         return;
       }
 
       if (event.data?.type === "REVORA_REQUEST_CONNECT_TOKEN") {
-        const payload = readConnectTokenDom();
+        const payload = readConnectTokenDom() ?? readPendingConnectToken();
         window.parent.postMessage(
           {
             type: "REVORA_CONNECT_TOKEN_RESPONSE",
@@ -127,6 +154,13 @@ export function ExtensionBridge() {
 
         if (body != null && !fetchHeaders.has("Content-Type")) {
           fetchHeaders.set("Content-Type", "application/json");
+        }
+
+        if (!fetchHeaders.has("Authorization")) {
+          const sessionToken = await getSessionTokenForProxy();
+          if (sessionToken) {
+            fetchHeaders.set("Authorization", `Bearer ${sessionToken}`);
+          }
         }
 
         const response = await fetch(path, {

@@ -3,6 +3,27 @@ import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 
 const SHOPIFY_ADMIN_URL = "https://admin.shopify.com/*";
 const ADMIN_BRIDGE_SCRIPT = "content-scripts/admin-bridge.js";
+const ADMIN_BRIDGE_MESSAGE_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = globalThis.setTimeout(() => {
+      reject(
+        new Error("Revora admin request timed out. Refresh the app page.")
+      );
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        globalThis.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error: unknown) => {
+        globalThis.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
 
 export interface AdminConnectPayload {
   apiUrl: string | null;
@@ -67,7 +88,7 @@ function isRevoraTabResponse(message: AdminBridgeRequest, response: unknown) {
 
   if (message.type === "REVORA_GET_CONNECT_TOKEN") {
     const payload = response as AdminConnectPayload;
-    return Boolean(payload.token || payload.apiUrl);
+    return Boolean(payload.token && payload.apiUrl && payload.shop);
   }
 
   if (message.type === "REVORA_ADMIN_PROXY") {
@@ -98,7 +119,11 @@ export async function sendAdminBridgeMessage<T>(
     }
 
     try {
-      const response = await chrome.tabs.sendMessage(tab.id, message);
+      const response = await withTimeout(
+        chrome.tabs.sendMessage(tab.id, message),
+        ADMIN_BRIDGE_MESSAGE_TIMEOUT_MS
+      );
+
       if (response != null && isRevoraTabResponse(message, response)) {
         return response as T;
       }

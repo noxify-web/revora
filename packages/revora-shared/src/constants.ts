@@ -1,5 +1,8 @@
 export const REVORA_CLIENT_ID = "8306c32501330f9312ff84788895ca36";
 
+/** Shopify app handle used in theme block type URLs (derived from the app listing name). */
+export const REVORA_APP_HANDLE = "revora-import-temu-reviews";
+
 /** Liquid filename (without .liquid) for the storefront app embed block. */
 export const REVORA_REVIEWS_EMBED_BLOCK_HANDLE = "reviews-embed";
 

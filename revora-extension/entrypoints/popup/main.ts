@@ -74,8 +74,36 @@ function applyConnection(data: ConnectTokenResponse) {
   setConnected(data.shop);
 }
 
+const SYNC_FROM_ADMIN_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string
+) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error: unknown) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 async function syncFromAdmin() {
-  const payload = await resolveConnectPayloadFromAdmin();
+  const payload = await withTimeout(
+    resolveConnectPayloadFromAdmin(),
+    SYNC_FROM_ADMIN_TIMEOUT_MS,
+    "Sync timed out. Hard-refresh Revora in Shopify admin, then try again."
+  );
 
   if (!(payload?.token && payload.apiUrl && payload.shop)) {
     return false;

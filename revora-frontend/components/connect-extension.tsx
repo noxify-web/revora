@@ -6,11 +6,8 @@ const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal";
 
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 import { broadcastConnectToken } from "@/components/extension-bridge";
-import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
-import {
-  isExtensionLinked,
-  waitForExtensionPairingAfterConnect,
-} from "@/lib/extension/client-status";
+import { adminFetchNoBounce, readAdminJson } from "@/lib/admin-fetch";
+import { mintAndBroadcastConnectToken } from "@/lib/extension/pairing-confirm";
 
 interface ExtensionToken {
   createdAt: string;
@@ -46,7 +43,13 @@ export function ConnectExtension({
     setError(null);
 
     try {
-      const response = await adminFetch("/api/extension/token");
+      const response = await adminFetchNoBounce("/api/extension/token");
+
+      if (!response) {
+        setTokens([]);
+        return;
+      }
+
       const data = await readAdminJson<{
         tokens?: ExtensionToken[];
         error?: string;
@@ -81,39 +84,8 @@ export function ConnectExtension({
     setConnectPayload(null);
 
     try {
-      const response = await adminFetch("/api/extension/token", {
-        method: "POST",
-        body: JSON.stringify({ label: "Chrome extension" }),
-      });
-
-      const data = await readAdminJson<
-        ConnectTokenResponse & { error?: string }
-      >(response);
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to connect extension");
-      }
-      setConnectPayload(data);
-
-      broadcastConnectToken({
-        token: data.token,
-        apiUrl: data.apiUrl,
-        shop: data.shop,
-      });
-
-      const status = await waitForExtensionPairingAfterConnect();
-
-      if (!status.installed) {
-        throw new Error(
-          "Token created but the Revora extension was not detected. Install the extension, keep this tab open, and click Connect again."
-        );
-      }
-
-      if (!isExtensionLinked(status)) {
-        throw new Error(
-          "Token created but the extension did not finish pairing. Keep this tab open and click Connect again."
-        );
-      }
+      const data = await mintAndBroadcastConnectToken(broadcastConnectToken);
+      setConnectPayload(data as ConnectTokenResponse);
 
       showToast("Extension connected");
       await loadTokens();
@@ -130,7 +102,7 @@ export function ConnectExtension({
   }
 
   const activeToken = tokens[0];
-  const isConnected = Boolean(activeToken || connectPayload);
+  const isConnected = Boolean(activeToken?.lastUsedAt || connectPayload);
 
   return (
     <s-stack gap={compact ? "small-200" : "base"}>

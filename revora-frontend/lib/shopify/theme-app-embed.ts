@@ -1,3 +1,7 @@
+import {
+  REVORA_APP_HANDLE,
+  REVORA_REVIEWS_EMBED_BLOCK_HANDLE,
+} from "@revora/shared/constants";
 import type { Session } from "@shopify/shopify-api";
 
 import {
@@ -87,52 +91,130 @@ function isEnabledThemeBlock(block: Record<string, unknown>) {
   return block.disabled !== true;
 }
 
-function matchesRevoraBlockType(type: unknown, apiKey: string) {
+export function matchesRevoraBlockType(type: unknown, apiKey: string) {
   if (typeof type !== "string") {
     return false;
   }
 
   const normalized = type.toLowerCase();
+  if (!normalized.startsWith("shopify://apps/")) {
+    return false;
+  }
+
   const markers = [
     apiKey.toLowerCase(),
+    REVORA_APP_HANDLE,
     "revora-reviews",
     "revora/blocks/",
     "revora-reviews/blocks/",
+    "/apps/revora",
   ];
 
   return markers.some((marker) => normalized.includes(marker));
 }
 
-function hasEnabledAppEmbed(
-  settingsData: Record<string, unknown> | null,
-  apiKey: string
-) {
-  const current = settingsData?.current;
-  if (!current || typeof current !== "object") {
-    return false;
-  }
-
-  const blocks = (current as Record<string, unknown>).blocks;
-  if (!blocks || typeof blocks !== "object") {
-    return false;
-  }
-
-  return Object.values(blocks as Record<string, Record<string, unknown>>).some(
-    (block) => {
-      const type = block.type;
-      if (typeof type !== "string" || !isEnabledThemeBlock(block)) {
-        return false;
-      }
-
-      return (
-        matchesRevoraBlockType(type, apiKey) &&
-        type.toLowerCase().includes("reviews-embed")
-      );
-    }
+function isRevoraEmbedBlockType(type: string) {
+  const normalized = type.toLowerCase();
+  return (
+    normalized.includes(`/blocks/${REVORA_REVIEWS_EMBED_BLOCK_HANDLE}`) ||
+    normalized.includes("/blocks/reviews-embed")
   );
 }
 
-function hasEnabledProductAppBlock(
+function isRevoraProductBlockType(type: string) {
+  const normalized = type.toLowerCase();
+  return (
+    normalized.includes("/blocks/reviews/") ||
+    normalized.includes("/blocks/reviews-summary")
+  );
+}
+
+function isEnabledRevoraThemeBlock(
+  block: Record<string, unknown>,
+  apiKey: string,
+  blockMatcher: (type: string) => boolean
+) {
+  const type = block.type;
+  return (
+    typeof type === "string" &&
+    isEnabledThemeBlock(block) &&
+    matchesRevoraBlockType(type, apiKey) &&
+    blockMatcher(type)
+  );
+}
+
+function collectThemeBlocks(
+  blocks: Record<string, Record<string, unknown>> | undefined
+): Record<string, unknown>[] {
+  if (!blocks) {
+    return [];
+  }
+
+  const collected: Record<string, unknown>[] = [];
+
+  for (const block of Object.values(blocks)) {
+    collected.push(block);
+
+    const nestedBlocks = block.blocks;
+    if (nestedBlocks && typeof nestedBlocks === "object") {
+      collected.push(
+        ...collectThemeBlocks(
+          nestedBlocks as Record<string, Record<string, unknown>>
+        )
+      );
+    }
+  }
+
+  return collected;
+}
+
+function resolveSettingsBlocks(
+  settingsData: Record<string, unknown> | null
+): Record<string, Record<string, unknown>> | null {
+  const current = settingsData?.current;
+  if (current && typeof current === "object") {
+    const blocks = (current as Record<string, unknown>).blocks;
+    if (blocks && typeof blocks === "object") {
+      return blocks as Record<string, Record<string, unknown>>;
+    }
+  }
+
+  const presets = settingsData?.presets;
+  if (!presets || typeof presets !== "object") {
+    return null;
+  }
+
+  const presetName = typeof current === "string" ? current : "Default";
+  const preset = (presets as Record<string, Record<string, unknown>>)[
+    presetName
+  ];
+  const blocks = preset?.blocks;
+  if (blocks && typeof blocks === "object") {
+    return blocks as Record<string, Record<string, unknown>>;
+  }
+
+  return null;
+}
+
+export function hasEnabledAppEmbed(
+  settingsData: Record<string, unknown> | null,
+  apiKey: string
+) {
+  const blocks = resolveSettingsBlocks(settingsData);
+  if (!blocks) {
+    return false;
+  }
+
+  return collectThemeBlocks(blocks).some((block) =>
+    isEnabledRevoraThemeBlock(
+      block as Record<string, unknown>,
+      apiKey,
+      isRevoraEmbedBlockType
+    )
+  );
+}
+
+export function hasEnabledProductAppBlock(
   productTemplate: Record<string, unknown> | null,
   apiKey: string
 ) {
@@ -144,21 +226,17 @@ function hasEnabledProductAppBlock(
   for (const section of Object.values(
     sections as Record<string, Record<string, unknown>>
   )) {
-    const blocks = section?.blocks;
-    if (!blocks || typeof blocks !== "object") {
-      continue;
-    }
+    const blocks = section?.blocks as
+      | Record<string, Record<string, unknown>>
+      | undefined;
 
-    for (const block of Object.values(
-      blocks as Record<string, Record<string, unknown>>
-    )) {
-      const type = block.type;
+    for (const block of collectThemeBlocks(blocks)) {
       if (
-        typeof type === "string" &&
-        isEnabledThemeBlock(block) &&
-        matchesRevoraBlockType(type, apiKey) &&
-        (type.toLowerCase().includes("/blocks/reviews/") ||
-          type.toLowerCase().includes("/blocks/reviews-summary"))
+        isEnabledRevoraThemeBlock(
+          block as Record<string, unknown>,
+          apiKey,
+          isRevoraProductBlockType
+        )
       ) {
         return true;
       }
@@ -166,6 +244,17 @@ function hasEnabledProductAppBlock(
   }
 
   return false;
+}
+
+export function isRevoraStorefrontWidgetEnabled(
+  settingsData: Record<string, unknown> | null,
+  productTemplate: Record<string, unknown> | null,
+  apiKey: string
+) {
+  return (
+    hasEnabledAppEmbed(settingsData, apiKey) ||
+    hasEnabledProductAppBlock(productTemplate, apiKey)
+  );
 }
 
 export async function getRevoraStorefrontWidgetStatus(
@@ -208,9 +297,11 @@ export async function getRevoraStorefrontWidgetStatus(
         ?.content
     );
 
-    const enabled =
-      hasEnabledAppEmbed(settingsData, apiKey) ||
-      hasEnabledProductAppBlock(productTemplate, apiKey);
+    const enabled = isRevoraStorefrontWidgetEnabled(
+      settingsData,
+      productTemplate,
+      apiKey
+    );
 
     return {
       enabled,

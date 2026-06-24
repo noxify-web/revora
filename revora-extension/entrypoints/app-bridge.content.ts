@@ -1,4 +1,6 @@
+import { writeConnectTokenDom } from "@revora/shared/bridge-dom";
 import { REVORA_DEV_TUNNEL_MATCHES } from "@revora/shared/constants";
+import type { BackgroundConnectionStatusResponse } from "@revora/shared/extension-messages";
 import {
   handleBridgeMessageEvent,
   markExtensionInstalledOnPage,
@@ -9,10 +11,19 @@ import {
   isExtensionContextValid,
   sendRuntimeMessageSafe,
 } from "../lib/extension-context";
+import { readPendingConnectToken } from "../lib/pending-connect-token";
 
 function isEmbeddedRevoraApp() {
   const params = new URLSearchParams(window.location.search);
   return params.get("embedded") === "1" && Boolean(params.get("shop")?.trim());
+}
+
+async function extensionReportsPaired() {
+  const response = (await sendRuntimeMessageSafe({
+    type: "REVORA_GET_CONNECTION_STATUS",
+  })) as BackgroundConnectionStatusResponse | undefined;
+
+  return Boolean(response?.ok && response.data?.paired);
 }
 
 function syncConnectTokenFromDom() {
@@ -20,6 +31,29 @@ function syncConnectTokenFromDom() {
   if (payload) {
     persistConnectToken(payload);
   }
+}
+
+async function restoreConnectTokenFromAdminIfPaired() {
+  if (!(await extensionReportsPaired())) {
+    return;
+  }
+
+  const pending = readPendingConnectToken();
+  if (!pending) {
+    syncConnectTokenFromDom();
+    return;
+  }
+
+  if (!readConnectTokenFromDom()) {
+    writeConnectTokenDom(pending);
+  }
+
+  persistConnectToken({
+    ...pending,
+    plan: null,
+    planName: null,
+    reviewLimit: null,
+  });
 }
 
 export default defineContentScript({
@@ -31,7 +65,7 @@ export default defineContentScript({
     }
 
     markExtensionInstalledOnPage();
-    syncConnectTokenFromDom();
+    void restoreConnectTokenFromAdminIfPaired();
 
     const observer = new MutationObserver(() => {
       if (!isExtensionContextValid()) {

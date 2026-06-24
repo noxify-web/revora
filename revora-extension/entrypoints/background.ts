@@ -3,7 +3,6 @@ import type {
   BackgroundResponse,
 } from "@revora/shared/extension-messages";
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
-import { clearAdminPairingState } from "../lib/admin-tabs";
 import {
   clearConnection,
   enrichConnection,
@@ -112,7 +111,6 @@ async function handleMessage(
 
   if (message.type === "REVORA_DISCONNECT") {
     await clearConnection();
-    await clearAdminPairingState();
     return { ok: true };
   }
 

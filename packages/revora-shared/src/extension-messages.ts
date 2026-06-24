@@ -137,6 +137,11 @@ export interface ConnectTokenBroadcast {
   type: "REVORA_CONNECT_TOKEN";
 }
 
+/** Nudge admin-bridge to pull the connect token from the embedded iframe immediately. */
+export interface ConnectTokenReadyNudge {
+  type: "REVORA_CONNECT_TOKEN_READY";
+}
+
 export interface ExtensionStatusRequest {
   requestId: string;
   type: "REVORA_REQUEST_EXTENSION_STATUS";

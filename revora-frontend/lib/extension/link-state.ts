@@ -1,11 +1,13 @@
-import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
-
 import {
   EXTENSION_STATUS_FAST_TIMEOUT_MS,
   type ExtensionClientStatus,
   isExtensionLinked,
   queryExtensionClientStatus,
 } from "./client-status";
+import {
+  fetchExtensionTokensFast,
+  newestTokenHasBeenUsed,
+} from "./pairing-confirm";
 
 const EMPTY_STATUS: ExtensionClientStatus = {
   installed: false,
@@ -14,30 +16,19 @@ const EMPTY_STATUS: ExtensionClientStatus = {
   shop: null,
 };
 
+const TOKEN_STATUS_CACHE_MS = 15_000;
+
+let cachedTokenStatus: {
+  at: number;
+  tokens: Awaited<ReturnType<typeof fetchExtensionTokensFast>>;
+} | null = null;
+
 function isExtensionMarkedInstalledInDom() {
   return document.documentElement.dataset.revoraExtensionInstalled === "1";
 }
 
-async function hasActiveExtensionToken() {
-  try {
-    const response = await adminFetch("/api/extension/token");
-    const data = await readAdminJson<{ tokens?: unknown[] }>(response);
-
-    return response.ok && (data.tokens?.length ?? 0) > 0;
-  } catch {
-    return false;
-  }
-}
-
 function extensionAppearsInstalled(status: ExtensionClientStatus) {
   return status.installed || isExtensionMarkedInstalledInDom();
-}
-
-function linkedViaServerToken(
-  status: ExtensionClientStatus,
-  hasToken: boolean
-) {
-  return hasToken && extensionAppearsInstalled(status);
 }
 
 let inflightFastCheck: Promise<{
@@ -45,29 +36,55 @@ let inflightFastCheck: Promise<{
   status: ExtensionClientStatus;
 }> | null = null;
 
+/** Connected when the newest extension token has been used (verify/import). */
+export function isExtensionConnectedOnServer(
+  tokens: Awaited<ReturnType<typeof fetchExtensionTokensFast>>
+) {
+  return newestTokenHasBeenUsed(tokens);
+}
+
+async function readCachedExtensionTokens() {
+  if (
+    cachedTokenStatus &&
+    Date.now() - cachedTokenStatus.at < TOKEN_STATUS_CACHE_MS
+  ) {
+    return cachedTokenStatus.tokens;
+  }
+
+  const tokens = await fetchExtensionTokensFast();
+  cachedTokenStatus = { tokens, at: Date.now() };
+  return tokens;
+}
+
+export function invalidateExtensionLinkStateCache() {
+  cachedTokenStatus = null;
+  inflightFastCheck = null;
+}
+
 async function resolveExtensionLinkStateFast(): Promise<{
   linked: boolean;
   status: ExtensionClientStatus;
 }> {
-  const [status, hasToken] = await Promise.all([
-    queryExtensionClientStatus({
-      timeoutMs: EXTENSION_STATUS_FAST_TIMEOUT_MS,
-    }),
-    hasActiveExtensionToken(),
-  ]);
+  const tokens = await readCachedExtensionTokens();
 
-  if (isExtensionLinked(status)) {
-    return { linked: true, status };
-  }
-
-  if (linkedViaServerToken(status, hasToken)) {
+  if (isExtensionConnectedOnServer(tokens)) {
     return {
       linked: true,
       status: {
-        ...status,
-        installed: extensionAppearsInstalled(status),
+        installed: extensionAppearsInstalled(EMPTY_STATUS),
+        paired: true,
+        verified: true,
+        shop: null,
       },
     };
+  }
+
+  const status = await queryExtensionClientStatus({
+    timeoutMs: EXTENSION_STATUS_FAST_TIMEOUT_MS,
+  });
+
+  if (isExtensionLinked(status)) {
+    return { linked: true, status };
   }
 
   return { linked: false, status };
