@@ -19,6 +19,7 @@ export const state = {
   collecting: false,
   reviews: new Map<string, TemuReviewPayload>(),
   maxListSize: null as number | null,
+  importLimit: null as number | null,
   lastPageSeen: 0,
   idleRounds: 0,
   importId: null as string | null,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { APP_NAV_HTML } from "@/lib/shopify/app-nav-html";
+import { APP_NAV_HTML } from "@/lib/shopify/embedded-app-shell";
 import { applyEmbeddedAppHeaders } from "@/lib/shopify/headers";
 
 export function GET() {

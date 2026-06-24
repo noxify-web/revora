@@ -323,3 +323,51 @@
 .revora-stack--tight {
   gap: var(--revora-space-200);
 }
+
+.revora-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--revora-space-100);
+  margin-top: var(--revora-space-100);
+}
+
+.revora-chip {
+  flex: 1;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: var(--revora-font-size-small);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--revora-text-subdued);
+  cursor: pointer;
+  background: var(--revora-surface);
+  border: 1px solid var(--revora-border-strong);
+  border-radius: var(--revora-radius-sm);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.revora-chip:hover {
+  color: var(--revora-text);
+  background: var(--revora-surface-hover);
+}
+
+.revora-chip.is-selected {
+  color: var(--revora-text-on-fill);
+  background: var(--revora-fill-brand);
+  border-color: var(--revora-fill-brand);
+}
+
+.revora-chip.is-selected:hover {
+  background: var(--revora-fill-brand-hover);
+  border-color: var(--revora-fill-brand-hover);
+}
+
+.revora-chip:focus-visible {
+  outline: 2px solid var(--revora-info-subdued);
+  outline-offset: 1px;
+}

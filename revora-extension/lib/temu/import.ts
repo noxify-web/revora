@@ -7,7 +7,9 @@ import { mapTemuReview } from "../review-mapper";
 import {
   clearImportResult,
   getImportFilter,
+  getImportLimit,
   getSelectedProduct,
+  hasInvalidImportLimit,
   setImportComplete,
   setImportRunning,
   setProgress,
@@ -16,11 +18,13 @@ import {
 import {
   activatePhotosVideosTab,
   clickReviewEntryPoints,
+  getCollectionTarget,
   getFilterLabel,
   reportCollectionProgress,
   resetCollection,
   scrollReviewsPanel,
   shouldStopCollecting,
+  trimCollectedReviewsToLimit,
   waitForReviewsDialog,
 } from "./scraper";
 import {
@@ -149,7 +153,15 @@ export async function startImport() {
     return;
   }
 
+  if (hasInvalidImportLimit()) {
+    setStatus("Enter a valid number of reviews, or leave blank for all");
+    return;
+  }
+
+  const importLimit = getImportLimit();
+
   resetCollection();
+  state.importLimit = importLimit;
   state.collecting = true;
   clearImportResult();
   setImportRunning();
@@ -197,7 +209,7 @@ export async function startImport() {
   while (state.collecting) {
     scrollReviewsPanel();
     const status = reportCollectionProgress(filter);
-    const total = state.maxListSize || state.reviews.size;
+    const total = getCollectionTarget();
     setProgress(state.reviews.size, total);
     setStatus(status);
     await sleep(SCROLL_INTERVAL_MS);
@@ -223,6 +235,8 @@ export async function startImport() {
       );
       return;
     }
+
+    trimCollectedReviewsToLimit();
 
     setStatus(`Uploading ${state.reviews.size} reviews ${filterLabel}...`);
 

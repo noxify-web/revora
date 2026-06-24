@@ -68,6 +68,28 @@ export function createPanel(
                 <option value="withPictures">With photos/videos only</option>
               </select>
             </div>
+            <div class="revora-field">
+              <label for="revora-import-limit">Number of reviews</label>
+              <input
+                class="revora-input"
+                id="revora-import-limit"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                placeholder="All reviews"
+              />
+              <div
+                class="revora-chip-group"
+                role="group"
+                aria-label="Quick select review count"
+              >
+                <button class="revora-chip" data-limit="100" type="button">100</button>
+                <button class="revora-chip" data-limit="200" type="button">200</button>
+                <button class="revora-chip" data-limit="500" type="button">500</button>
+                <button class="revora-chip" data-limit="1000" type="button">1000</button>
+              </div>
+            </div>
           </div>
           <div class="section activity" id="revora-activity-section">
             <div class="success-state" id="revora-success-state" hidden>
@@ -139,7 +161,40 @@ export function createPanel(
     event.stopPropagation();
     togglePanelOpen(false);
   });
+  wireImportLimitControls();
   void initializePanel();
+}
+
+const IMPORT_LIMIT_PRESETS = [100, 200, 500, 1000] as const;
+
+function wireImportLimitControls() {
+  const input = $("revora-import-limit");
+  const chips = panelRef.shadow?.querySelectorAll<HTMLButtonElement>(
+    ".revora-chip[data-limit]"
+  );
+
+  if (!(input instanceof HTMLInputElement && chips?.length)) {
+    return;
+  }
+
+  const syncChipSelection = () => {
+    const limit = parseImportLimit(input.value);
+    for (const chip of chips) {
+      const preset = Number.parseInt(chip.dataset.limit || "", 10);
+      chip.classList.toggle("is-selected", limit != null && preset === limit);
+    }
+  };
+
+  for (const chip of chips) {
+    chip.addEventListener("click", () => {
+      input.value = chip.dataset.limit || "";
+      syncChipSelection();
+      input.focus();
+    });
+  }
+
+  input.addEventListener("input", syncChipSelection);
+  syncChipSelection();
 }
 
 async function openRevoraInShopify() {
@@ -391,7 +446,7 @@ export async function initializePanel() {
       (await chrome.storage.sync.get(["shop"])).shop;
 
     setConnectedShop(typeof shop === "string" && shop ? shop : null);
-    setStatus("Choose a product and import reviews.");
+    setStatus("");
     await loadProducts();
   } catch (error) {
     setConnectedShop(null);
@@ -427,4 +482,40 @@ export function getImportFilter(): ImportFilter {
     return value;
   }
   return "all";
+}
+
+export function parseImportLimit(value: string): number | null {
+  const raw = value.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export function getImportLimitInputValue() {
+  const input = $("revora-import-limit");
+  if (!(input instanceof HTMLInputElement)) {
+    return "";
+  }
+
+  return input.value;
+}
+
+export function hasInvalidImportLimit() {
+  const raw = getImportLimitInputValue().trim();
+  return raw.length > 0 && parseImportLimit(raw) == null;
+}
+
+export function getImportLimit(): number | null {
+  return parseImportLimit(getImportLimitInputValue());
+}
+
+export function getImportLimitPresets() {
+  return IMPORT_LIMIT_PRESETS;
 }

@@ -43,12 +43,17 @@ export function reviewMatchesFilter(
 export function resetCollection() {
   state.reviews.clear();
   state.maxListSize = null;
+  state.importLimit = null;
   state.lastPageSeen = 0;
   state.idleRounds = 0;
   state.importId = null;
   state.uploadedIds.clear();
   state.pendingUpload = [];
   state.scrollContainer = null;
+}
+
+export function getCollectionTarget() {
+  return state.importLimit ?? state.maxListSize ?? state.reviews.size;
 }
 
 export function ingestPayload(
@@ -61,6 +66,9 @@ export function ingestPayload(
   }
 
   for (const review of payload.reviews) {
+    if (state.importLimit && state.reviews.size >= state.importLimit) {
+      break;
+    }
     if (!review?.review_id) {
       continue;
     }
@@ -88,7 +96,7 @@ export function reportCollectionProgress(
   onProgress?: (current: number, total: number, status: string) => void
 ) {
   const label = getFilterLabel(filter);
-  const total = state.maxListSize || state.reviews.size;
+  const total = getCollectionTarget();
   const status = `Collected ${state.reviews.size} ${label}`;
 
   if (onProgress) {
@@ -367,6 +375,10 @@ export function scrollReviewsPanel() {
 export function shouldStopCollecting(filter: ImportFilter) {
   const collected = state.reviews.size;
 
+  if (state.importLimit && collected >= state.importLimit) {
+    return true;
+  }
+
   if (filter === "withText") {
     return false;
   }
@@ -376,6 +388,18 @@ export function shouldStopCollecting(filter: ImportFilter) {
   }
 
   return false;
+}
+
+export function trimCollectedReviewsToLimit() {
+  if (!state.importLimit || state.reviews.size <= state.importLimit) {
+    return;
+  }
+
+  const kept = Array.from(state.reviews.entries()).slice(0, state.importLimit);
+  state.reviews.clear();
+  for (const [reviewId, review] of kept) {
+    state.reviews.set(reviewId, review);
+  }
 }
 
 function isPhotosVideosLabel(text: string | undefined | null) {

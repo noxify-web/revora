@@ -1,12 +1,9 @@
 import { REVORA_LOGO_ASSETS } from "@revora/shared/constants";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { AppNav } from "@/components/app-nav";
 import { ExtensionBridge } from "@/components/extension-bridge";
-import { POLARIS_BOOT_SCRIPT, POLARIS_BOOT_STYLES } from "@/lib/polaris-boot";
-import {
-  APP_NAV_BOOTSTRAP_SCRIPT,
-  APP_NAV_FALLBACK_SCRIPT,
-} from "@/lib/shopify/app-nav-html";
+import { EMBEDDED_APP_SHELL_STYLES } from "@/lib/shopify/embedded-app-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -34,15 +31,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <style dangerouslySetInnerHTML={{ __html: POLARIS_BOOT_STYLES }} />
-        <script dangerouslySetInnerHTML={{ __html: POLARIS_BOOT_SCRIPT }} />
+        <style
+          dangerouslySetInnerHTML={{ __html: EMBEDDED_APP_SHELL_STYLES }}
+        />
       </head>
       <body>
-        <Script
-          dangerouslySetInnerHTML={{ __html: APP_NAV_BOOTSTRAP_SCRIPT }}
-          id="revora-app-nav-bootstrap"
-          strategy="beforeInteractive"
-        />
         <Script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
           strategy="beforeInteractive"
@@ -51,12 +44,8 @@ export default function RootLayout({
           src="https://cdn.shopify.com/shopifycloud/polaris.js"
           strategy="beforeInteractive"
         />
-        <Script
-          dangerouslySetInnerHTML={{ __html: APP_NAV_FALLBACK_SCRIPT }}
-          id="revora-app-nav-fallback"
-          strategy="afterInteractive"
-        />
-        <div aria-busy="true" id="revora-polaris-boot">
+        <AppNav />
+        <div aria-busy="true" id="revora-polaris-shell">
           Loading Revora…
         </div>
         <div data-revora-app>
