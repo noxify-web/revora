@@ -7,6 +7,10 @@ const ROTATE_TOKEN_MODAL_ID = "revora-rotate-token-modal";
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 import { broadcastConnectToken } from "@/components/extension-bridge";
 import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
+import {
+  isExtensionLinked,
+  waitForExtensionClientStatus,
+} from "@/lib/extension/client-status";
 
 interface ExtensionToken {
   createdAt: string;
@@ -96,6 +100,22 @@ export function ConnectExtension({
         apiUrl: data.apiUrl,
         shop: data.shop,
       });
+
+      const status = await waitForExtensionClientStatus({
+        requirePaired: true,
+      });
+
+      if (!status.installed) {
+        throw new Error(
+          "Token created but the Revora extension was not detected. Install the extension, keep this tab open, and click Connect again."
+        );
+      }
+
+      if (!isExtensionLinked(status)) {
+        throw new Error(
+          "Token created but the extension did not finish pairing. Keep this tab open and click Connect again."
+        );
+      }
 
       showToast("Extension connected");
       await loadTokens();

@@ -10,9 +10,10 @@ import {
 import { openChromeWebStore } from "@/components/onboarding-shared";
 import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
 import {
-  queryExtensionClientStatus,
+  isExtensionLinked,
   waitForExtensionClientStatus,
 } from "@/lib/extension/client-status";
+import { resolveExtensionLinkState } from "@/lib/extension/link-state";
 import { EXTENSION_CONNECT_GUIDE } from "@/lib/onboarding/constants";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
@@ -33,10 +34,10 @@ export function ExtensionConnectBanner({
 
   const loadStatus = useCallback(async () => {
     try {
-      const status = await queryExtensionClientStatus();
+      const { linked, status } = await resolveExtensionLinkState();
       setExtensionInstalled(status.installed);
       setVerified(
-        status.verified || (optimisticVerifiedRef.current && status.installed)
+        linked || (optimisticVerifiedRef.current && status.installed)
       );
       setError(null);
     } catch {
@@ -78,12 +79,20 @@ export function ExtensionConnectBanner({
         shop: data.shop,
       });
 
-      const status = await waitForExtensionClientStatus();
+      const status = await waitForExtensionClientStatus({
+        requirePaired: true,
+      });
       setExtensionInstalled(status.installed);
 
       if (!status.installed) {
         throw new Error(
           "Token created but the Revora extension was not detected. Install the extension, keep this tab open, and click Connect again."
+        );
+      }
+
+      if (!isExtensionLinked(status)) {
+        throw new Error(
+          "Token created but the extension did not finish pairing. Keep this tab open and click Connect again."
         );
       }
 

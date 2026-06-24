@@ -1,6 +1,11 @@
 import type { ExtensionStatusResponse } from "@revora/shared/extension-messages";
 
-const EXTENSION_STATUS_TIMEOUT_MS = 3000;
+export const EXTENSION_STATUS_TIMEOUT_MS = 3000;
+export const EXTENSION_STATUS_FAST_TIMEOUT_MS = 800;
+
+export interface QueryExtensionClientStatusOptions {
+  timeoutMs?: number;
+}
 const ADMIN_ORIGIN = "https://admin.shopify.com";
 
 export interface ExtensionClientStatus {
@@ -8,6 +13,11 @@ export interface ExtensionClientStatus {
   paired: boolean;
   shop: string | null;
   verified: boolean;
+}
+
+/** True when the extension is installed and linked to this store. */
+export function isExtensionLinked(status: ExtensionClientStatus): boolean {
+  return status.verified || (status.installed && status.paired);
 }
 
 const EMPTY_STATUS: ExtensionClientStatus = {
@@ -25,23 +35,30 @@ function isAllowedStatusResponseOrigin(origin: string) {
   return origin === window.location.origin || origin === ADMIN_ORIGIN;
 }
 
-export function queryExtensionClientStatus(): Promise<ExtensionClientStatus> {
+export function queryExtensionClientStatus(
+  options: QueryExtensionClientStatusOptions = {}
+): Promise<ExtensionClientStatus> {
   if (typeof window === "undefined") {
     return Promise.resolve(EMPTY_STATUS);
   }
 
+  const timeoutMs = options.timeoutMs ?? EXTENSION_STATUS_TIMEOUT_MS;
+
   if (isExtensionMarkedInstalledInDom()) {
-    return queryExtensionClientStatusViaMessage([window.location.origin]);
+    return queryExtensionClientStatusViaMessage([window.location.origin], {
+      timeoutMs,
+    });
   }
 
-  return queryExtensionClientStatusViaMessage([
-    ADMIN_ORIGIN,
-    window.location.origin,
-  ]);
+  return queryExtensionClientStatusViaMessage(
+    [ADMIN_ORIGIN, window.location.origin],
+    { timeoutMs }
+  );
 }
 
 function queryExtensionClientStatusViaMessage(
-  targetOrigins: string[]
+  targetOrigins: string[],
+  options: { timeoutMs: number }
 ): Promise<ExtensionClientStatus> {
   return new Promise((resolve) => {
     const requestId = crypto.randomUUID();
@@ -75,7 +92,7 @@ function queryExtensionClientStatusViaMessage(
 
     const timer = window.setTimeout(() => {
       finish(EMPTY_STATUS);
-    }, EXTENSION_STATUS_TIMEOUT_MS);
+    }, options.timeoutMs);
 
     window.addEventListener("message", onResponse);
 

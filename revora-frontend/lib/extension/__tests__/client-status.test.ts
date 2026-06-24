@@ -4,11 +4,47 @@ import type { ExtensionStatusResponse } from "@revora/shared/extension-messages"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  isExtensionLinked,
   queryExtensionClientStatus,
   waitForExtensionClientStatus,
 } from "../client-status";
 
 const ADMIN_ORIGIN = "https://admin.shopify.com";
+
+describe("isExtensionLinked", () => {
+  it("returns true when verified", () => {
+    expect(
+      isExtensionLinked({
+        installed: true,
+        paired: false,
+        verified: true,
+        shop: "demo.myshopify.com",
+      })
+    ).toBe(true);
+  });
+
+  it("returns true when installed and paired", () => {
+    expect(
+      isExtensionLinked({
+        installed: true,
+        paired: true,
+        verified: false,
+        shop: "demo.myshopify.com",
+      })
+    ).toBe(true);
+  });
+
+  it("returns false when extension is missing or unpaired", () => {
+    expect(
+      isExtensionLinked({
+        installed: false,
+        paired: false,
+        verified: false,
+        shop: null,
+      })
+    ).toBe(false);
+  });
+});
 
 describe("queryExtensionClientStatus", () => {
   beforeEach(() => {

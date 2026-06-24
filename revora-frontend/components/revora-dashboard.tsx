@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 import { ExtensionConnectBanner } from "@/components/extension-connect-banner";
 import { ImportActivityLog } from "@/components/import-activity-log";
@@ -8,7 +8,7 @@ import { OnboardingFlow } from "@/components/onboarding-flow";
 import { ProductCatalogTable } from "@/components/product-catalog-table";
 import { StorefrontWidgetGuide } from "@/components/storefront-widget-guide";
 import { adminFetchJson } from "@/lib/admin-fetch";
-import { queryExtensionClientStatus } from "@/lib/extension/client-status";
+import { resolveExtensionLinkState } from "@/lib/extension/link-state";
 import {
   hydrateOnboardingStore,
   resetOnboardingWizardState,
@@ -25,7 +25,7 @@ interface RevoraDashboardProps {
 }
 
 export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
-  const { hydrated, flowComplete } = useOnboardingStore();
+  const { flowComplete } = useOnboardingStore();
   const [imports, setImports] = useState<ImportRecord[]>([]);
   const [hasConnectedExtension, setHasConnectedExtension] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -43,15 +43,18 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
 
   const loadExtensionStatus = useCallback(async () => {
     try {
-      const status = await queryExtensionClientStatus();
-      setHasConnectedExtension(status.verified);
+      const { linked } = await resolveExtensionLinkState();
+      setHasConnectedExtension(linked);
     } catch {
       setHasConnectedExtension(false);
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     hydrateOnboardingStore();
+  }, []);
+
+  useEffect(() => {
     void loadImports();
     void loadExtensionStatus();
   }, [loadImports, loadExtensionStatus]);
@@ -64,19 +67,6 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
   }, []);
 
   const hasImportedReviews = imports.some((item) => item.totalImported > 0);
-
-  if (!hydrated) {
-    return (
-      <s-page inlineSize="small">
-        <s-section>
-          <s-stack alignItems="center" direction="inline" gap="small">
-            <s-spinner accessibilityLabel="Loading Revora" />
-            <s-text color="subdued">Loading...</s-text>
-          </s-stack>
-        </s-section>
-      </s-page>
-    );
-  }
 
   if (!flowComplete) {
     return (

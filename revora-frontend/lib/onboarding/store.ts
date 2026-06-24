@@ -19,13 +19,16 @@ export interface OnboardingSnapshot {
   hydrated: boolean;
 }
 
+// SSR defaults to the post-onboarding dashboard so merchants are not blocked on a
+// client-only "Loading..." gate while embedded admin JS hydrates.
 const serverSnapshot: OnboardingSnapshot = {
-  hydrated: false,
-  flowComplete: false,
+  hydrated: true,
+  flowComplete: true,
   extensionInstallAck: false,
 };
 
 let snapshot: OnboardingSnapshot = serverSnapshot;
+let storageHydrated = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -64,22 +67,40 @@ function stripDevResetParam() {
   window.history.replaceState({}, "", nextUrl);
 }
 
-/** Hydrate store from localStorage, migrate legacy keys, and handle dev ?reset=1. */
-export function hydrateOnboardingStore() {
-  if (typeof window === "undefined") {
-    return snapshot;
-  }
-
+function hydrateOnboardingStoreFromStorage() {
   if (
     process.env.NODE_ENV === "development" &&
     new URLSearchParams(window.location.search).get("reset") === "1"
   ) {
     resetOnboardingWizardState();
     stripDevResetParam();
-  } else if (shouldMigrateLegacyFlowComplete()) {
+    return;
+  }
+
+  if (shouldMigrateLegacyFlowComplete()) {
     completeOnboardingFlow();
-  } else {
-    applyStorageToSnapshot();
+    return;
+  }
+
+  applyStorageToSnapshot();
+}
+
+/** Hydrate store from localStorage, migrate legacy keys, and handle dev ?reset=1. */
+export function hydrateOnboardingStore() {
+  if (typeof window === "undefined") {
+    return snapshot;
+  }
+
+  if (storageHydrated) {
+    return snapshot;
+  }
+
+  storageHydrated = true;
+
+  try {
+    hydrateOnboardingStoreFromStorage();
+  } catch {
+    snapshot = { ...serverSnapshot, hydrated: true };
   }
 
   snapshot = { ...snapshot, hydrated: true };
@@ -121,6 +142,7 @@ export function acknowledgeExtensionInstall() {
 export function resetOnboardingWizardState() {
   clearRevoraClientStorageKeys();
   persistFlowRestarted();
+  storageHydrated = true;
   snapshot = {
     hydrated: true,
     flowComplete: false,

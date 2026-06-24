@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 import { ConnectExtension } from "@/components/connect-extension";
 import {
@@ -73,7 +73,6 @@ export function OnboardingFlow({
   onExtensionStatusChange,
 }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingFlowStepId>("welcome");
-  const [hydrated, setHydrated] = useState(false);
   const [suppressAutoComplete, setSuppressAutoComplete] = useState(false);
   const [connectCelebration, setConnectCelebration] = useState(false);
   const { installAcked, acknowledgeExtensionInstall } =
@@ -93,17 +92,14 @@ export function OnboardingFlow({
     completeOnboardingFlow();
   }, []);
 
-  useEffect(() => {
-    const nextStep = readOnboardingFlowStep();
+  useLayoutEffect(() => {
     const restarted = consumeFlowRestarted();
-
-    setStep(nextStep);
+    setStep(readOnboardingFlowStep());
     setSuppressAutoComplete(restarted);
-    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated || suppressAutoComplete || connectCelebration) {
+    if (suppressAutoComplete || connectCelebration) {
       return;
     }
 
@@ -113,7 +109,6 @@ export function OnboardingFlow({
 
     finishFlow("immediate");
   }, [
-    hydrated,
     hasConnectedExtension,
     suppressAutoComplete,
     connectCelebration,
@@ -155,17 +150,6 @@ export function OnboardingFlow({
   function handleConnected() {
     onExtensionStatusChange?.();
     finishFlow("celebrate");
-  }
-
-  if (!hydrated) {
-    return (
-      <s-page inlineSize="small">
-        <s-stack alignItems="center" direction="inline" gap="small">
-          <s-spinner accessibilityLabel="Loading onboarding" />
-          <s-text color="subdued">Loading...</s-text>
-        </s-stack>
-      </s-page>
-    );
   }
 
   const stepIndex = getStepIndex(step);
