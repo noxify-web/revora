@@ -19,6 +19,10 @@ describe("resolveExtensionLinkState", () => {
     vi.stubGlobal("crypto", {
       randomUUID: () => "fast-check-request-id",
     });
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: { postMessage: vi.fn() },
+    });
     vi.mocked(adminFetch).mockReset();
     vi.mocked(readAdminJson).mockReset();
   });

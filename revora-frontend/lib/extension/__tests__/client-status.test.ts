@@ -59,7 +59,7 @@ describe("queryExtensionClientStatus", () => {
     vi.restoreAllMocks();
   });
 
-  it("posts only to the app origin when the extension DOM marker is present", async () => {
+  it("posts to admin and app origins even when the extension DOM marker is present", async () => {
     document.documentElement.dataset.revoraExtensionInstalled = "1";
 
     const parentPostMessage = vi.fn();
@@ -69,6 +69,14 @@ describe("queryExtensionClientStatus", () => {
     });
 
     const statusPromise = queryExtensionClientStatus();
+
+    expect(parentPostMessage).toHaveBeenCalledWith(
+      {
+        type: "REVORA_REQUEST_EXTENSION_STATUS",
+        requestId: "test-request-id",
+      },
+      ADMIN_ORIGIN
+    );
 
     window.dispatchEvent(
       new MessageEvent("message", {
@@ -90,7 +98,6 @@ describe("queryExtensionClientStatus", () => {
       verified: true,
       shop: "demo.myshopify.com",
     });
-    expect(parentPostMessage).not.toHaveBeenCalled();
   });
 
   it("posts to admin and app origins when the DOM marker is absent", async () => {

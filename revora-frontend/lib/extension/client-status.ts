@@ -2,10 +2,13 @@ import type { ExtensionStatusResponse } from "@revora/shared/extension-messages"
 
 export const EXTENSION_STATUS_TIMEOUT_MS = 3000;
 export const EXTENSION_STATUS_FAST_TIMEOUT_MS = 800;
+export const EXTENSION_PAIRING_WAIT_ATTEMPTS = 20;
+export const EXTENSION_PAIRING_WAIT_DELAY_MS = 500;
 
 export interface QueryExtensionClientStatusOptions {
   timeoutMs?: number;
 }
+
 const ADMIN_ORIGIN = "https://admin.shopify.com";
 
 export interface ExtensionClientStatus {
@@ -27,10 +30,6 @@ const EMPTY_STATUS: ExtensionClientStatus = {
   shop: null,
 };
 
-function isExtensionMarkedInstalledInDom() {
-  return document.documentElement.dataset.revoraExtensionInstalled === "1";
-}
-
 function isAllowedStatusResponseOrigin(origin: string) {
   return origin === window.location.origin || origin === ADMIN_ORIGIN;
 }
@@ -43,12 +42,6 @@ export function queryExtensionClientStatus(
   }
 
   const timeoutMs = options.timeoutMs ?? EXTENSION_STATUS_TIMEOUT_MS;
-
-  if (isExtensionMarkedInstalledInDom()) {
-    return queryExtensionClientStatusViaMessage([window.location.origin], {
-      timeoutMs,
-    });
-  }
 
   return queryExtensionClientStatusViaMessage(
     [ADMIN_ORIGIN, window.location.origin],
@@ -127,4 +120,13 @@ export async function waitForExtensionClientStatus(
   }
 
   return queryExtensionClientStatus();
+}
+
+/** Poll longer after broadcasting a connect token in the embedded admin. */
+export function waitForExtensionPairingAfterConnect() {
+  return waitForExtensionClientStatus({
+    attempts: EXTENSION_PAIRING_WAIT_ATTEMPTS,
+    delayMs: EXTENSION_PAIRING_WAIT_DELAY_MS,
+    requirePaired: true,
+  });
 }

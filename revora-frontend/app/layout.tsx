@@ -45,13 +45,11 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
         <AppNav />
+        <ExtensionBridge />
         <div aria-busy="true" id="revora-polaris-shell">
           Loading Revora…
         </div>
-        <div data-revora-app>
-          <ExtensionBridge />
-          {children}
-        </div>
+        <div data-revora-app>{children}</div>
       </body>
     </html>
   );

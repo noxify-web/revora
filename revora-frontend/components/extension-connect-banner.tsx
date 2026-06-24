@@ -11,7 +11,7 @@ import { openChromeWebStore } from "@/components/onboarding-shared";
 import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
 import {
   isExtensionLinked,
-  waitForExtensionClientStatus,
+  waitForExtensionPairingAfterConnect,
 } from "@/lib/extension/client-status";
 import { resolveExtensionLinkState } from "@/lib/extension/link-state";
 import { EXTENSION_CONNECT_GUIDE } from "@/lib/onboarding/constants";
@@ -79,9 +79,7 @@ export function ExtensionConnectBanner({
         shop: data.shop,
       });
 
-      const status = await waitForExtensionClientStatus({
-        requirePaired: true,
-      });
+      const status = await waitForExtensionPairingAfterConnect();
       setExtensionInstalled(status.installed);
 
       if (!status.installed) {

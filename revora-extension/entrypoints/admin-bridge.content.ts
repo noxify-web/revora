@@ -1,4 +1,5 @@
 import {
+  isRevoraDevTunnelOrigin,
   REVORA_APP_PATH_PATTERN,
   REVORA_CLIENT_ID,
 } from "@revora/shared/constants";
@@ -56,15 +57,18 @@ function isRevoraEmbeddedIframe(url: URL) {
     return true;
   }
 
+  if (!isRevoraDevTunnelOrigin(url.origin)) {
+    return false;
+  }
+
   if (
     url.searchParams.get("embedded") === "1" &&
-    url.searchParams.get("shop") &&
-    isRevoraAppPage()
+    url.searchParams.get("shop")
   ) {
     return true;
   }
 
-  return false;
+  return isRevoraAppPage();
 }
 
 function findRevoraIframe() {
@@ -288,8 +292,16 @@ export default defineContentScript({
     ctx.addEventListener(window, "message", (event: MessageEvent) => {
       handleBridgeMessageEvent(event, {
         acceptOrigin: (origin) => {
+          if (!isRevoraDevTunnelOrigin(origin)) {
+            return false;
+          }
+
           const revoraOrigin = findRevoraIframeOrigin();
-          return revoraOrigin !== null && origin === revoraOrigin;
+          if (revoraOrigin !== null) {
+            return origin === revoraOrigin;
+          }
+
+          return isRevoraAppPage();
         },
       });
     });

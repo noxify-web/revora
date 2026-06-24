@@ -9,7 +9,7 @@ import { broadcastConnectToken } from "@/components/extension-bridge";
 import { adminFetch, readAdminJson } from "@/lib/admin-fetch";
 import {
   isExtensionLinked,
-  waitForExtensionClientStatus,
+  waitForExtensionPairingAfterConnect,
 } from "@/lib/extension/client-status";
 
 interface ExtensionToken {
@@ -101,9 +101,7 @@ export function ConnectExtension({
         shop: data.shop,
       });
 
-      const status = await waitForExtensionClientStatus({
-        requirePaired: true,
-      });
+      const status = await waitForExtensionPairingAfterConnect();
 
       if (!status.installed) {
         throw new Error(

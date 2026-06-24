@@ -26,6 +26,34 @@ export const REVORA_DEV_TUNNEL_MATCHES = [
   "http://127.0.0.1/*",
 ] as const;
 
+/** True for local dev tunnel origins used by the embedded Revora app. */
+export function isRevoraDevTunnelOrigin(origin: string) {
+  try {
+    const { hostname, protocol } = new URL(origin);
+
+    if (
+      protocol === "http:" &&
+      (hostname === "localhost" || hostname === "127.0.0.1")
+    ) {
+      return true;
+    }
+
+    if (protocol !== "https:") {
+      return false;
+    }
+
+    return (
+      hostname.endsWith(".trycloudflare.com") ||
+      hostname.endsWith(".ngrok-free.app") ||
+      hostname.endsWith(".ngrok-free.dev") ||
+      hostname.endsWith(".ngrok.io") ||
+      hostname.endsWith(".ngrok.app")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const PAIRING_PREFIX = "REVORA1.";
 
 export const TEMU_REVIEWS_API_PATH = "/api/bg/engels/reviews/list";

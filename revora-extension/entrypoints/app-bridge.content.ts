@@ -24,7 +24,7 @@ function syncConnectTokenFromDom() {
 
 export default defineContentScript({
   matches: [...REVORA_DEV_TUNNEL_MATCHES],
-  runAt: "document_idle",
+  runAt: "document_start",
   main(ctx) {
     if (!isExtensionContextValid()) {
       return;
@@ -67,7 +67,6 @@ export default defineContentScript({
         acceptOrigin: (origin) => origin === window.location.origin,
         getStatusReplyOrigin: () => window.location.origin,
         getStatusReplyTarget: () => window,
-        requireSameWindowSource: true,
       });
     });
   },
