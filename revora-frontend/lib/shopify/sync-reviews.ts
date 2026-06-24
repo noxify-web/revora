@@ -2,6 +2,8 @@ import type { Session } from "@shopify/shopify-api";
 import { and, eq } from "drizzle-orm";
 
 import { parseStoredPictures } from "@/lib/extension/pictures";
+import { refreshImportPublishCounts } from "@/lib/reviews/import-counts";
+import { getShopAutoPublish } from "@/lib/reviews/settings";
 import { getShopify } from "@/lib/shopify/shopify";
 import { db } from "@/src/db";
 import { importedReviews, reviewImports } from "@/src/db/schema";
@@ -389,31 +391,25 @@ export async function publishImportToShopify(
     throw new Error(message);
   }
 
+  const autoPublish = await getShopAutoPublish(session.shop);
+
   for (const item of succeeded) {
     await db
       .update(importedReviews)
       .set({
-        syncStatus: "published",
+        syncStatus: autoPublish ? "published" : "pending",
         shopifyMetaobjectId: item.metaobjectId,
         syncError: null,
-        publishedAt: now,
+        publishedAt: autoPublish ? now : null,
       })
       .where(eq(importedReviews.id, item.review.id));
   }
 
-  await db
-    .update(reviewImports)
-    .set({
-      publishStatus: failed.length ? "partial" : "published",
-      totalPublished: succeeded.length,
-      publishedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(reviewImports.id, importId));
+  await refreshImportPublishCounts(session.shop, importId);
 
   return {
     importId,
-    published: succeeded.length,
+    published: autoPublish ? succeeded.length : 0,
     failed: failed.length,
     productId: importRecord.shopifyProductId,
     errors: failed.map((item) => item.error).filter(Boolean),

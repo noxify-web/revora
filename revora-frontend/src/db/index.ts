@@ -3,7 +3,9 @@ import { drizzle } from "drizzle-orm/libsql";
 
 import * as schema from "./schema";
 
-function createDatabase() {
+type RevoraDatabase = ReturnType<typeof createTursoDatabase>;
+
+function createTursoDatabase() {
   const url = process.env.TURSO_DATABASE_URL?.trim();
   const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
@@ -22,11 +24,36 @@ function createDatabase() {
 }
 
 const globalForDb = globalThis as typeof globalThis & {
-  __revoraDb?: ReturnType<typeof createDatabase>;
+  __revoraDb?: RevoraDatabase;
 };
 
-export const db = globalForDb.__revoraDb ?? createDatabase();
+function getDatabase() {
+  if (process.env.VITEST === "true" && globalForDb.__revoraDb) {
+    return globalForDb.__revoraDb;
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.__revoraDb = db;
+  if (globalForDb.__revoraDb) {
+    return globalForDb.__revoraDb;
+  }
+
+  const database = createTursoDatabase();
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForDb.__revoraDb = database;
+  }
+
+  return database;
 }
+
+export const db = new Proxy({} as RevoraDatabase, {
+  get(_target, property, receiver) {
+    const database = getDatabase();
+    const value = Reflect.get(database, property, receiver);
+
+    if (typeof value === "function") {
+      return value.bind(database);
+    }
+
+    return value;
+  },
+});

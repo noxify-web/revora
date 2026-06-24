@@ -6,6 +6,8 @@ import {
   serializePictures,
 } from "@/lib/extension/pictures";
 import { REVORA_PLAN } from "@/lib/plans";
+import { refreshImportPublishCounts } from "@/lib/reviews/import-counts";
+import { getShopAutoPublish } from "@/lib/reviews/settings";
 import { db } from "@/src/db";
 import { importedReviews, reviewImports } from "@/src/db/schema";
 
@@ -80,12 +82,13 @@ export async function processImportBatch(
 
   const currentTotal = importRecord.totalImported ?? 0;
   const reviewsToInsert = body.reviews;
+  const autoPublish = await getShopAutoPublish(shop);
 
   let inserted = 0;
   let skipped = 0;
-
   for (const review of reviewsToInsert) {
     try {
+      const syncStatus = autoPublish ? "published" : "pending";
       await db.insert(importedReviews).values({
         id: randomUUID(),
         shop,
@@ -100,7 +103,11 @@ export async function processImportBatch(
         pictures: serializePictures(normalizePictureUrls(review.pictures)),
         shopifyProductId:
           body.shopifyProductId ?? importRecord.shopifyProductId,
-        syncStatus: "pending",
+        source: "temu",
+        helpfulCount: 0,
+        notHelpfulCount: 0,
+        syncStatus,
+        publishedAt: autoPublish ? now : null,
         createdAt: now,
       });
       inserted += 1;
@@ -125,6 +132,8 @@ export async function processImportBatch(
       completedAt: body.isFinal ? now : null,
     })
     .where(eq(reviewImports.id, importRecord.id));
+
+  await refreshImportPublishCounts(shop, importRecord.id);
 
   return {
     importId: importRecord.id,

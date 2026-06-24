@@ -15,10 +15,12 @@ describe("revora-widget storefront bundle", () => {
 
     expect(css).toContain(REVORA_WIDGET_PALETTE.brand.toLowerCase());
     expect(css).toContain(REVORA_WIDGET_PALETTE.surfaceSubdued.toLowerCase());
-    expect(css).toContain(REVORA_WIDGET_PALETTE.surfaceHover);
+    expect(css).toContain(".revora-reviews-summary");
+    expect(css).toContain(".revora-reviews__toolbar");
+    expect(css).toContain(".revora-reviews__form");
   });
 
-  it("ships only the widget palette in the compiled storefront asset", () => {
+  it("ships interactive storefront features in the compiled asset", () => {
     const widgetSource = readFileSync(
       join(
         __dirname,
@@ -29,7 +31,12 @@ describe("revora-widget storefront bundle", () => {
 
     expect(widgetSource).toContain(REVORA_WIDGET_PALETTE.brand);
     expect(widgetSource).toContain(".revora-reviews");
-    expect(widgetSource).toContain("revora-reviews-styles");
+    expect(widgetSource).toContain("data-revora-sort");
+    expect(widgetSource).toContain("data-revora-photos-only");
+    expect(widgetSource).toContain("data-revora-vote");
+    expect(widgetSource).toContain("data-revora-review-form");
+    expect(widgetSource).toContain("revora-reviews-summary");
+    expect(widgetSource).toContain("/apps/revora/reviews");
     expect(widgetSource).not.toContain("fontSizeBase");
     expect(widgetSource).not.toContain("shadowPopover");
   });

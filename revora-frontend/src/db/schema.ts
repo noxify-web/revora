@@ -32,6 +32,14 @@ export const shopPlans = sqliteTable("ShopPlan", {
   updatedAt: text("updatedAt").notNull(),
 });
 
+export const shopSettings = sqliteTable("ShopSettings", {
+  shop: text("shop").primaryKey(),
+  autoPublishReviews: integer("autoPublishReviews", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  updatedAt: text("updatedAt").notNull(),
+});
+
 export const extensionTokens = sqliteTable("ExtensionToken", {
   id: text("id").primaryKey(),
   shop: text("shop").notNull(),
@@ -92,6 +100,10 @@ export const importedReviews = sqliteTable(
     reviewTime: integer("reviewTime"),
     pictures: text("pictures"),
     shopifyProductId: text("shopifyProductId"),
+    source: text("source").notNull().default("temu"),
+    authorEmail: text("authorEmail"),
+    helpfulCount: integer("helpfulCount").notNull().default(0),
+    notHelpfulCount: integer("notHelpfulCount").notNull().default(0),
     syncStatus: text("syncStatus").notNull().default("pending"),
     shopifyMetaobjectId: text("shopifyMetaobjectId"),
     syncError: text("syncError"),

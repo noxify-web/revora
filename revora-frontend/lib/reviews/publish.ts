@@ -1,6 +1,7 @@
 import type { Session } from "@shopify/shopify-api";
 import { and, eq } from "drizzle-orm";
 
+import { refreshImportPublishCounts } from "@/lib/reviews/import-counts";
 import { db } from "@/src/db";
 import { importedReviews, reviewImports } from "@/src/db/schema";
 
@@ -52,19 +53,7 @@ export async function publishImportToStorefront(
       .where(eq(importedReviews.id, review.id));
   }
 
-  const totalPublished =
-    (importRecord.totalPublished ?? 0) + pendingReviews.length;
-  const allPublished = totalPublished >= reviews.length;
-
-  await db
-    .update(reviewImports)
-    .set({
-      publishStatus: allPublished ? "published" : "partial",
-      totalPublished,
-      publishedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(reviewImports.id, importId));
+  await refreshImportPublishCounts(session.shop, importId);
 
   return {
     importId,

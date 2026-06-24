@@ -1,230 +1,284 @@
-import { getRevoraReviewsWidgetCss } from "@revora/shared/theme-storefront";
+import { fetchReviews, submitReview, voteReview } from "./revora-widget-api";
+import {
+  escapeHtml,
+  injectStyles,
+  readI18n,
+  renderFullWidget,
+  renderLoading,
+  renderSummary,
+} from "./revora-widget-render";
+import type { SortOption, WidgetState } from "./revora-widget-types";
 
 declare global {
   interface Window {
     __revoraReviewsWidgetLoaded?: boolean;
+    __revoraWidgetState?: Map<HTMLElement, WidgetState>;
+  }
+}
+
+function getStateMap() {
+  if (!window.__revoraWidgetState) {
+    window.__revoraWidgetState = new Map();
+  }
+
+  return window.__revoraWidgetState;
+}
+
+function getReviewLimit(root: HTMLElement) {
+  return Number.parseInt(root.dataset.limit || "10", 10) || 10;
+}
+
+function loadFullWidgetReviews(root: HTMLElement, state: WidgetState) {
+  const shop = root.dataset.shop;
+  const productId = root.dataset.productId;
+  if (!(shop && productId)) {
+    return Promise.resolve();
+  }
+
+  state.loading = true;
+  renderFullWidget(root, state);
+
+  return fetchReviews(shop, productId, {
+    limit: getReviewLimit(root),
+    sort: state.sort,
+    photosOnly: state.photosOnly,
+  }).then((data) => {
+    state.allReviews = Array.isArray(data.reviews) ? data.reviews : [];
+    state.count = Number(data.count) || 0;
+    state.averageRating = Number(data.averageRating) || 0;
+    state.loading = false;
+    renderFullWidget(root, state);
+  });
+}
+
+function bindWidgetEvents(root: HTMLElement) {
+  if (root.dataset.revoraEventsBound === "true") {
+    return;
+  }
+
+  root.dataset.revoraEventsBound = "true";
+
+  root.addEventListener("change", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.matches("[data-revora-sort]")) {
+      return;
+    }
+
+    const state = getStateMap().get(root);
+    if (!state) {
+      return;
+    }
+
+    state.sort =
+      ((target as HTMLSelectElement).value as SortOption) || "recent";
+    void loadFullWidgetReviews(root, state);
+  });
+
+  root.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+
+    const state = getStateMap().get(root);
+    if (!state) {
+      return;
+    }
+
+    const shop = root.dataset.shop;
+    const productId = root.dataset.productId;
+
+    if (target.closest("[data-revora-photos-only]")) {
+      state.photosOnly = !state.photosOnly;
+      void loadFullWidgetReviews(root, state);
+      return;
+    }
+
+    if (target.closest("[data-revora-toggle-form]")) {
+      root.dataset.revoraShowForm =
+        root.dataset.revoraShowForm === "true" ? "false" : "true";
+      renderFullWidget(root, state);
+      return;
+    }
+
+    const scoreButton = target.closest<HTMLElement>("[data-revora-score]");
+    if (scoreButton?.dataset.revoraScore) {
+      state.selectedScore =
+        Number.parseInt(scoreButton.dataset.revoraScore, 10) || 5;
+      renderFullWidget(root, state);
+      return;
+    }
+
+    const voteButton = target.closest<HTMLElement>("[data-revora-vote]");
+    if (voteButton) {
+      const reviewId = voteButton.dataset.reviewId;
+      const vote = voteButton.dataset.revoraVote;
+      if (
+        !(shop && productId && reviewId && vote) ||
+        state.voted.has(reviewId)
+      ) {
+        return;
+      }
+
+      voteReview(shop, reviewId, vote)
+        .then((result) => {
+          state.voted.add(reviewId);
+          state.allReviews = state.allReviews.map((review) =>
+            review.id === reviewId
+              ? {
+                  ...review,
+                  helpfulCount: result.helpfulCount,
+                  notHelpfulCount: result.notHelpfulCount,
+                }
+              : review
+          );
+          renderFullWidget(root, state);
+        })
+        .catch(() => {
+          // Ignore vote failures silently.
+        });
+    }
+  });
+
+  root.addEventListener("submit", (event) => {
+    const form = (event.target as HTMLElement | null)?.closest<HTMLFormElement>(
+      "[data-revora-review-form]"
+    );
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const state = getStateMap().get(root);
+    if (!state) {
+      return;
+    }
+
+    const shop = root.dataset.shop;
+    const productId = root.dataset.productId;
+    if (!(shop && productId)) {
+      return;
+    }
+
+    const i18n = readI18n(root);
+    const formData = new FormData(form);
+    const submitButton = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    submitReview(shop, productId, {
+      authorName: String(formData.get("authorName") || ""),
+      authorEmail: String(formData.get("authorEmail") || ""),
+      comment: String(formData.get("comment") || ""),
+      score: state.selectedScore,
+    })
+      .then((result) => {
+        const success = form.querySelector<HTMLElement>(
+          "[data-revora-form-success]"
+        );
+        if (success) {
+          success.hidden = false;
+          success.textContent = result.message || i18n.formSuccess;
+        }
+
+        form.reset();
+        state.selectedScore = 5;
+        root.dataset.revoraShowForm = "false";
+        return loadFullWidgetReviews(root, state);
+      })
+      .catch((error: Error) => {
+        const success = form.querySelector<HTMLElement>(
+          "[data-revora-form-success]"
+        );
+        if (success) {
+          success.hidden = false;
+          success.textContent = error.message;
+        }
+      })
+      .finally(() => {
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+      });
+  });
+}
+
+function initRoot(root: HTMLElement) {
+  const shop = root.dataset.shop;
+  const productId = root.dataset.productId;
+  const mode = root.dataset.mode || "full";
+  const i18n = readI18n(root);
+
+  if (!(shop && productId)) {
+    return;
+  }
+
+  injectStyles();
+  renderLoading(root, i18n);
+
+  const summaryOnly = mode === "summary";
+
+  fetchReviews(shop, productId, {
+    limit: summaryOnly ? 1 : getReviewLimit(root),
+    summaryOnly,
+    sort: "recent",
+  })
+    .then((data) => {
+      if (summaryOnly) {
+        renderSummary(root, data, i18n);
+        return;
+      }
+
+      const state: WidgetState = {
+        allReviews: Array.isArray(data.reviews) ? data.reviews : [],
+        averageRating: Number(data.averageRating) || 0,
+        count: Number(data.count) || 0,
+        sort: "recent",
+        photosOnly: false,
+        selectedScore: 5,
+        voted: new Set<string>(),
+        loading: false,
+      };
+
+      getStateMap().set(root, state);
+      bindWidgetEvents(root);
+      renderFullWidget(root, state);
+    })
+    .catch(() => {
+      if (mode === "summary") {
+        root.innerHTML = "";
+        return;
+      }
+
+      const emptyI18n = readI18n(root);
+      root.innerHTML =
+        '<div class="revora-reviews"><p class="revora-reviews__empty">' +
+        escapeHtml(emptyI18n.empty) +
+        "</p></div>";
+    });
+}
+
+function init() {
+  const roots = document.querySelectorAll<HTMLElement>(
+    "#revora-reviews-root, .revora-reviews-root, .revora-reviews-summary-root"
+  );
+
+  for (const root of roots) {
+    if (root.dataset.revoraInitialized === "true") {
+      continue;
+    }
+
+    root.dataset.revoraInitialized = "true";
+    initRoot(root);
   }
 }
 
 if (!window.__revoraReviewsWidgetLoaded) {
   window.__revoraReviewsWidgetLoaded = true;
-
-  const STYLE_ID = "revora-reviews-styles";
-  const API_PATH = "/apps/revora/reviews";
-  const CSS = getRevoraReviewsWidgetCss();
-
-  function injectStyles() {
-    if (document.getElementById(STYLE_ID)) {
-      return;
-    }
-
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = CSS;
-    document.head.appendChild(style);
-  }
-
-  function escapeHtml(text: unknown) {
-    const div = document.createElement("div");
-    div.textContent = text == null ? "" : String(text);
-    return div.innerHTML;
-  }
-
-  function formatCount(template: string, count: number) {
-    const value = String(count);
-    return (template || `${value} reviews`)
-      .replace(/__COUNT__/g, value)
-      .replace(/\{\{\s*count\s*\}\}/g, value);
-  }
-
-  function renderStars(rating: number) {
-    const numericRating = Number(rating) || 0;
-    let html = "";
-
-    for (let i = 1; i <= 5; i += 1) {
-      html +=
-        '<span class="revora-reviews__star' +
-        (i <= numericRating ? " is-filled" : "") +
-        '">★</span>';
-    }
-
-    return html;
-  }
-
-  function readI18n(root: HTMLElement) {
-    return {
-      count: root.dataset.i18nCount || "__COUNT__ reviews",
-      empty:
-        root.dataset.i18nEmpty ||
-        "No reviews published yet. Import and publish from Revora.",
-      customer: root.dataset.i18nCustomer || "Customer",
-      photoAlt: root.dataset.i18nPhotoAlt || "Review photo",
-      loading: root.dataset.i18nLoading || "Loading reviews…",
-    };
-  }
-
-  interface Review {
-    authorName?: string;
-    comment?: string;
-    pictures?: string[];
-    reviewDate?: string;
-    score?: number;
-  }
-
-  function renderReview(review: Review, i18n: ReturnType<typeof readI18n>) {
-    const author = review.authorName || i18n.customer;
-    const score = Math.min(5, Math.max(1, Number(review.score) || 5));
-    const comment = review.comment || "";
-    const date = review.reviewDate || "";
-    const pictures = Array.isArray(review.pictures) ? review.pictures : [];
-    let photosHtml = "";
-
-    if (pictures.length > 0) {
-      photosHtml =
-        '<div class="revora-reviews__photos">' +
-        pictures
-          .map(
-            (url) =>
-              '<img src="' +
-              escapeHtml(url) +
-              '" alt="' +
-              escapeHtml(i18n.photoAlt) +
-              '" loading="lazy" width="72" height="72">'
-          )
-          .join("") +
-        "</div>";
-    }
-
-    return (
-      '<article class="revora-reviews__item">' +
-      '<div class="revora-reviews__item-head">' +
-      "<strong>" +
-      escapeHtml(author) +
-      "</strong>" +
-      '<span class="revora-reviews__item-score" aria-label="' +
-      score +
-      ' out of 5 stars">' +
-      renderStars(score) +
-      "</span>" +
-      "</div>" +
-      (date ? `<p class="revora-reviews__date">${escapeHtml(date)}</p>` : "") +
-      '<p class="revora-reviews__comment">' +
-      escapeHtml(comment) +
-      "</p>" +
-      photosHtml +
-      "</article>"
-    );
-  }
-
-  function renderWidget(
-    root: HTMLElement,
-    data: {
-      count?: number;
-      averageRating?: number;
-      reviews?: Review[];
-    },
-    i18n: ReturnType<typeof readI18n>
-  ) {
-    const count = Number(data.count) || 0;
-    const average = Number(data.averageRating) || 0;
-    const reviews = Array.isArray(data.reviews) ? data.reviews : [];
-
-    if (count === 0 || reviews.length === 0) {
-      root.innerHTML =
-        '<div class="revora-reviews"><p class="revora-reviews__empty">' +
-        escapeHtml(i18n.empty) +
-        "</p></div>";
-      return;
-    }
-
-    root.innerHTML =
-      '<div class="revora-reviews">' +
-      '<div class="revora-reviews__header">' +
-      '<div class="revora-reviews__score">' +
-      '<span class="revora-reviews__average">' +
-      escapeHtml(average.toFixed(1)) +
-      "</span>" +
-      '<div class="revora-reviews__stars" aria-label="' +
-      average +
-      ' out of 5 stars">' +
-      renderStars(average) +
-      "</div>" +
-      "</div>" +
-      '<p class="revora-reviews__count">' +
-      escapeHtml(formatCount(i18n.count, count)) +
-      "</p>" +
-      "</div>" +
-      '<div class="revora-reviews__list">' +
-      reviews.map((review) => renderReview(review, i18n)).join("") +
-      "</div>" +
-      "</div>";
-  }
-
-  function renderLoading(root: HTMLElement, i18n: ReturnType<typeof readI18n>) {
-    root.innerHTML =
-      '<div class="revora-reviews revora-reviews--loading"><p class="revora-reviews__empty">' +
-      escapeHtml(i18n.loading) +
-      "</p></div>";
-  }
-
-  function fetchReviews(shop: string, productId: string, limit: number) {
-    const params = new URLSearchParams({
-      shop,
-      product_id: String(productId),
-      limit: String(limit),
-    });
-
-    return fetch(`${API_PATH}?${params.toString()}`, {
-      headers: { Accept: "application/json" },
-      credentials: "same-origin",
-    }).then((response) => {
-      if (!response.ok) {
-        throw new Error(`Revora reviews request failed (${response.status})`);
-      }
-
-      return response.json();
-    });
-  }
-
-  function initRoot(root: HTMLElement) {
-    const shop = root.dataset.shop;
-    const productId = root.dataset.productId;
-    const limit = Number.parseInt(root.dataset.limit || "10", 10) || 10;
-    const i18n = readI18n(root);
-
-    if (!(shop && productId)) {
-      return;
-    }
-
-    injectStyles();
-    renderLoading(root, i18n);
-
-    fetchReviews(shop, productId, limit)
-      .then((data) => {
-        renderWidget(root, data, i18n);
-      })
-      .catch(() => {
-        root.innerHTML =
-          '<div class="revora-reviews"><p class="revora-reviews__empty">' +
-          escapeHtml(i18n.empty) +
-          "</p></div>";
-      });
-  }
-
-  function init() {
-    const roots = document.querySelectorAll<HTMLElement>(
-      "#revora-reviews-root, .revora-reviews-root"
-    );
-
-    for (const root of roots) {
-      if (root.dataset.revoraInitialized === "true") {
-        continue;
-      }
-
-      root.dataset.revoraInitialized = "true";
-      initRoot(root);
-    }
-  }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

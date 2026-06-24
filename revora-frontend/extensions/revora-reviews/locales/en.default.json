@@ -5,6 +5,22 @@
     "loading_reviews": "Loading reviews…",
     "customer": "Customer",
     "review_photo_alt": "Review photo",
-    "stars_aria_label": "{{ rating }} out of 5 stars"
+    "stars_aria_label": "{{ rating }} out of 5 stars",
+    "summary_link": "See all reviews",
+    "sort_label": "Sort by",
+    "sort_recent": "Most recent",
+    "sort_highest": "Highest rated",
+    "sort_lowest": "Lowest rated",
+    "sort_helpful": "Most helpful",
+    "photos_only": "Photos only",
+    "helpful": "Helpful",
+    "not_helpful": "Not helpful",
+    "write_review": "Write a review",
+    "form_title": "Share your experience",
+    "form_name": "Your name",
+    "form_email": "Email (optional)",
+    "form_rating": "Rating",
+    "form_submit": "Submit review",
+    "form_success": "Thank you! Your review was submitted."
   }
 }

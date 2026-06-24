@@ -15,6 +15,14 @@
           "label": "Maximum reviews to show"
         }
       }
+    },
+    "reviews_summary": {
+      "name": "Revora rating summary",
+      "settings": {
+        "summary_anchor": {
+          "label": "Link to full reviews section (anchor)"
+        }
+      }
     }
   }
 }

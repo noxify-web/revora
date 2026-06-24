@@ -1,0 +1,32 @@
+{% if product %}
+  <div
+    class="revora-reviews-summary-root"
+    data-shop="{{ shop.permanent_domain }}"
+    data-product-id="{{ product.id }}"
+    data-mode="summary"
+    data-summary-anchor="{{ block.settings.summary_anchor | default: '#revora-reviews-section' | escape }}"
+    data-i18n-count="{{ 'revora.reviews_count' | t: count: '__COUNT__' | escape }}"
+    data-i18n-summary-link="{{ 'revora.summary_link' | t | escape }}"
+    data-i18n-loading="{{ 'revora.loading_reviews' | t | escape }}"
+  ></div>
+
+  <script src="{{ 'revora-widget.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "t:blocks.reviews_summary.name",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product", "collection", "search"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "summary_anchor",
+      "label": "t:blocks.reviews_summary.settings.summary_anchor.label",
+      "default": "#revora-reviews-section"
+    }
+  ]
+}
+{% endschema %}

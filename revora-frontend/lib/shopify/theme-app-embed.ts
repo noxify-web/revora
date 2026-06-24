@@ -157,7 +157,8 @@ function hasEnabledProductAppBlock(
         typeof type === "string" &&
         isEnabledThemeBlock(block) &&
         matchesRevoraBlockType(type, apiKey) &&
-        type.toLowerCase().includes("/blocks/reviews/")
+        (type.toLowerCase().includes("/blocks/reviews/") ||
+          type.toLowerCase().includes("/blocks/reviews-summary"))
       ) {
         return true;
       }

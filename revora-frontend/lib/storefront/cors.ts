@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const STOREFRONT_METHODS = "GET, OPTIONS";
+const STOREFRONT_METHODS = "GET, POST, OPTIONS";
 const STOREFRONT_HEADERS = "Content-Type";
 
 const MYSHOPIFY_ORIGIN = /^https:\/\/[\w-]+\.myshopify\.com$/;

@@ -56,7 +56,11 @@ export function StorefrontWidgetGuide({
           <s-list-item>Open the theme editor on a product page</s-list-item>
           <s-list-item>
             Enable <s-text type="strong">Revora Reviews</s-text> under App
-            embeds
+            embeds for the full review section
+          </s-list-item>
+          <s-list-item>
+            Add the <s-text type="strong">Revora rating summary</s-text> block
+            under the product title or on collection cards
           </s-list-item>
           <s-list-item>Save your theme</s-list-item>
         </s-ordered-list>

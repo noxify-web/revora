@@ -1,7 +1,7 @@
 import { getPublishedReviewsForProduct } from "@/lib/reviews/storefront";
+import { parseStorefrontQueryOptions } from "@/lib/reviews/storefront-core";
 
 const SHOP_DOMAIN = /^[\w-]+\.myshopify\.com$/;
-const MAX_REVIEW_LIMIT = 30;
 
 function normalizeShopDomain(shop: string | null) {
   if (!shop) {
@@ -29,12 +29,7 @@ export async function handleStorefrontReviewsRequest(
 ) {
   const shop = normalizeShopDomain(searchParams.get("shop"));
   const productId = searchParams.get("product_id")?.trim() || null;
-  const limitParam = searchParams.get("limit");
-  const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
-  const limit =
-    parsedLimit === undefined
-      ? undefined
-      : Math.min(MAX_REVIEW_LIMIT, parsedLimit);
+  const queryOptions = parseStorefrontQueryOptions(searchParams);
 
   if (!(shop && SHOP_DOMAIN.test(shop))) {
     return {
@@ -50,15 +45,25 @@ export async function handleStorefrontReviewsRequest(
     };
   }
 
-  if (limit !== undefined && (!Number.isFinite(limit) || limit < 1)) {
+  if (queryOptions.invalidLimit) {
     return {
       status: 400,
       body: { error: "Invalid limit parameter" },
     };
   }
 
+  if (queryOptions.invalidSort) {
+    return {
+      status: 400,
+      body: { error: "Invalid sort parameter" },
+    };
+  }
+
   const payload = await getPublishedReviewsForProduct(shop, productId, {
-    limit,
+    limit: queryOptions.limit,
+    sort: queryOptions.sort,
+    photosOnly: queryOptions.photosOnly,
+    summaryOnly: queryOptions.summaryOnly,
   });
 
   return {
