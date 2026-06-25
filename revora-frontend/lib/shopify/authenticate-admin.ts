@@ -3,6 +3,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { extensionJsonResponse } from "@/lib/extension/cors";
+import {
+  getMissingConfiguredScopes,
+  sessionHasRequiredScopes,
+} from "@/lib/shopify/required-scopes";
 
 import { getShopify, sessionStorage } from "./shopify";
 
@@ -48,6 +52,36 @@ function buildBounceRedirectUrl(
   return `/session-token-bounce?${params.toString()}`;
 }
 
+async function exchangeOfflineSession(shop: string, sessionToken: string) {
+  const shopify = getShopify();
+  const offlineId = shopify.session.getOfflineId(shop);
+
+  await sessionStorage.deleteSession(offlineId);
+
+  const { session: exchangedSession } = await shopify.auth.tokenExchange({
+    shop,
+    sessionToken,
+    requestedTokenType: RequestedTokenType.OfflineAccessToken,
+  });
+
+  await sessionStorage.storeSession(exchangedSession);
+
+  return exchangedSession;
+}
+
+export async function refreshOfflineSession(
+  shop: string,
+  sessionToken: string
+) {
+  const session = await exchangeOfflineSession(shop, sessionToken);
+
+  return {
+    session,
+    missingScopes: getMissingConfiguredScopes(session),
+    scopeUpgradeRequired: !sessionHasRequiredScopes(session),
+  };
+}
+
 async function resolveAuthenticatedAdmin(
   searchParams: URLSearchParams
 ): Promise<AuthenticatedAdmin> {
@@ -69,15 +103,8 @@ async function resolveAuthenticatedAdmin(
     const offlineId = shopify.session.getOfflineId(shop);
     let session = await sessionStorage.loadSession(offlineId);
 
-    if (!session?.accessToken) {
-      const { session: exchangedSession } = await shopify.auth.tokenExchange({
-        shop,
-        sessionToken,
-        requestedTokenType: RequestedTokenType.OfflineAccessToken,
-      });
-
-      await sessionStorage.storeSession(exchangedSession);
-      session = exchangedSession;
+    if (!(session?.accessToken && sessionHasRequiredScopes(session))) {
+      session = await exchangeOfflineSession(shop, sessionToken);
     }
 
     return {

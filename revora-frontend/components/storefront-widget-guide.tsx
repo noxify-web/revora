@@ -3,7 +3,7 @@
 import { getThemeEditorProductUrl } from "@revora/shared/shopify-admin";
 import { useCallback, useEffect, useState } from "react";
 
-import { adminFetchJson } from "@/lib/admin-fetch";
+import { adminFetch, adminFetchJson } from "@/lib/admin-fetch";
 import type { RevoraStorefrontWidgetStatus } from "@/lib/shopify/theme-app-embed";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 
@@ -21,6 +21,7 @@ export function StorefrontWidgetGuide({
   const [status, setStatus] = useState<RevoraStorefrontWidgetStatus | null>(
     null
   );
+  const [refreshingScopes, setRefreshingScopes] = useState(false);
   const themeEditorUrl = getThemeEditorProductUrl(shop, shopifyApiKey);
 
   const loadStatus = useCallback(async () => {
@@ -29,15 +30,46 @@ export function StorefrontWidgetGuide({
         "/api/admin/theme-embed-status"
       );
       setStatus(data);
+      return data;
     } catch {
       setStatus(null);
+      return null;
     }
   }, []);
 
+  const refreshScopes = useCallback(async () => {
+    setRefreshingScopes(true);
+
+    try {
+      const response = await adminFetch("/api/admin/refresh-session", {
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        scopeUpgradeRequired?: boolean;
+      };
+
+      if (!data.scopeUpgradeRequired) {
+        await loadStatus();
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setRefreshingScopes(false);
+    }
+  }, [loadStatus]);
+
   useEffect(() => {
     void refreshToken;
-    void loadStatus();
-  }, [loadStatus, refreshToken]);
+    void (async () => {
+      const data = await loadStatus();
+      if (data?.scopeUpgradeRequired) {
+        await refreshScopes();
+      }
+    })();
+  }, [loadStatus, refreshScopes, refreshToken]);
 
   useRefreshOnFocus(() => {
     void loadStatus();
@@ -53,19 +85,27 @@ export function StorefrontWidgetGuide({
     }
 
     return (
-      <s-banner
-        heading="Refresh app permissions to verify theme setup"
-        tone="warning"
-      >
+      <s-banner heading="Approve updated app permissions" tone="warning">
         <s-stack gap="base">
           <s-paragraph>
-            Revora cannot read your theme configuration yet because this shop is
-            missing the <s-text type="strong">read_themes</s-text> app
-            permission. Your app embed may already be enabled — close this tab,
-            open Revora again from <s-text type="strong">Apps</s-text> in
-            Shopify admin, approve the updated permissions if prompted, and this
-            page will show the correct status.
+            Revora needs Shopify to refresh its permissions (including{" "}
+            <s-text type="strong">read_themes</s-text>) before it can verify
+            your theme embed. Your embed may already be enabled.
           </s-paragraph>
+          <s-button
+            loading={refreshingScopes}
+            onClick={() => {
+              void (async () => {
+                const granted = await refreshScopes();
+                if (!granted) {
+                  window.open(window.location.href, "_top");
+                }
+              })();
+            }}
+            variant="primary"
+          >
+            Grant permissions
+          </s-button>
         </s-stack>
       </s-banner>
     );
