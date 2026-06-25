@@ -5,7 +5,7 @@ import {
 } from "@revora/shared/constants";
 import type {
   AdminBridgeRequest,
-  AdminProxyResponse,
+  BackgroundBroadcast,
   ConnectTokenPullResponse,
   ConnectTokenRequest,
   RevoraClearConnectTokenMessage,
@@ -17,13 +17,9 @@ import {
   getFreshConnectToken,
   handleBridgeMessageEvent,
   persistConnectToken,
+  postPairingConfirmed,
 } from "../lib/bridge-connect";
-import {
-  isExtensionContextValid,
-  sendRuntimeMessageSafe,
-} from "../lib/extension-context";
-
-const PROXY_TIMEOUT_MS = 30_000;
+import { isExtensionContextValid } from "../lib/extension-context";
 
 function isRevoraAppPath(path: string) {
   return (
@@ -101,80 +97,8 @@ function findRevoraIframeOrigin() {
   return findRevoraIframe()?.origin ?? null;
 }
 
-function proxyToRevoraApp({
-  path,
-  method = "GET",
-  body,
-  headers = {},
-}: {
-  path: string;
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-}) {
-  return new Promise<unknown>((resolve, reject) => {
-    const match = findRevoraIframe();
-    const iframeWindow = match?.iframe.contentWindow;
-
-    if (!(match && iframeWindow)) {
-      reject(
-        new Error(
-          "Open Revora in Shopify admin first, then try again from the extension."
-        )
-      );
-      return;
-    }
-
-    const { origin } = match;
-    const requestId = crypto.randomUUID();
-
-    const timer = window.setTimeout(() => {
-      window.removeEventListener("message", onResponse);
-      reject(
-        new Error("Revora admin request timed out. Refresh the app page.")
-      );
-    }, PROXY_TIMEOUT_MS);
-
-    function onResponse(event: MessageEvent<AdminProxyResponse>) {
-      if (event.origin !== origin) {
-        return;
-      }
-
-      if (event.data?.type !== "REVORA_ADMIN_PROXY_RESPONSE") {
-        return;
-      }
-
-      if (event.data.requestId !== requestId) {
-        return;
-      }
-
-      window.clearTimeout(timer);
-      window.removeEventListener("message", onResponse);
-
-      if (event.data.ok) {
-        resolve(event.data.data);
-        return;
-      }
-
-      reject(new Error(event.data.error || "Request failed"));
-    }
-
-    window.addEventListener("message", onResponse);
-
-    iframeWindow.postMessage(
-      {
-        type: "REVORA_ADMIN_PROXY_REQUEST",
-        requestId,
-        path,
-        method,
-        body,
-        headers,
-      },
-      origin
-    );
-  });
-}
-
+/** Pull a connect token from the embedded app iframe (race fallback if the
+ * broadcast was missed because admin-bridge loaded after it). */
 function requestConnectTokenFromIframe() {
   return new Promise<ConnectTokenPayload | null>((resolve) => {
     const match = findRevoraIframe();
@@ -240,8 +164,8 @@ function requestConnectTokenFromIframe() {
 
     iframeWindow.postMessage(
       {
-        type: "REVORA_REQUEST_CONNECT_TOKEN",
         requestId,
+        type: "REVORA_REQUEST_CONNECT_TOKEN",
       } satisfies ConnectTokenRequest,
       origin
     );
@@ -269,23 +193,7 @@ function clearPairingState() {
   clearRevoraIframeConnectToken();
 }
 
-function syncOrigin() {
-  if (!isExtensionContextValid()) {
-    return;
-  }
-
-  const origin = findRevoraIframeOrigin();
-  if (!origin) {
-    return;
-  }
-
-  void sendRuntimeMessageSafe({
-    type: "REVORA_SET_API_URL",
-    apiBaseUrl: origin,
-  });
-}
-
-/** Same pull path as the popup "Sync from admin" button, but automatic. */
+/** Pull-on-load so a page refresh mid-pairing still delivers the token. */
 function syncConnectTokenFromAdminIframe() {
   if (!isExtensionContextValid()) {
     return;
@@ -300,43 +208,20 @@ function syncConnectTokenFromAdminIframe() {
   });
 }
 
-function syncRevoraAdminBridge() {
-  syncOrigin();
-  syncConnectTokenFromAdminIframe();
-}
-
 export default defineContentScript({
   matches: ["https://admin.shopify.com/*"],
   allFrames: true,
   runAt: "document_idle",
   main(ctx) {
+    const trustedIframeOrigin = () => findRevoraIframeOrigin();
+
     ctx.addEventListener(window, "message", (event: MessageEvent) => {
-      if (
-        event.data?.type === "REVORA_CONNECT_TOKEN_READY" &&
-        isRevoraAppPage()
-      ) {
-        const origin = event.origin;
-        const allowedOrigin =
-          isRevoraDevTunnelOrigin(origin) ||
-          origin === "https://admin.shopify.com";
-
-        if (allowedOrigin) {
-          syncConnectTokenFromAdminIframe();
-        }
-      }
-
       handleBridgeMessageEvent(event, {
-        acceptOrigin: (origin) => {
-          if (isRevoraDevTunnelOrigin(origin) && isRevoraAppPage()) {
-            return true;
-          }
-
-          if (origin === "https://admin.shopify.com" && isRevoraAppPage()) {
-            return true;
-          }
-
-          return false;
-        },
+        // Accept broadcasts/status requests only from the Revora app iframe
+        // we identified on this page (its origin is known from its src).
+        acceptOrigin: (origin) =>
+          origin === trustedIframeOrigin() ||
+          (isRevoraDevTunnelOrigin(origin) && isRevoraAppPage()),
         getStatusReplyOrigin: () => event.origin,
         getStatusReplyTarget: () =>
           event.source instanceof Window ? event.source : null,
@@ -348,68 +233,53 @@ export default defineContentScript({
         return false;
       }
 
+      // Background broadcast: pairing just succeeded — forward to the app
+      // iframe so it resolves its confirmation promise (zero polling).
+      if (
+        (message as BackgroundBroadcast)?.type === "REVORA_PAIRING_CONFIRMED"
+      ) {
+        const match = findRevoraIframe();
+        const shop = (message as { shop?: string }).shop;
+        if (match?.iframe.contentWindow && shop) {
+          postPairingConfirmed(match.iframe.contentWindow, match.origin, shop);
+        }
+        return false;
+      }
+
       const request = message as AdminBridgeRequest;
 
       if (request.type === "REVORA_PING") {
         sendResponse({ ok: true });
-        return;
-      }
-
-      if (request.type === "REVORA_ADMIN_PROXY") {
-        proxyToRevoraApp({
-          path: request.path,
-          method: request.method,
-          body: request.body,
-          headers: request.headers,
-        })
-          .then((data) => sendResponse({ ok: true, data }))
-          .catch((error: unknown) =>
-            sendResponse({
-              ok: false,
-              unavailable: /open revora in shopify admin/i.test(
-                error instanceof Error ? error.message : ""
-              ),
-              error: error instanceof Error ? error.message : "Proxy failed",
-            })
-          );
-        return true;
-      }
-
-      if (request.type === "REVORA_GET_API_URL") {
-        sendResponse({
-          apiBaseUrl:
-            findRevoraIframeOrigin() || getFreshConnectToken()?.apiUrl || null,
-        });
-        return;
+        return false;
       }
 
       if (request.type === "REVORA_CLEAR_PAIRING") {
         clearPairingState();
         sendResponse({ ok: true });
-        return;
+        return false;
       }
 
       if (request.type === "REVORA_GET_CONNECT_TOKEN") {
         requestConnectTokenFromIframe()
           .then((payload) => {
             sendResponse({
-              token: payload?.token || null,
               apiUrl: payload?.apiUrl || findRevoraIframeOrigin() || null,
-              shop: payload?.shop || null,
               plan: payload?.plan || null,
               planName: payload?.planName || null,
               reviewLimit: payload?.reviewLimit ?? null,
+              shop: payload?.shop || null,
+              token: payload?.token || null,
             });
           })
           .catch(() => {
             const cached = getFreshConnectToken();
             sendResponse({
-              token: cached?.token || null,
               apiUrl: cached?.apiUrl || findRevoraIframeOrigin() || null,
-              shop: cached?.shop || null,
               plan: cached?.plan || null,
               planName: cached?.planName || null,
               reviewLimit: cached?.reviewLimit ?? null,
+              shop: cached?.shop || null,
+              token: cached?.token || null,
             });
           });
         return true;
@@ -419,7 +289,7 @@ export default defineContentScript({
     });
 
     if (isRevoraAppPage()) {
-      syncRevoraAdminBridge();
+      syncConnectTokenFromAdminIframe();
     }
   },
 });

@@ -37,7 +37,7 @@ describe("resolveExtensionLinkState", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns linked when the newest server token has lastUsedAt", async () => {
+  it("returns linked when the newest server token has pairedAt", async () => {
     vi.useFakeTimers();
 
     vi.mocked(adminFetchNoBounce).mockResolvedValue(new Response());
@@ -47,14 +47,17 @@ describe("resolveExtensionLinkState", () => {
           id: "token-1",
           label: "Chrome extension",
           createdAt: "2026-01-01T00:00:00.000Z",
-          lastUsedAt: "2026-01-01T00:00:01.000Z",
+          lastUsedAt: null,
+          pairedAt: "2026-01-01T00:00:01.000Z",
+          expiresAt: null,
+          extensionId: null,
         },
       ],
     });
 
     const statusPromise = resolveExtensionLinkState();
 
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(1600);
 
     await expect(statusPromise).resolves.toEqual({
       linked: true,
@@ -106,7 +109,7 @@ describe("resolveExtensionLinkState", () => {
     });
   });
 
-  it("does not treat an unused token as linked", async () => {
+  it("does not treat an unpaired token as linked", async () => {
     vi.useFakeTimers();
 
     document.documentElement.dataset.revoraExtensionInstalled = "1";
@@ -117,14 +120,17 @@ describe("resolveExtensionLinkState", () => {
           id: "token-1",
           label: "Chrome extension",
           createdAt: "2026-01-01T00:00:00.000Z",
-          lastUsedAt: null,
+          lastUsedAt: "2026-01-01T00:00:02.000Z",
+          pairedAt: null,
+          expiresAt: null,
+          extensionId: null,
         },
       ],
     });
 
     const statusPromise = resolveExtensionLinkState();
 
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(1600);
 
     await expect(statusPromise).resolves.toEqual({
       linked: false,
@@ -147,7 +153,7 @@ describe("resolveExtensionLinkState", () => {
 
     const statusPromise = resolveExtensionLinkState();
 
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(1600);
 
     await expect(statusPromise).resolves.toEqual({
       linked: false,
@@ -177,7 +183,7 @@ describe("resolveExtensionLinkState", () => {
     const first = resolveExtensionLinkState();
     const second = resolveExtensionLinkState();
 
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(1600);
 
     await Promise.all([first, second]);
 

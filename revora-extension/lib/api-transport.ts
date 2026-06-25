@@ -1,55 +1,33 @@
+import { STALE_THRESHOLD_MS, STORAGE_KEYS } from "@revora/shared/constants";
 import type {
   ConnectionState,
   ConnectTokenResponse,
   EnrichedConnection,
   ExtensionConnectPayload,
 } from "@revora/shared/extension-types";
-import {
-  decodePairingCode,
-  encodePairingCode,
-} from "@revora/shared/pairing-code";
-import {
-  clearAdminPairingState,
-  readApiBaseUrlFromAdmin,
-  sendAdminBridgeMessage,
-} from "./admin-tabs";
+import { normalizeApiUrl } from "@revora/shared/extension-types";
+import { clearAdminPairingState } from "./admin-tabs";
 
 interface StoredConnection {
   apiBaseUrl?: string;
-  pairingCode?: string;
   pairingToken?: string;
   shop?: string;
 }
 
 function normalizeApiBaseUrl(url: string | undefined | null) {
-  return url?.replace(/\/$/, "") || "";
+  return url ? normalizeApiUrl(url) : "";
 }
 
 export async function readConnectionState(): Promise<ConnectionState> {
   const stored = (await chrome.storage.sync.get([
-    "pairingToken",
-    "pairingCode",
-    "apiBaseUrl",
-    "shop",
+    STORAGE_KEYS.PAIRING_TOKEN,
+    STORAGE_KEYS.API_BASE_URL,
+    STORAGE_KEYS.SHOP,
   ])) as StoredConnection;
 
-  let pairingToken = stored.pairingToken || "";
-
-  if (!pairingToken && stored.pairingCode) {
-    pairingToken = decodePairingCode(stored.pairingCode).pairingToken || "";
-
-    if (pairingToken) {
-      await chrome.storage.sync.set({ pairingToken });
-    }
-  }
-
-  const storedUrl = normalizeApiBaseUrl(stored.apiBaseUrl);
-  const adminUrl = storedUrl ? null : await readApiBaseUrlFromAdmin();
-
   return {
-    pairingToken,
-    pairingCode: stored.pairingCode,
-    apiBaseUrl: storedUrl || adminUrl || "",
+    pairingToken: stored.pairingToken || "",
+    apiBaseUrl: normalizeApiBaseUrl(stored.apiBaseUrl),
     shop: stored.shop,
   };
 }
@@ -66,6 +44,27 @@ export function enrichConnection(
     shop: data.shop || stored.shop,
     paired: data.paired ?? Boolean(stored.pairingToken),
   };
+}
+
+/** Unix-ms timestamp of the last successful /verify, or 0 if never. */
+export async function readLastVerifiedAt(): Promise<number> {
+  const result = await chrome.storage.sync.get([STORAGE_KEYS.LAST_VERIFIED_AT]);
+  const raw = result[STORAGE_KEYS.LAST_VERIFIED_AT];
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Stamp that the connection was just verified server-side. */
+export async function markVerified(): Promise<void> {
+  await chrome.storage.sync.set({
+    [STORAGE_KEYS.LAST_VERIFIED_AT]: Date.now(),
+  });
+}
+
+/** True when the local verify state is stale enough to warrant a network check. */
+export async function isLocalVerifyStale(): Promise<boolean> {
+  const last = await readLastVerifiedAt();
+  return last === 0 || Date.now() - last > STALE_THRESHOLD_MS;
 }
 
 function ngrokHeaders(apiBaseUrl: string): Record<string, string> {
@@ -120,52 +119,6 @@ async function ensureHostPermission(
   }
 }
 
-type ProxyResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error?: string; unavailable?: boolean };
-
-async function requestViaAdminProxy<T>({
-  path,
-  method = "GET",
-  body,
-  headers = {},
-}: {
-  path: string;
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-}): Promise<ProxyResult<T>> {
-  const response = await sendAdminBridgeMessage<{
-    ok: boolean;
-    data?: T;
-    error?: string;
-    unavailable?: boolean;
-  }>({
-    type: "REVORA_ADMIN_PROXY",
-    path,
-    method,
-    body,
-    headers,
-  });
-
-  if (!response) {
-    return { ok: false, unavailable: true };
-  }
-
-  if (response.ok) {
-    return { ok: true, data: response.data as T };
-  }
-
-  if (!response.unavailable) {
-    return {
-      ok: false,
-      error: response.error || "Request failed",
-    };
-  }
-
-  return { ok: false, unavailable: true };
-}
-
 async function directApiRequest<T>(
   apiBaseUrl: string,
   path: string,
@@ -179,21 +132,13 @@ async function directApiRequest<T>(
   };
 
   const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers });
-  const contentType = response.headers.get("content-type") || "";
   const data = (await response.json().catch(() => ({}))) as T & {
-    error?: string;
     apiUrl?: string;
+    error?: string;
   };
 
   if (!response.ok) {
     throw new Error(data.error || `Request failed (${response.status})`);
-  }
-
-  if (
-    !contentType.includes("application/json") &&
-    Object.keys(data as object).length === 0
-  ) {
-    throw new TypeError("Failed to fetch");
   }
 
   return data;
@@ -208,20 +153,10 @@ export async function persistApiBaseUrl(
   }
 
   const normalized = normalizeApiBaseUrl(apiBaseUrl);
-  const stored = await readConnectionState();
-  const updates: StoredConnection & { pairingCode?: string } = {
-    apiBaseUrl: normalized,
-  };
 
-  if (stored.pairingToken) {
-    updates.pairingToken = stored.pairingToken;
-    updates.pairingCode = encodePairingCode({
-      apiUrl: normalized,
-      token: stored.pairingToken,
-    });
-  }
-
-  await chrome.storage.sync.set(updates);
+  await chrome.storage.sync.set({
+    [STORAGE_KEYS.API_BASE_URL]: normalized,
+  });
 
   try {
     await ensureHostPermission(normalized, { requestPermission });
@@ -243,43 +178,13 @@ export async function verifyConnectionPayload(
     throw new Error("Missing Revora server URL");
   }
 
-  const verifyHeaders = {
-    Authorization: `Bearer ${data.token}`,
-  };
-
-  let verified: { shop: string; paired: boolean } | null = null;
-
-  try {
-    verified = await directApiRequest<{ shop: string; paired: boolean }>(
-      apiBaseUrl,
-      "/api/extension/verify",
-      {
-        headers: verifyHeaders,
-      }
-    );
-  } catch (error) {
-    if (!isNetworkError(error)) {
-      throw error;
-    }
-  }
-
-  if (!verified) {
-    const proxyResult = await requestViaAdminProxy<{
-      shop: string;
-      paired: boolean;
-    }>({
-      path: "/api/extension/verify",
-      headers: verifyHeaders,
-    });
-
-    if (!proxyResult.ok) {
-      throw new Error(
-        proxyResult.error || "Extension token verification failed"
-      );
-    }
-
-    verified = proxyResult.data;
-  }
+  const verified = await directApiRequest<{
+    expiresAt?: string | null;
+    paired: boolean;
+    shop: string;
+  }>(apiBaseUrl, "/api/extension/verify", {
+    headers: { Authorization: `Bearer ${data.token}` },
+  });
 
   if (!verified.paired || verified.shop !== data.shop) {
     throw new Error("Extension token verification failed");
@@ -292,7 +197,15 @@ export async function verifyAndPersistConnection(
   data: ExtensionConnectPayload | ConnectTokenResponse
 ) {
   await verifyConnectionPayload(data);
+  await markVerified();
   await persistConnection(data);
+
+  // Notify the admin app that pairing succeeded so it can resolve its
+  // confirmation promise without polling. Awaited (not fire-and-forget) so the
+  // MV3 service worker stays alive long enough to dispatch the cross-process
+  // message to the content scripts — otherwise the SW can terminate before
+  // delivery and the app falls back to the (slower) server check.
+  await broadcastPairingConfirmed(data.shop);
 }
 
 export async function clearConnection() {
@@ -307,8 +220,12 @@ export async function clearConnection() {
   }
 
   await clearAdminPairingState();
-  await chrome.storage.sync.remove(["pairingToken", "pairingCode", "shop"]);
-  await chrome.storage.sync.set({ userDisconnected: true });
+  await chrome.storage.sync.remove([
+    STORAGE_KEYS.PAIRING_TOKEN,
+    STORAGE_KEYS.SHOP,
+    STORAGE_KEYS.LAST_VERIFIED_AT,
+  ]);
+  await chrome.storage.sync.set({ [STORAGE_KEYS.USER_DISCONNECTED]: true });
 }
 
 export async function persistConnection(
@@ -323,13 +240,9 @@ export async function persistConnection(
   }
 
   await chrome.storage.sync.set({
-    pairingToken: data.token,
-    pairingCode: encodePairingCode({
-      apiUrl: apiBaseUrl,
-      token: data.token,
-    }),
-    shop: data.shop,
-    userDisconnected: false,
+    [STORAGE_KEYS.PAIRING_TOKEN]: data.token,
+    [STORAGE_KEYS.SHOP]: data.shop,
+    [STORAGE_KEYS.USER_DISCONNECTED]: false,
   });
 }
 
@@ -368,53 +281,51 @@ export async function fetchRevora<T>(
 
   const apiBaseUrl = stored.apiBaseUrl;
 
-  if (apiBaseUrl) {
-    try {
-      const data = await directApiRequest<T & { apiUrl?: string }>(
-        apiBaseUrl,
-        path,
-        init
-      );
+  if (!apiBaseUrl) {
+    throw new Error(
+      "Open Revora in Shopify admin, or connect from the extension popup."
+    );
+  }
 
-      if (data.apiUrl && normalizeApiBaseUrl(data.apiUrl) !== apiBaseUrl) {
-        await persistApiBaseUrl(data.apiUrl, { requestPermission: false });
-      }
+  try {
+    const data = await directApiRequest<T & { apiUrl?: string }>(
+      apiBaseUrl,
+      path,
+      init
+    );
 
-      return data;
-    } catch (error) {
-      if (!isNetworkError(error)) {
-        throw error;
-      }
+    // Self-heal: if the server advertises a different canonical URL, adopt it.
+    if (data.apiUrl && normalizeApiBaseUrl(data.apiUrl) !== apiBaseUrl) {
+      await persistApiBaseUrl(data.apiUrl, { requestPermission: false });
     }
+
+    return data;
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new Error(
+        `Cannot reach Revora at ${apiBaseUrl}. Re-connect from the Shopify admin.`
+      );
+    }
+
+    throw error;
   }
-
-  const proxyResult = await requestViaAdminProxy<T>({
-    path,
-    method,
-    body,
-    headers,
-  });
-
-  if (proxyResult.ok) {
-    return proxyResult.data;
-  }
-
-  if (proxyResult.error) {
-    throw new Error(proxyResult.error);
-  }
-
-  throw new Error(
-    apiBaseUrl
-      ? `Cannot reach Revora at ${apiBaseUrl}. Check that shopify app dev is running.`
-      : "Open Revora in Shopify admin, or connect from the extension popup."
-  );
 }
 
-export async function resolveApiBaseUrlForConnect(): Promise<string | null> {
-  const stored = await readConnectionState();
-  if (stored.apiBaseUrl) {
-    return stored.apiBaseUrl;
-  }
+/**
+ * Broadcast `REVORA_PAIRING_CONFIRMED` to all extension content scripts (via
+ * runtime message). Content scripts forward it to the embedded app via
+ * `window.postMessage` with a pinned origin so the app resolves its pairing
+ * promise immediately — zero polling. Returns a promise that resolves once
+ * dispatch is complete (the SW must stay alive to deliver the IPC).
+ */
+function broadcastPairingConfirmed(shop: string): Promise<void> {
+  const message = { type: "REVORA_PAIRING_CONFIRMED" as const, shop };
 
-  return readApiBaseUrlFromAdmin();
+  // Listeners return false (no response) — the promise resolves with undefined
+  // or rejects with "no receiver"; either is fine, we only care that the
+  // message was dispatched.
+  return chrome.runtime
+    .sendMessage(message)
+    .then(() => undefined)
+    .catch(() => undefined);
 }

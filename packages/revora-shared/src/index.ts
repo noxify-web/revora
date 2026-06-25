@@ -5,6 +5,5 @@ export * from "./export-schemas";
 export * from "./extension-messages";
 export * from "./extension-schemas";
 export * from "./extension-types";
-export * from "./pairing-code";
 export * from "./shopify-admin";
 export * from "./theme";

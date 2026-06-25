@@ -4,10 +4,7 @@ import {
   isExtensionLinked,
   queryExtensionClientStatus,
 } from "./client-status";
-import {
-  fetchExtensionTokensFast,
-  newestTokenHasBeenUsed,
-} from "./pairing-confirm";
+import { fetchExtensionTokensFast, newestTokenPaired } from "./pairing-confirm";
 
 const EMPTY_STATUS: ExtensionClientStatus = {
   installed: false,
@@ -36,11 +33,11 @@ let inflightFastCheck: Promise<{
   status: ExtensionClientStatus;
 }> | null = null;
 
-/** Connected when the newest extension token has been used (verify/import). */
+/** Connected when the newest extension token has been verified (pairedAt set). */
 export function isExtensionConnectedOnServer(
   tokens: Awaited<ReturnType<typeof fetchExtensionTokensFast>>
 ) {
-  return newestTokenHasBeenUsed(tokens);
+  return newestTokenPaired(tokens);
 }
 
 async function readCachedExtensionTokens() {

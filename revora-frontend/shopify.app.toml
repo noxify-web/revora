@@ -2,7 +2,7 @@
 
 client_id = "8306c32501330f9312ff84788895ca36"
 name = "Revora: Import Temu reviews"
-application_url = "https://reissue-irritable-slider.ngrok-free.dev"
+application_url = "https://revora-app.example.com"
 embedded = true
 
 [build]
@@ -74,8 +74,7 @@ access.storefront = "public_read"
 
 [auth]
 redirect_urls = [
-  "https://reissue-irritable-slider.ngrok-free.dev/api/auth/callback",
-  "https://reissue-irritable-slider.ngrok-free.dev/api/extension/connect/callback"
+  "https://revora-app.example.com/api/auth/callback"
 ]
 
 [app_proxy]

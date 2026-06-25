@@ -7,11 +7,12 @@ import {
   clearConnection,
   enrichConnection,
   fetchRevora,
+  isLocalVerifyStale,
+  markVerified,
   persistApiBaseUrl,
   readConnectionState,
   verifyAndPersistConnection,
 } from "../lib/api-transport";
-import { connectViaBrowser } from "../lib/connect-browser";
 import { mapTemuReview } from "../lib/review-mapper";
 
 export default defineBackground(() => {
@@ -44,19 +45,12 @@ async function handleMessage(
       token: message.token,
       apiUrl: message.apiUrl,
       shop: message.shop,
-      plan: "free",
-      planName: "Free",
-      reviewLimit: null,
+      plan: message.plan ?? "free",
+      planName: message.planName ?? "Free",
+      reviewLimit: message.reviewLimit ?? null,
     };
 
-    await persistApiBaseUrl(data.apiUrl, { requestPermission: false });
-    await verifyAndPersistConnection(data);
-    return { ok: true, data };
-  }
-
-  if (message.type === "REVORA_CONNECT_BROWSER") {
-    await persistApiBaseUrl(message.apiBaseUrl, { requestPermission: true });
-    const data = await connectViaBrowser(message.apiBaseUrl);
+    await persistApiBaseUrl(data.apiUrl, { requestPermission: true });
     await verifyAndPersistConnection(data);
     return { ok: true, data };
   }
@@ -84,17 +78,31 @@ async function handleMessage(
       };
     }
 
-    try {
-      const data = await fetchRevora("/api/extension/verify");
+    // Trust the local verified state when fresh — avoids hitting /verify on
+    // every popup open / status ping. Only re-verify when stale (>7 days) or
+    // never verified yet.
+    if (!(await isLocalVerifyStale())) {
       return {
         ok: true,
         data: {
           paired: true,
           verified: true,
-          shop:
-            typeof (data as { shop?: string }).shop === "string"
-              ? (data as { shop: string }).shop
-              : stored.shop || null,
+          shop: stored.shop || null,
+        },
+      };
+    }
+
+    try {
+      const data = await fetchRevora<{ shop?: string }>(
+        "/api/extension/verify"
+      );
+      await markVerified();
+      return {
+        ok: true,
+        data: {
+          paired: true,
+          verified: true,
+          shop: typeof data.shop === "string" ? data.shop : stored.shop || null,
         },
       };
     } catch {
@@ -122,6 +130,7 @@ async function handleMessage(
     }
 
     const data = await fetchRevora("/api/extension/verify");
+    await markVerified();
     return {
       ok: true,
       data: enrichConnection(data as Record<string, unknown>, stored),

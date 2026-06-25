@@ -1,24 +1,25 @@
-import type { ConnectTokenDomPayload } from "@revora/shared/bridge-dom";
-import { normalizeConnectApiUrl } from "@revora/shared/bridge-dom";
+import { pendingConnectTokenSchema } from "@revora/shared/extension-schemas";
+import type { PendingConnectToken } from "@revora/shared/extension-types";
 
 const PENDING_CONNECT_TOKEN_KEY = "revora-pending-connect-token";
 
-export function readPendingConnectToken(): ConnectTokenDomPayload | null {
+export function readPendingConnectToken(): PendingConnectToken | null {
   const raw = sessionStorage.getItem(PENDING_CONNECT_TOKEN_KEY);
   if (!raw) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(raw) as ConnectTokenDomPayload;
-    if (!(parsed.token && parsed.apiUrl && parsed.shop)) {
+    const parsed = JSON.parse(raw);
+    const result = pendingConnectTokenSchema.safeParse(parsed);
+    if (!result.success) {
       return null;
     }
 
     return {
-      token: parsed.token,
-      apiUrl: normalizeConnectApiUrl(parsed.apiUrl),
-      shop: parsed.shop,
+      token: result.data.token,
+      apiUrl: result.data.apiUrl.replace(/\/$/, ""),
+      shop: result.data.shop,
     };
   } catch {
     return null;

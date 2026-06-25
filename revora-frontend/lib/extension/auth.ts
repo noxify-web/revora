@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { TOKEN_TTL_MS } from "@revora/shared/constants";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/src/db";
@@ -14,6 +15,44 @@ export function generateExtensionToken() {
     token,
     tokenHash: hashExtensionToken(token),
   };
+}
+
+/** Compute the ISO expiry timestamp `TOKEN_TTL_MS` from `now`. */
+export function computeExpiry(now: number = Date.now()): string {
+  return new Date(now + TOKEN_TTL_MS).toISOString();
+}
+
+/**
+ * Set pairedAt on a token if it has never been paired (first /verify call).
+ * Returns the token's pairedAt value (existing, or the one just written).
+ */
+export async function markTokenPaired(
+  tokenId: string,
+  nowIso: string = new Date().toISOString()
+): Promise<string | null> {
+  const record = await db.query.extensionTokens.findFirst({
+    where: eq(extensionTokens.id, tokenId),
+    columns: { pairedAt: true },
+  });
+
+  if (record?.pairedAt) {
+    return record.pairedAt;
+  }
+
+  await db
+    .update(extensionTokens)
+    .set({ pairedAt: nowIso })
+    .where(eq(extensionTokens.id, tokenId));
+
+  return nowIso;
+}
+
+/** Roll the token's expiry forward on each successful /verify. */
+export async function refreshTokenExpiry(tokenId: string): Promise<void> {
+  await db
+    .update(extensionTokens)
+    .set({ expiresAt: computeExpiry() })
+    .where(eq(extensionTokens.id, tokenId));
 }
 
 export async function authenticateExtensionToken(authorization: string | null) {
@@ -38,12 +77,27 @@ export async function authenticateExtensionToken(authorization: string | null) {
     return null;
   }
 
+  // Reject expired tokens. Null expiresAt = legacy row minted before this column.
+  if (record.expiresAt) {
+    const expiresAtMs = new Date(record.expiresAt).getTime();
+    if (Number.isFinite(expiresAtMs) && expiresAtMs < Date.now()) {
+      return null;
+    }
+  }
+
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const newExpiresAt = computeExpiry(now);
+
   await db
     .update(extensionTokens)
-    .set({ lastUsedAt: new Date().toISOString() })
+    .set({ lastUsedAt: nowIso, expiresAt: newExpiresAt })
     .where(eq(extensionTokens.id, record.id));
 
-  return record;
+  // Mark paired on first verify (best-effort; failure here is non-fatal).
+  const pairedAt = await markTokenPaired(record.id, nowIso);
+
+  return { ...record, expiresAt: newExpiresAt, pairedAt };
 }
 
 export async function revokeShopExtensionTokens(shop: string) {

@@ -6,6 +6,7 @@ import type {
 import type { ConnectTokenResponse } from "@revora/shared/extension-types";
 import { resolveConnectPayloadFromAdmin } from "../../lib/admin-tabs";
 import { revoraBrandLogoMarkup } from "../../lib/brand";
+import { withTimeout } from "../../lib/extension-context";
 import { statusIconForTone } from "../../lib/icons";
 import { injectRevoraRootTheme } from "../../lib/inject-theme";
 
@@ -75,28 +76,6 @@ function applyConnection(data: ConnectTokenResponse) {
 }
 
 const SYNC_FROM_ADMIN_TIMEOUT_MS = 15_000;
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  message: string
-) {
-  return new Promise<T>((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error(message));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error: unknown) => {
-        window.clearTimeout(timer);
-        reject(error);
-      });
-  });
-}
 
 async function syncFromAdmin() {
   const payload = await withTimeout(

@@ -1,13 +1,11 @@
-import {
-  type ConnectTokenDomPayload,
-  readConnectTokenDom,
-} from "@revora/shared/bridge-dom";
 import type {
   BackgroundConnectionStatusResponse,
-  ConnectTokenBroadcast,
   ExtensionStatusRequest,
   ExtensionStatusResponse,
+  PairingConfirmedMessage,
 } from "@revora/shared/extension-messages";
+import { connectTokenBroadcastSchema } from "@revora/shared/extension-schemas";
+import type { PendingConnectToken } from "@revora/shared/extension-types";
 import {
   isExtensionContextValid,
   sendRuntimeMessage,
@@ -19,7 +17,7 @@ const BACKGROUND_RELAY_DELAY_MS = 200;
 
 const CONNECT_TOKEN_CACHE_TTL_MS = 10 * 60 * 1000;
 
-export interface ConnectTokenPayload extends ConnectTokenDomPayload {
+export interface ConnectTokenPayload extends PendingConnectToken {
   plan: string | null;
   planName: string | null;
   reviewLimit: number | null;
@@ -96,35 +94,41 @@ export function markExtensionInstalledOnPage() {
   document.documentElement.dataset.revoraExtensionInstalled = "1";
 }
 
-export function readConnectTokenFromDom(): ConnectTokenPayload | null {
-  const dom = readConnectTokenDom();
-  if (!dom) {
+function parseConnectTokenBroadcast(data: unknown): ConnectTokenPayload | null {
+  const result = connectTokenBroadcastSchema.safeParse(data);
+  if (!result.success) {
     return null;
   }
 
+  const payload = result.data;
+
   return {
-    ...dom,
-    plan: null,
-    planName: null,
-    reviewLimit: null,
+    apiUrl: payload.apiUrl.replace(/\/$/, ""),
+    plan: payload.plan ?? null,
+    planName: payload.planName ?? null,
+    reviewLimit: payload.reviewLimit ?? null,
+    shop: payload.shop,
+    token: payload.token,
   };
 }
 
-function parseConnectTokenBroadcast(data: unknown): ConnectTokenPayload | null {
-  const payload = data as ConnectTokenBroadcast;
-
-  if (!(payload?.token && payload.apiUrl && payload.shop)) {
-    return null;
-  }
-
-  return {
-    token: String(payload.token),
-    apiUrl: String(payload.apiUrl).replace(/\/$/, ""),
-    shop: String(payload.shop),
-    plan: payload.plan ? String(payload.plan) : null,
-    planName: payload.planName ? String(payload.planName) : null,
-    reviewLimit: payload.reviewLimit ?? null,
+/**
+ * Forward a `REVORA_PAIRING_CONFIRMED` window postMessage to a target window
+ * with a pinned origin. Called by content scripts when the background service
+ * worker broadcasts that pairing succeeded, so the embedded app can resolve
+ * its confirmation promise without polling the server.
+ */
+export function postPairingConfirmed(
+  target: Window,
+  targetOrigin: string,
+  shop: string
+) {
+  const message: PairingConfirmedMessage = {
+    shop,
+    type: "REVORA_PAIRING_CONFIRMED",
   };
+
+  target.postMessage(message, targetOrigin);
 }
 
 export interface BridgeMessageHandlerOptions {

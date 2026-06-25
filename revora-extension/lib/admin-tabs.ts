@@ -1,29 +1,9 @@
 import type { AdminBridgeRequest } from "@revora/shared/extension-messages";
-import type { ConnectTokenResponse } from "@revora/shared/extension-types";
+import { withTimeout } from "./extension-context";
 
 const SHOPIFY_ADMIN_URL = "https://admin.shopify.com/*";
 const ADMIN_BRIDGE_SCRIPT = "content-scripts/admin-bridge.js";
 const ADMIN_BRIDGE_MESSAGE_TIMEOUT_MS = 12_000;
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = globalThis.setTimeout(() => {
-      reject(
-        new Error("Revora admin request timed out. Refresh the app page.")
-      );
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        globalThis.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error: unknown) => {
-        globalThis.clearTimeout(timer);
-        reject(error);
-      });
-  });
-}
 
 export interface AdminConnectPayload {
   apiUrl: string | null;
@@ -32,13 +12,6 @@ export interface AdminConnectPayload {
   reviewLimit: number | null;
   shop: string | null;
   token: string | null;
-}
-
-interface AdminProxyBridgeResponse {
-  data?: ConnectTokenResponse;
-  error?: string;
-  ok?: boolean;
-  unavailable?: boolean;
 }
 
 export function queryShopifyAdminTabs() {
@@ -80,24 +53,9 @@ function isRevoraTabResponse(message: AdminBridgeRequest, response: unknown) {
     return false;
   }
 
-  if (message.type === "REVORA_GET_API_URL") {
-    return Boolean(
-      (response as { apiBaseUrl?: string | null }).apiBaseUrl?.trim()
-    );
-  }
-
   if (message.type === "REVORA_GET_CONNECT_TOKEN") {
     const payload = response as AdminConnectPayload;
     return Boolean(payload.token && payload.apiUrl && payload.shop);
-  }
-
-  if (message.type === "REVORA_ADMIN_PROXY") {
-    const payload = response as AdminProxyBridgeResponse;
-    if (payload.unavailable) {
-      return false;
-    }
-
-    return payload.ok === true;
   }
 
   return true;
@@ -135,33 +93,11 @@ export async function sendAdminBridgeMessage<T>(
   return null;
 }
 
-export async function readApiBaseUrlFromAdmin(): Promise<string | null> {
-  const response = await sendAdminBridgeMessage<{ apiBaseUrl: string | null }>({
-    type: "REVORA_GET_API_URL",
-  });
-
-  return response?.apiBaseUrl?.replace(/\/$/, "") || null;
-}
-
+/** Read the admin-bridge's cached connect token (set when the app broadcasts). */
 export function readConnectTokenFromAdmin(): Promise<AdminConnectPayload | null> {
   return sendAdminBridgeMessage<AdminConnectPayload>({
     type: "REVORA_GET_CONNECT_TOKEN",
   });
-}
-
-export async function createConnectTokenFromAdmin(): Promise<ConnectTokenResponse | null> {
-  const response = await sendAdminBridgeMessage<AdminProxyBridgeResponse>({
-    type: "REVORA_ADMIN_PROXY",
-    path: "/api/extension/token",
-    method: "POST",
-    body: { label: "Chrome extension" },
-  });
-
-  if (!(response?.ok && response.data?.token)) {
-    return null;
-  }
-
-  return response.data;
 }
 
 export async function clearAdminPairingState() {
@@ -187,6 +123,12 @@ export async function clearAdminPairingState() {
   }
 }
 
+/**
+ * Popup "Sync from admin" fallback: picks up the connect token cached by the
+ * admin-bridge content script (which received it from the app's broadcast).
+ * Returns null if the admin tab isn't open or the app hasn't minted a token
+ * yet — in that case the user should click Connect in the Shopify admin.
+ */
 export async function resolveConnectPayloadFromAdmin(): Promise<AdminConnectPayload | null> {
   const existing = await readConnectTokenFromAdmin();
 
@@ -194,17 +136,5 @@ export async function resolveConnectPayloadFromAdmin(): Promise<AdminConnectPayl
     return existing;
   }
 
-  const created = await createConnectTokenFromAdmin();
-  if (!(created?.token && created.apiUrl && created.shop)) {
-    return null;
-  }
-
-  return {
-    token: created.token,
-    apiUrl: created.apiUrl,
-    shop: created.shop,
-    plan: created.plan ?? null,
-    planName: created.planName ?? null,
-    reviewLimit: created.reviewLimit ?? null,
-  };
+  return null;
 }

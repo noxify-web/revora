@@ -5,13 +5,6 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: "@revora/shared/pairing-code",
-        replacement: path.resolve(
-          import.meta.dirname,
-          "../packages/revora-shared/src/pairing-code.ts"
-        ),
-      },
-      {
         find: "@revora/shared/extension-types",
         replacement: path.resolve(
           import.meta.dirname,
@@ -44,13 +37,6 @@ export default defineConfig({
         replacement: path.resolve(
           import.meta.dirname,
           "../packages/revora-shared/src/theme.ts"
-        ),
-      },
-      {
-        find: "@revora/shared/bridge-dom",
-        replacement: path.resolve(
-          import.meta.dirname,
-          "../packages/revora-shared/src/bridge-dom.ts"
         ),
       },
       {

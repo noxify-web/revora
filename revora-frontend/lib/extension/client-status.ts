@@ -1,15 +1,13 @@
+import { ADMIN_SHOPIFY_ORIGIN } from "@revora/shared/constants";
 import type { ExtensionStatusResponse } from "@revora/shared/extension-messages";
+import { extensionStatusResponseSchema } from "@revora/shared/extension-schemas";
 
 export const EXTENSION_STATUS_TIMEOUT_MS = 3000;
-export const EXTENSION_STATUS_FAST_TIMEOUT_MS = 800;
-export const EXTENSION_PAIRING_WAIT_ATTEMPTS = 20;
-export const EXTENSION_PAIRING_WAIT_DELAY_MS = 500;
+export const EXTENSION_STATUS_FAST_TIMEOUT_MS = 1500;
 
 export interface QueryExtensionClientStatusOptions {
   timeoutMs?: number;
 }
-
-const ADMIN_ORIGIN = "https://admin.shopify.com";
 
 export interface ExtensionClientStatus {
   installed: boolean;
@@ -26,14 +24,19 @@ export function isExtensionLinked(status: ExtensionClientStatus): boolean {
 const EMPTY_STATUS: ExtensionClientStatus = {
   installed: false,
   paired: false,
-  verified: false,
   shop: null,
+  verified: false,
 };
 
 function isAllowedStatusResponseOrigin(origin: string) {
-  return origin === window.location.origin || origin === ADMIN_ORIGIN;
+  return origin === window.location.origin || origin === ADMIN_SHOPIFY_ORIGIN;
 }
 
+/**
+ * Single-probe postMessage to the extension's content scripts and resolves the
+ * first `REVORA_EXTENSION_STATUS_RESPONSE`. No retry loop — callers that need a
+ * fresh re-check should invoke this again (e.g. on window focus).
+ */
 export function queryExtensionClientStatus(
   options: QueryExtensionClientStatusOptions = {}
 ): Promise<ExtensionClientStatus> {
@@ -42,17 +45,8 @@ export function queryExtensionClientStatus(
   }
 
   const timeoutMs = options.timeoutMs ?? EXTENSION_STATUS_TIMEOUT_MS;
+  const targetOrigins = [ADMIN_SHOPIFY_ORIGIN, window.location.origin];
 
-  return queryExtensionClientStatusViaMessage(
-    [ADMIN_ORIGIN, window.location.origin],
-    { timeoutMs }
-  );
-}
-
-function queryExtensionClientStatusViaMessage(
-  targetOrigins: string[],
-  options: { timeoutMs: number }
-): Promise<ExtensionClientStatus> {
   return new Promise((resolve) => {
     const requestId = crypto.randomUUID();
 
@@ -67,25 +61,20 @@ function queryExtensionClientStatusViaMessage(
         return;
       }
 
-      if (event.data?.type !== "REVORA_EXTENSION_STATUS_RESPONSE") {
-        return;
-      }
-
-      if (event.data.requestId !== requestId) {
+      const parsed = extensionStatusResponseSchema.safeParse(event.data);
+      if (!parsed.success || parsed.data.requestId !== requestId) {
         return;
       }
 
       finish({
-        installed: Boolean(event.data.installed),
-        paired: Boolean(event.data.paired),
-        verified: Boolean(event.data.verified),
-        shop: event.data.shop ?? null,
+        installed: parsed.data.installed,
+        paired: parsed.data.paired,
+        verified: parsed.data.verified,
+        shop: parsed.data.shop,
       });
     }
 
-    const timer = window.setTimeout(() => {
-      finish(EMPTY_STATUS);
-    }, options.timeoutMs);
+    const timer = window.setTimeout(() => finish(EMPTY_STATUS), timeoutMs);
 
     window.addEventListener("message", onResponse);
 
@@ -96,37 +85,11 @@ function queryExtensionClientStatusViaMessage(
 
     window.postMessage(request, window.location.origin);
 
-    if (targetOrigins.includes(ADMIN_ORIGIN)) {
-      window.parent.postMessage(request, ADMIN_ORIGIN);
+    if (
+      targetOrigins.includes(ADMIN_SHOPIFY_ORIGIN) &&
+      window.parent !== window
+    ) {
+      window.parent.postMessage(request, ADMIN_SHOPIFY_ORIGIN);
     }
-  });
-}
-
-export async function waitForExtensionClientStatus(
-  options: { attempts?: number; delayMs?: number; requirePaired?: boolean } = {}
-): Promise<ExtensionClientStatus> {
-  const { attempts = 6, delayMs = 400, requirePaired = false } = options;
-
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const status = await queryExtensionClientStatus();
-
-    if (status.installed && (!requirePaired || status.paired)) {
-      return status;
-    }
-
-    if (attempt < attempts - 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
-    }
-  }
-
-  return queryExtensionClientStatus();
-}
-
-/** Poll longer after broadcasting a connect token in the embedded admin. */
-export function waitForExtensionPairingAfterConnect() {
-  return waitForExtensionClientStatus({
-    attempts: EXTENSION_PAIRING_WAIT_ATTEMPTS,
-    delayMs: EXTENSION_PAIRING_WAIT_DELAY_MS,
-    requirePaired: true,
   });
 }

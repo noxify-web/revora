@@ -19,7 +19,6 @@ export type BackgroundRequest =
       planName?: string;
       reviewLimit?: number | null;
     }
-  | { type: "REVORA_CONNECT_BROWSER"; apiBaseUrl: string }
   | { type: "REVORA_GET_PLAN" }
   | { type: "REVORA_GET_CONNECTION_STATUS" }
   | { type: "REVORA_DISCONNECT" }
@@ -45,8 +44,6 @@ export type BackgroundResponse<T = unknown> =
 
 export type BackgroundDirectConnectResponse =
   BackgroundResponse<ConnectTokenResponse>;
-export type BackgroundBrowserConnectResponse =
-  BackgroundResponse<ConnectTokenResponse>;
 export interface ExtensionConnectionStatusData {
   paired: boolean;
   shop: string | null;
@@ -63,16 +60,16 @@ export type BackgroundVerifyResponse = BackgroundResponse<
 export type BackgroundProductsResponse = BackgroundResponse<ProductsResponse>;
 export type BackgroundUploadResponse = BackgroundResponse<ImportBatchResponse>;
 
+/**
+ * Messages the background service worker broadcasts (via `chrome.runtime.sendMessage`)
+ * to all extension content scripts. Distinct from {@link BackgroundRequest} (which is
+ * popup/CS → background). Content scripts listen on `chrome.runtime.onMessage` and
+ * forward these to the embedded app via `window.postMessage` with a pinned origin.
+ */
+export type BackgroundBroadcast = PairingConfirmedMessage;
+
 export type AdminBridgeRequest =
   | { type: "REVORA_PING" }
-  | {
-      type: "REVORA_ADMIN_PROXY";
-      path: string;
-      method?: string;
-      body?: unknown;
-      headers?: Record<string, string>;
-    }
-  | { type: "REVORA_GET_API_URL" }
   | { type: "REVORA_GET_CONNECT_TOKEN" }
   | { type: "REVORA_CLEAR_PAIRING" };
 
@@ -83,7 +80,6 @@ export interface RevoraClearConnectTokenMessage {
 export type AdminBridgeResponse<T = unknown> =
   | { ok: true; data?: T }
   | { ok: false; error: string; unavailable?: boolean }
-  | { apiBaseUrl: string | null }
   | {
       token: string | null;
       apiUrl: string | null;
@@ -92,24 +88,6 @@ export type AdminBridgeResponse<T = unknown> =
       planName: string | null;
       reviewLimit: number | null;
     };
-
-export interface AdminProxyRequest {
-  body?: unknown;
-  headers?: Record<string, string>;
-  method?: string;
-  path: string;
-  requestId: string;
-  type: "REVORA_ADMIN_PROXY_REQUEST";
-}
-
-export interface AdminProxyResponse {
-  data?: unknown;
-  error?: string;
-  ok: boolean;
-  requestId: string;
-  status?: number;
-  type: "REVORA_ADMIN_PROXY_RESPONSE";
-}
 
 export interface ConnectTokenRequest {
   requestId: string;
@@ -138,13 +116,20 @@ export interface ConnectTokenBroadcast {
 }
 
 /** Nudge admin-bridge to pull the connect token from the embedded iframe immediately. */
-export interface ConnectTokenReadyNudge {
-  type: "REVORA_CONNECT_TOKEN_READY";
-}
-
 export interface ExtensionStatusRequest {
   requestId: string;
   type: "REVORA_REQUEST_EXTENSION_STATUS";
+}
+
+/**
+ * Posted by the extension's content scripts to the embedded app (pinned
+ * `targetOrigin`) immediately after the background service worker verifies a
+ * freshly-minted connect token. Replaces the former `lastUsedAt` polling loop:
+ * the app resolves its pairing promise on receipt — zero polling.
+ */
+export interface PairingConfirmedMessage {
+  shop: string;
+  type: "REVORA_PAIRING_CONFIRMED";
 }
 
 export interface ExtensionStatusResponse {

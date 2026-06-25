@@ -13,10 +13,6 @@ export default defineConfig({
         import.meta.dirname,
         "../packages/revora-shared/src/constants.ts"
       ),
-      "@revora/shared/bridge-dom": path.resolve(
-        import.meta.dirname,
-        "../packages/revora-shared/src/bridge-dom.ts"
-      ),
       "@revora/shared/theme-storefront": path.resolve(
         import.meta.dirname,
         "../packages/revora-shared/src/theme-storefront.ts"

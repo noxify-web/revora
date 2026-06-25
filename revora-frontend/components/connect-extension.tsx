@@ -11,9 +11,12 @@ import { mintAndBroadcastConnectToken } from "@/lib/extension/pairing-confirm";
 
 interface ExtensionToken {
   createdAt: string;
+  expiresAt: string | null;
+  extensionId: string | null;
   id: string;
   label: string;
   lastUsedAt: string | null;
+  pairedAt: string | null;
 }
 
 function showToast(message: string) {
@@ -102,7 +105,7 @@ export function ConnectExtension({
   }
 
   const activeToken = tokens[0];
-  const isConnected = Boolean(activeToken?.lastUsedAt || connectPayload);
+  const isConnected = Boolean(activeToken?.pairedAt || connectPayload);
 
   return (
     <s-stack gap={compact ? "small-200" : "base"}>
@@ -185,9 +188,12 @@ export function ConnectExtension({
         </s-banner>
       ) : null}
 
-      {!(compact || loadingTokens) && activeToken?.lastUsedAt ? (
+      {!(compact || loadingTokens) && activeToken?.pairedAt ? (
         <s-text color="subdued">
-          Last used {new Date(activeToken.lastUsedAt).toLocaleString()}
+          Connected {new Date(activeToken.pairedAt).toLocaleString()}
+          {activeToken.lastUsedAt
+            ? ` · last used ${new Date(activeToken.lastUsedAt).toLocaleString()}`
+            : ""}
         </s-text>
       ) : null}
 

@@ -57,7 +57,41 @@ export function isRevoraDevTunnelOrigin(origin: string) {
   }
 }
 
-export const PAIRING_PREFIX = "REVORA1.";
+/**
+ * Exact origin of the Shopify admin top-level page. Used for pinned
+ * `postMessage` targetOrigin checks (never use `*` for token-bearing messages).
+ */
+export const ADMIN_SHOPIFY_ORIGIN = "https://admin.shopify.com";
+
+/**
+ * chrome.storage.sync keys shared between the extension and (documentarily)
+ * the frontend. Both sides must agree on these names — they are the contract
+ * for persisted connection state. Defined here rather than as ad-hoc string
+ * literals so the contract is in one place.
+ */
+export const STORAGE_KEYS = {
+  API_BASE_URL: "apiBaseUrl",
+  PAIRING_TOKEN: "pairingToken",
+  SHOP: "shop",
+  USER_DISCONNECTED: "userDisconnected",
+  LAST_VERIFIED_AT: "lastVerifiedAt",
+} as const;
+
+/** Extension bearer-token lifetime. Refreshed on each successful /verify. */
+export const TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * Local connection state is considered stale after this long without a
+ * successful /verify. Drives the "only re-verify when stale" behavior in the
+ * background, reducing per-popup-open server load.
+ */
+export const STALE_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * How long the admin app waits for a `REVORA_PAIRING_CONFIRMED` postMessage
+ * from the extension before reporting "extension not detected".
+ */
+export const PAIRING_CONFIRMED_TIMEOUT_MS = 15_000;
 
 export const TEMU_REVIEWS_API_PATH = "/api/bg/engels/reviews/list";
 

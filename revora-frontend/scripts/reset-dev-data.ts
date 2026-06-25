@@ -20,7 +20,6 @@ const tables = [
   "ReviewImport",
   "ExtensionToken",
   "ShopPlan",
-  "ConnectCode",
   "RateLimit",
   ...(fullReset ? ["Session"] : []),
 ] as const;

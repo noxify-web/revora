@@ -1,20 +1,23 @@
 "use client";
 
-import {
-  clearConnectTokenDom,
-  readConnectTokenDom,
-  writeConnectTokenDom,
-} from "@revora/shared/bridge-dom";
+import { ADMIN_SHOPIFY_ORIGIN } from "@revora/shared/constants";
 import type {
   ConnectTokenBroadcast,
-  ConnectTokenReadyNudge,
   ConnectTokenRequest,
+  PairingConfirmedMessage,
   RevoraClearConnectTokenMessage,
 } from "@revora/shared/extension-messages";
+import {
+  clearConnectTokenSchema,
+  connectTokenRequestSchema,
+} from "@revora/shared/extension-schemas";
+import {
+  normalizeApiUrl,
+  type PendingConnectToken,
+} from "@revora/shared/extension-types";
 import { useEffect } from "react";
 import {
   captureIdTokenFromUrl,
-  getSessionTokenForProxy,
   stripStaleIdTokenFromUrl,
 } from "@/lib/admin-fetch";
 import {
@@ -23,55 +26,27 @@ import {
   readPendingConnectToken,
 } from "@/lib/extension/pending-connect-token";
 
-const ALLOWED_PROXY_PREFIXES = [
-  "/api/extension/",
-  "/api/products",
-  "/api/reviews/import",
-];
-
-interface ProxyRequest {
-  body?: unknown;
-  headers?: Record<string, string>;
-  method?: string;
-  path: string;
-  requestId: string;
-  type: "REVORA_ADMIN_PROXY_REQUEST";
+function isTrustedOrigin(origin: string) {
+  return origin === window.location.origin || origin === ADMIN_SHOPIFY_ORIGIN;
 }
 
-function isAllowedProxyPath(path: string) {
-  return ALLOWED_PROXY_PREFIXES.some((prefix) => path.startsWith(prefix));
-}
-
-function broadcastConnectToken(payload: {
-  apiUrl: string;
-  shop: string;
-  token: string;
-}) {
-  writeConnectTokenDom(payload);
+function broadcastConnectToken(payload: PendingConnectToken) {
   persistPendingConnectToken(payload);
 
   const message = {
-    type: "REVORA_CONNECT_TOKEN",
-    token: payload.token,
-    apiUrl: payload.apiUrl,
+    apiUrl: normalizeApiUrl(payload.apiUrl),
     shop: payload.shop,
+    token: payload.token,
+    type: "REVORA_CONNECT_TOKEN",
   } satisfies ConnectTokenBroadcast;
 
+  // Same-origin: the app-bridge content script (dev tunnels) listens here.
   window.postMessage(message, window.location.origin);
 
-  const nudge = {
-    type: "REVORA_CONNECT_TOKEN_READY",
-  } satisfies ConnectTokenReadyNudge;
-
-  let parent: Window | null = window.parent;
-  while (parent && parent !== window) {
-    parent.postMessage(message, "*");
-    parent.postMessage(nudge, "*");
-    try {
-      parent = parent.parent;
-    } catch {
-      break;
-    }
+  // Pinned to the Shopify admin parent frame: the admin-bridge content script
+  // (production) listens there. Never use "*" — this payload is a bearer token.
+  if (window.parent !== window) {
+    window.parent.postMessage(message, ADMIN_SHOPIFY_ORIGIN);
   }
 }
 
@@ -80,123 +55,62 @@ export function ExtensionBridge() {
     captureIdTokenFromUrl();
     stripStaleIdTokenFromUrl();
 
-    const existingToken = readConnectTokenDom() ?? readPendingConnectToken();
+    // Re-broadcast on reload so a tab refresh mid-pairing still delivers the token.
+    const existingToken = readPendingConnectToken();
     if (existingToken) {
       broadcastConnectToken(existingToken);
     }
 
     function handleMessage(
       event: MessageEvent<
-        ProxyRequest | ConnectTokenRequest | RevoraClearConnectTokenMessage
+        | ConnectTokenRequest
+        | RevoraClearConnectTokenMessage
+        | PairingConfirmedMessage
       >
     ) {
-      if (event.source !== window.parent) {
+      if (!isTrustedOrigin(event.origin)) {
         return;
       }
 
-      if (!event.origin.endsWith("admin.shopify.com")) {
+      const data = event.data;
+      if (!data || typeof data.type !== "string") {
         return;
       }
 
-      if (event.data?.type === "REVORA_CLEAR_CONNECT_TOKEN") {
-        clearConnectTokenDom();
+      if (data.type === "REVORA_CLEAR_CONNECT_TOKEN") {
+        if (!clearConnectTokenSchema.safeParse(data).success) {
+          return;
+        }
+
         clearPendingConnectToken();
         return;
       }
 
-      if (event.data?.type === "REVORA_REQUEST_CONNECT_TOKEN") {
-        const payload = readConnectTokenDom() ?? readPendingConnectToken();
-        window.parent.postMessage(
+      if (data.type === "REVORA_REQUEST_CONNECT_TOKEN") {
+        const parsed = connectTokenRequestSchema.safeParse(data);
+        if (!parsed.success) {
+          return;
+        }
+
+        const payload = readPendingConnectToken();
+        const source = event.source as Window | null;
+
+        source?.postMessage(
           {
-            type: "REVORA_CONNECT_TOKEN_RESPONSE",
-            requestId: event.data.requestId,
-            token: payload?.token || null,
             apiUrl: payload?.apiUrl || null,
+            requestId: parsed.data.requestId,
             shop: payload?.shop || null,
+            token: payload?.token || null,
+            type: "REVORA_CONNECT_TOKEN_RESPONSE",
           },
           event.origin
         );
         return;
       }
 
-      if (event.data?.type !== "REVORA_ADMIN_PROXY_REQUEST") {
-        return;
-      }
-
-      void handleProxyRequest(event as MessageEvent<ProxyRequest>);
-    }
-
-    async function handleProxyRequest(event: MessageEvent<ProxyRequest>) {
-      const {
-        requestId,
-        path,
-        method = "GET",
-        body,
-        headers = {},
-      } = event.data;
-      const targetOrigin = event.origin || "*";
-
-      if (!isAllowedProxyPath(path)) {
-        window.parent.postMessage(
-          {
-            type: "REVORA_ADMIN_PROXY_RESPONSE",
-            requestId,
-            ok: false,
-            error: "Proxy path is not allowed",
-          },
-          targetOrigin
-        );
-        return;
-      }
-
-      try {
-        const fetchHeaders = new Headers(headers);
-
-        if (body != null && !fetchHeaders.has("Content-Type")) {
-          fetchHeaders.set("Content-Type", "application/json");
-        }
-
-        if (!fetchHeaders.has("Authorization")) {
-          const sessionToken = await getSessionTokenForProxy();
-          if (sessionToken) {
-            fetchHeaders.set("Authorization", `Bearer ${sessionToken}`);
-          }
-        }
-
-        const response = await fetch(path, {
-          method,
-          headers: fetchHeaders,
-          body: body == null ? undefined : JSON.stringify(body),
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        window.parent.postMessage(
-          {
-            type: "REVORA_ADMIN_PROXY_RESPONSE",
-            requestId,
-            ok: response.ok,
-            status: response.status,
-            data: response.ok ? data : undefined,
-            error: response.ok
-              ? undefined
-              : typeof data.error === "string"
-                ? data.error
-                : `Request failed (${response.status})`,
-          },
-          targetOrigin
-        );
-      } catch (error) {
-        window.parent.postMessage(
-          {
-            type: "REVORA_ADMIN_PROXY_RESPONSE",
-            requestId,
-            ok: false,
-            error: error instanceof Error ? error.message : "Request failed",
-          },
-          targetOrigin
-        );
-      }
+      // REVORA_PAIRING_CONFIRMED is consumed by waitForPairingConfirmedMessage
+      // in lib/extension/pairing-confirm.ts (its own transient listener). No
+      // action needed here — kept in the union only for type completeness.
     }
 
     window.addEventListener("message", handleMessage);

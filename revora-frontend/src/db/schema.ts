@@ -48,15 +48,12 @@ export const extensionTokens = sqliteTable("ExtensionToken", {
   createdAt: text("createdAt").notNull(),
   lastUsedAt: text("lastUsedAt"),
   revokedAt: text("revokedAt"),
-});
-
-export const connectCodes = sqliteTable("ConnectCode", {
-  id: text("id").primaryKey(),
-  shop: text("shop").notNull(),
-  code: text("code").notNull(),
-  expiresAt: text("expiresAt").notNull(),
-  usedAt: text("usedAt"),
-  createdAt: text("createdAt").notNull(),
+  /** Unix-ms string when this token expires. Refreshed on each /verify. Null = legacy token (treated as non-expiring). */
+  expiresAt: text("expiresAt"),
+  /** Unix-ms string when the extension first verified this token. Null until the extension calls /verify. */
+  pairedAt: text("pairedAt"),
+  /** Chrome extension ID that requested this token, if provided (X-Revora-Extension-Id header). */
+  extensionId: text("extensionId"),
 });
 
 export const rateLimits = sqliteTable("RateLimit", {

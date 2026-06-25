@@ -6,11 +6,14 @@ import {
   extensionJsonResponse,
   extensionOptionsResponse,
 } from "@/lib/extension/cors";
+import { enforceRateLimit } from "@/lib/extension/rate-limit";
 import { db } from "@/src/db";
 import { extensionTokens } from "@/src/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const DISCONNECT_RATE_LIMIT_PER_TOKEN = 20;
 
 export async function OPTIONS() {
   const headerStore = await headers();
@@ -29,6 +32,11 @@ export async function POST() {
       status: 401,
     });
   }
+
+  await enforceRateLimit(
+    `ext-disconnect:${token.tokenHash}`,
+    DISCONNECT_RATE_LIMIT_PER_TOKEN
+  );
 
   const now = new Date().toISOString();
 

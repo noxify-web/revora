@@ -55,8 +55,12 @@ export type ConnectTokenResponse = ExtensionConnectPayload & {
 };
 
 export interface VerifyResponse {
+  /** ISO timestamp when this token expires (refreshed on each /verify). */
+  expiresAt?: string | null;
   label?: string;
   paired: boolean;
+  /** ISO timestamp when the extension first called /verify with this token (set server-side). */
+  pairedAt?: string | null;
   shop: string;
 }
 
@@ -78,7 +82,6 @@ export interface ImportBatchResponse {
 
 export interface ConnectionState {
   apiBaseUrl: string;
-  pairingCode?: string;
   pairingToken: string;
   plan?: string;
   planName?: string;
@@ -96,4 +99,19 @@ export interface TemuReviewsInterceptPayload {
   maxListSize: number | null;
   page: number | null;
   reviews: TemuReviewPayload[];
+}
+
+/**
+ * Minimal connect-token shape persisted to sessionStorage for reload resilience
+ * during pairing. Replaces the former DOM-dataset payload (DOM channel removed).
+ */
+export interface PendingConnectToken {
+  apiUrl: string;
+  shop: string;
+  token: string;
+}
+
+/** Strip a trailing slash from an API base URL. */
+export function normalizeApiUrl(apiUrl: string): string {
+  return apiUrl.replace(/\/$/, "");
 }

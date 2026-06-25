@@ -6,7 +6,7 @@ Bun workspace monorepo: Temu review scrape (Chrome extension) → Revora APIs (N
 
 - `revora-frontend/` — Next.js 16 embedded Shopify app (`app/` routes, `lib/`, `components/`). Turso + Drizzle (`src/db/`). Config: `shopify.app.toml`, `drizzle.config.ts`. Theme app extension lives at `revora-frontend/extensions/revora-reviews/` (root-level `extensions/` is empty).
 - `revora-extension/` — WXT MV3 extension (`entrypoints/`, `lib/`, `tests/`). Build output: `.output/chrome-mv3`.
-- `packages/revora-shared/` — `@revora/shared`: Zod schemas, extension message types, pairing-code, constants. **Contract layer** for frontend ↔ extension.
+- `packages/revora-shared/` — `@revora/shared`: Zod schemas, extension message types, storage-key/TTL constants. **Contract layer** for frontend ↔ extension.
 - `revora-backend/` — not present in repo (ignore).
 - `.cursor/rules/*.mdc` — **stale** (describe pre-WXT plain ES modules and "shadcn/ui"). Trust `package.json`/WXT config and this file instead.
 
@@ -51,8 +51,8 @@ After code changes, verify at minimum: `bun run check && cd revora-frontend && b
 ## Build notes (non-obvious)
 
 - `build:widget` compiles `revora-frontend/lib/storefront/revora-widget.ts` → `extensions/revora-reviews/assets/revora-widget.js` (IIFE, browser target) **before** `next build`. That generated file has lint/format **disabled** in `biome.jsonc` — don't hand-edit it.
-- Import alias `@/*` → `revora-frontend/` root (tsconfig `paths`, mirrored in `vitest.config.ts`). A few `@revora/shared/*` subpaths (`theme`, `constants`, `bridge-dom`, `theme-storefront`) are also aliased there.
-- `@revora/shared` is consumed via **subpath exports** (`/pairing-code`, `/extension-types`, `/extension-messages`, `/extension-schemas`, `/constants`, `/shopify-admin`, `/theme`, `/theme-storefront`, `/bridge-dom`), not just the barrel. Check `packages/revora-shared/package.json` `exports` before adding a new one.
+- Import alias `@/*` → `revora-frontend/` root (tsconfig `paths`, mirrored in `vitest.config.ts`). A few `@revora/shared/*` subpaths (`theme`, `constants`, `theme-storefront`) are also aliased there.
+- `@revora/shared` is consumed via **subpath exports** (`/extension-types`, `/extension-messages`, `/extension-schemas`, `/constants`, `/shopify-admin`, `/theme`, `/theme-storefront`), not just the barrel. Check `packages/revora-shared/package.json` `exports` before adding a new one. (The legacy `/pairing-code` and `/bridge-dom` subpaths were removed — no `REVORA1.` pairing-code format and no DOM-dataset token channel anymore.)
 
 ## Local Shopify dev (stable tunnel)
 
@@ -82,9 +82,18 @@ Never commit `.env.local`, Turso tokens, Shopify secrets, or HTTP capture dumps 
 3. Update `revora-extension/entrypoints/background.ts` and related `lib/` / content scripts.
 4. Run `extension:test`, `shared:test`, and both packages' typecheck.
 
-Extension entrypoints: `background.ts` (API/auth), `admin-bridge.content.ts` (Shopify admin iframe proxy + URL sync), `app-bridge.content.ts` (session-token broadcast), `temu-inject.content.ts` (MAIN-world Temu API intercept), `temu.content.ts` (panel + import orchestration), `popup/`.
+Extension entrypoints: `background.ts` (API/auth, local status cache, pairing-confirmed broadcast), `admin-bridge.content.ts` (token receive from admin iframe + pairing-confirmed forwarding), `app-bridge.content.ts` (same-origin token receive + pairing-confirmed forwarding, dev tunnels only), `temu-inject.content.ts` (MAIN-world Temu API intercept), `temu.content.ts` (panel + import orchestration), `popup/`.
 
-Pairing code format: `REVORA1.<base64(JSON {token, apiUrl?})>` — prefix is `PAIRING_PREFIX` in `packages/revora-shared/src/constants.ts`. Two connect paths: admin **Connect extension** (`components/extension-bridge.tsx` + `admin-bridge.content.ts` session-token broadcast), or popup `chrome.identity.launchWebAuthFlow` → `/api/extension/connect/browser`.
+## Extension ↔ app connection (single path, event-based)
+
+One connect path: the admin app mints a bearer token (`rvr_<64 hex>`, stored server-side as SHA-256) via `POST /api/extension/token` (Shopify-session-gated), then `components/extension-bridge.tsx` broadcasts `REVORA_CONNECT_TOKEN` to the extension via **pinned-origin** `postMessage` (same-origin for `app-bridge`, `https://admin.shopify.com` for `admin-bridge` — never `*`, never DOM dataset). The content script relays `REVORA_CONNECT_DIRECT` to the background, which calls `/api/extension/verify` (direct fetch, host permission granted at connect) and on success broadcasts `REVORA_PAIRING_CONFIRMED` back to the app — **zero polling**. The app's `waitForPairingConfirmedMessage` resolves its pairing promise on receipt.
+
+- Bearer tokens have a **90-day rolling expiry** (`TOKEN_TTL_MS`), refreshed on each `/verify`; `pairedAt` is set on first verify (the explicit "paired" signal, replacing the old `lastUsedAt` heuristic).
+- `REVORA_GET_CONNECTION_STATUS` reads local `chrome.storage.sync` state and only hits `/verify` when stale (`STALE_THRESHOLD_MS` = 7 days) — not on every popup open.
+- Transport is **direct-fetch-only** (`fetchRevora` in `lib/api-transport.ts`); the old admin-iframe proxy fallback was removed. On network failure the popup shows "Cannot reach Revora — re-connect."
+- CORS is pinned to `REVORA_EXTENSION_ID` (env) in prod; any `chrome-extension://` in dev. Rate limits apply to `/verify`, `/token`, `/plan`, `/disconnect`, `/health`.
+- Storage keys (`apiBaseUrl`, `pairingToken`, `shop`, `userDisconnected`, `lastVerifiedAt`) are the `STORAGE_KEYS` constant in `packages/revora-shared/src/constants.ts` — both sides share it.
+- The browser-OAuth path (`chrome.identity.launchWebAuthFlow` → `/api/extension/connect/*`) and the `REVORA1.` pairing-code format were removed entirely.
 
 ## Product data model (Shopify)
 

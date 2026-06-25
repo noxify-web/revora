@@ -1,8 +1,21 @@
 import { headers } from "next/headers";
 
+/**
+ * Server-side API base URL advertised to the extension. Resolved from
+ * `REVORA_API_BASE_URL` (preferred) or `HOST`/`SHOPIFY_APP_URL`, with a
+ * localhost fallback for `next dev`.
+ *
+ * Note: this intentionally does NOT trust `x-forwarded-host` /
+ * `x-forwarded-proto` request headers for the value sent to the extension —
+ * those are client-supplied and spoofable. The tunnel/proxy is expected to set
+ * the canonical URL via env so the extension always dials back to a host we
+ * control.
+ */
 export function getAppBaseUrlFromEnv() {
   const envUrl =
-    process.env.HOST?.trim() || process.env.SHOPIFY_APP_URL?.trim();
+    process.env.REVORA_API_BASE_URL?.trim() ||
+    process.env.HOST?.trim() ||
+    process.env.SHOPIFY_APP_URL?.trim();
 
   if (envUrl) {
     return envUrl.replace(/\/$/, "");
@@ -11,37 +24,7 @@ export function getAppBaseUrlFromEnv() {
   return null;
 }
 
-function getForwardedOrigin(
-  forwardedHost: string | null,
-  forwardedProto: string | null,
-  fallbackHost?: string | null
-) {
-  if (forwardedHost) {
-    const proto = forwardedProto || "https";
-    return `${proto}://${forwardedHost}`.replace(/\/$/, "");
-  }
-
-  if (fallbackHost) {
-    const proto = fallbackHost.includes("localhost") ? "http" : "https";
-    return `${proto}://${fallbackHost}`.replace(/\/$/, "");
-  }
-
-  return null;
-}
-
 export async function getAppBaseUrl(request?: Request) {
-  if (request) {
-    const forwarded = getForwardedOrigin(
-      request.headers.get("x-forwarded-host"),
-      request.headers.get("x-forwarded-proto"),
-      new URL(request.url).host
-    );
-
-    if (forwarded) {
-      return forwarded;
-    }
-  }
-
   const fromEnv = getAppBaseUrlFromEnv();
   if (fromEnv) {
     return fromEnv;
@@ -52,14 +35,11 @@ export async function getAppBaseUrl(request?: Request) {
   }
 
   const headerStore = await headers();
-  const forwarded = getForwardedOrigin(
-    headerStore.get("x-forwarded-host"),
-    headerStore.get("x-forwarded-proto"),
-    headerStore.get("host")
-  );
+  const host = headerStore.get("host");
 
-  if (forwarded) {
-    return forwarded;
+  if (host) {
+    const proto = host.includes("localhost") ? "http" : "https";
+    return `${proto}://${host}`.replace(/\/$/, "");
   }
 
   return "http://localhost:3000";

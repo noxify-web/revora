@@ -187,11 +187,6 @@ export function getSessionTokenFresh(waitAttempts = 5) {
   return readShopifyIdToken(waitAttempts);
 }
 
-/** Short session lookup for extension admin-proxy requests (avoids hanging the popup). */
-export function getSessionTokenForProxy() {
-  return readShopifyIdToken(2);
-}
-
 export async function waitForAdminSession(
   maxWaitMs = 20_000
 ): Promise<string | null> {

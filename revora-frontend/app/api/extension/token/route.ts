@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 
 import { getAppBaseUrl } from "@/lib/extension/app-url";
 import {
+  computeExpiry,
   generateExtensionToken,
   revokeShopExtensionTokens,
 } from "@/lib/extension/auth";
@@ -11,6 +12,7 @@ import {
   extensionJsonResponse,
   extensionOptionsResponse,
 } from "@/lib/extension/cors";
+import { enforceRateLimit } from "@/lib/extension/rate-limit";
 import { withAdminApi } from "@/lib/shopify/authenticate-admin";
 import { resolveShopPlan } from "@/lib/shopify/resolve-plan";
 import { db } from "@/src/db";
@@ -18,6 +20,8 @@ import { extensionTokens } from "@/src/db/schema";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MINT_RATE_LIMIT_PER_SHOP = 10;
 
 export async function OPTIONS() {
   const headerStore = await headers();
@@ -31,6 +35,8 @@ export async function POST(request: Request) {
   return withAdminApi(
     request,
     async ({ shop }) => {
+      await enforceRateLimit(`ext-mint:${shop}`, MINT_RATE_LIMIT_PER_SHOP);
+
       const body = (await request.json().catch(() => ({}))) as {
         label?: string;
       };
@@ -41,6 +47,7 @@ export async function POST(request: Request) {
       const now = new Date().toISOString();
       const resolved = await resolveShopPlan(shop);
       const label = body.label?.trim() || "Chrome extension";
+      const extensionId = headerStore.get("x-revora-extension-id")?.trim();
 
       await db.insert(extensionTokens).values({
         id: randomUUID(),
@@ -48,6 +55,9 @@ export async function POST(request: Request) {
         tokenHash,
         label,
         createdAt: now,
+        expiresAt: computeExpiry(),
+        pairedAt: null,
+        extensionId: extensionId || null,
       });
 
       const apiUrl = await getAppBaseUrl(request);
@@ -92,6 +102,9 @@ export async function GET(request: Request) {
           label: true,
           createdAt: true,
           lastUsedAt: true,
+          pairedAt: true,
+          expiresAt: true,
+          extensionId: true,
         },
       });
 
