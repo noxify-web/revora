@@ -65,10 +65,22 @@ async function resolveExtensionLinkStateFast(): Promise<{
   const tokens = await readCachedExtensionTokens();
 
   if (isExtensionConnectedOnServer(tokens)) {
+    // Server says paired — but the extension may have disconnected without
+    // successfully revoking the token (network failure, tunnel down, etc.).
+    // Probe the extension: if it responds and says not-paired, the server
+    // state is stale. If it doesn't respond (not installed), trust the server.
+    const status = await queryExtensionClientStatus({
+      timeoutMs: EXTENSION_STATUS_FAST_TIMEOUT_MS,
+    });
+
+    if (status.installed && !isExtensionLinked(status)) {
+      return { linked: false, status };
+    }
+
     return {
       linked: true,
       status: {
-        installed: extensionAppearsInstalled(EMPTY_STATUS),
+        installed: extensionAppearsInstalled(status),
         paired: true,
         verified: true,
         shop: null,

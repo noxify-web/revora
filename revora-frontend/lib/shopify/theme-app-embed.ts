@@ -261,7 +261,19 @@ export async function getRevoraStorefrontWidgetStatus(
   session: Session,
   apiKey: string
 ): Promise<RevoraStorefrontWidgetStatus> {
-  if (!sessionHasThemesAccess(session)) {
+  const hasScopes = sessionHasThemesAccess(session);
+
+  console.log("[theme-embed] check start", {
+    shop: session.shop,
+    hasScopes,
+    sessionScopes: session.scope,
+    apiKeySet: Boolean(apiKey),
+  });
+
+  if (!hasScopes) {
+    console.warn(
+      "[theme-embed] returning enabled=false — session lacks read_themes scope. Merchant must re-authorize the app."
+    );
     return {
       enabled: false,
       themeName: null,
@@ -277,7 +289,10 @@ export async function getRevoraStorefrontWidgetStatus(
     const mainTheme = (mainThemeResponse.data as MainThemeResponse)?.themes
       ?.nodes?.[0];
 
+    console.log("[theme-embed] main theme", mainTheme);
+
     if (!mainTheme?.id) {
+      console.warn("[theme-embed] no main theme found");
       return { enabled: false, themeName: null, checked: true };
     }
 
@@ -288,6 +303,15 @@ export async function getRevoraStorefrontWidgetStatus(
     const fileNodes =
       (filesResponse.data as ThemeFilesResponse)?.theme?.files?.nodes ?? [];
 
+    console.log(
+      "[theme-embed] file nodes",
+      fileNodes.map((n) => ({
+        filename: n.filename,
+        hasContent: Boolean(n.body?.content),
+        contentLength: n.body?.content?.length ?? 0,
+      }))
+    );
+
     const settingsData = parseThemeJson(
       fileNodes.find((node) => node.filename === "config/settings_data.json")
         ?.body?.content
@@ -297,11 +321,32 @@ export async function getRevoraStorefrontWidgetStatus(
         ?.content
     );
 
-    const enabled = isRevoraStorefrontWidgetEnabled(
-      settingsData,
+    console.log(
+      "[theme-embed] parsed settings_data keys",
+      settingsData ? Object.keys(settingsData) : null
+    );
+    console.log(
+      "[theme-embed] current type",
+      typeof settingsData?.current,
+      Array.isArray(settingsData?.current) ? "array" : ""
+    );
+
+    const blocks = resolveSettingsBlocks(settingsData);
+    const allBlocks = blocks ? collectThemeBlocks(blocks) : [];
+    console.log(
+      "[theme-embed] resolved blocks",
+      allBlocks.map((b) => ({ type: b.type, disabled: b.disabled }))
+    );
+
+    const embedEnabled = hasEnabledAppEmbed(settingsData, apiKey);
+    const productBlockEnabled = hasEnabledProductAppBlock(
       productTemplate,
       apiKey
     );
+
+    console.log("[theme-embed] results", { embedEnabled, productBlockEnabled });
+
+    const enabled = embedEnabled || productBlockEnabled;
 
     return {
       enabled,
@@ -310,6 +355,7 @@ export async function getRevoraStorefrontWidgetStatus(
     };
   } catch (error) {
     if (isThemesAccessDeniedError(error)) {
+      console.warn("[theme-embed] themes access denied", error);
       return {
         enabled: false,
         themeName: null,
@@ -317,7 +363,7 @@ export async function getRevoraStorefrontWidgetStatus(
       };
     }
 
-    console.warn("Revora theme embed status check failed", error);
+    console.warn("[theme-embed] check failed", error);
     return { enabled: false, themeName: null, checked: false };
   }
 }

@@ -221,7 +221,22 @@ export async function adminFetchNoBounce(
   }
 
   const request = buildAdminRequest(path, init, token);
-  return fetch(request.url, request.init);
+  const response = await fetch(request.url, request.init);
+
+  // Stale cached id_token — clear it and retry once with a fresh token from
+  // App Bridge. Without this, every adminFetchNoBounce call 401s forever
+  // after the cached token expires (the caller never clears the cache).
+  if (response.status === 401 && !sessionToken) {
+    cachedPageIdToken = null;
+    const freshToken = await getSessionTokenFresh();
+
+    if (freshToken && freshToken !== token) {
+      const retryRequest = buildAdminRequest(path, init, freshToken);
+      return fetch(retryRequest.url, retryRequest.init);
+    }
+  }
+
+  return response;
 }
 
 export async function adminFetch(

@@ -72,6 +72,56 @@ describe("resolveExtensionLinkState", () => {
     vi.useRealTimers();
   });
 
+  it("returns not linked when the server says paired but the extension reports disconnected", async () => {
+    document.documentElement.dataset.revoraExtensionInstalled = "1";
+
+    vi.mocked(adminFetchNoBounce).mockResolvedValue(new Response());
+    vi.mocked(readAdminJson).mockResolvedValue({
+      tokens: [
+        {
+          id: "token-1",
+          label: "Chrome extension",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          lastUsedAt: null,
+          pairedAt: "2026-01-01T00:00:01.000Z",
+          expiresAt: null,
+          extensionId: null,
+        },
+      ],
+    });
+
+    const statusPromise = resolveExtensionLinkState();
+
+    await vi.waitFor(() => {
+      expect(window.parent.postMessage).toHaveBeenCalled();
+    });
+
+    // Extension is installed but disconnected (local storage cleared).
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin: window.location.origin,
+        data: {
+          type: "REVORA_EXTENSION_STATUS_RESPONSE",
+          requestId: "fast-check-request-id",
+          installed: true,
+          paired: false,
+          verified: false,
+          shop: "demo.myshopify.com",
+        },
+      })
+    );
+
+    await expect(statusPromise).resolves.toEqual({
+      linked: false,
+      status: {
+        installed: true,
+        paired: false,
+        verified: false,
+        shop: "demo.myshopify.com",
+      },
+    });
+  });
+
   it("returns linked when the extension bridge reports paired", async () => {
     document.documentElement.dataset.revoraExtensionInstalled = "1";
 
