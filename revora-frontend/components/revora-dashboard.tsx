@@ -6,6 +6,7 @@ import { ExtensionConnectBanner } from "@/components/extension-connect-banner";
 import { ImportActivityLog } from "@/components/import-activity-log";
 import { OnboardingFlow } from "@/components/onboarding-flow";
 import { ProductCatalogTable } from "@/components/product-catalog-table";
+import { ScopeUpgradeBanner } from "@/components/scope-upgrade-banner";
 import { StorefrontWidgetGuide } from "@/components/storefront-widget-guide";
 import { adminFetchJson } from "@/lib/admin-fetch";
 import { resolveExtensionLinkState } from "@/lib/extension/link-state";
@@ -83,6 +84,8 @@ export function RevoraDashboard({ shop, shopifyApiKey }: RevoraDashboardProps) {
         onConnected={() => void loadExtensionStatus()}
         refreshToken={refreshToken}
       />
+
+      <ScopeUpgradeBanner shop={shop} shopifyApiKey={shopifyApiKey} />
 
       <StorefrontWidgetGuide
         refreshToken={refreshToken}
