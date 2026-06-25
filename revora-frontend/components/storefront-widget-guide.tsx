@@ -18,7 +18,9 @@ export function StorefrontWidgetGuide({
   shopifyApiKey,
   refreshToken = 0,
 }: StorefrontWidgetGuideProps) {
-  const [enabled, setEnabled] = useState(false);
+  const [status, setStatus] = useState<RevoraStorefrontWidgetStatus | null>(
+    null
+  );
   const themeEditorUrl = getThemeEditorProductUrl(shop, shopifyApiKey);
 
   const loadStatus = useCallback(async () => {
@@ -26,9 +28,9 @@ export function StorefrontWidgetGuide({
       const data = await adminFetchJson<RevoraStorefrontWidgetStatus>(
         "/api/admin/theme-embed-status"
       );
-      setEnabled(Boolean(data.enabled));
+      setStatus(data);
     } catch {
-      setEnabled(false);
+      setStatus(null);
     }
   }, []);
 
@@ -41,8 +43,32 @@ export function StorefrontWidgetGuide({
     void loadStatus();
   });
 
-  if (enabled) {
+  if (!status || status.enabled) {
     return null;
+  }
+
+  if (!status.checked) {
+    if (!status.scopeUpgradeRequired) {
+      return null;
+    }
+
+    return (
+      <s-banner
+        heading="Refresh app permissions to verify theme setup"
+        tone="warning"
+      >
+        <s-stack gap="base">
+          <s-paragraph>
+            Revora cannot read your theme configuration yet because this shop is
+            missing the <s-text type="strong">read_themes</s-text> app
+            permission. Your app embed may already be enabled — close this tab,
+            open Revora again from <s-text type="strong">Apps</s-text> in
+            Shopify admin, approve the updated permissions if prompted, and this
+            page will show the correct status.
+          </s-paragraph>
+        </s-stack>
+      </s-banner>
+    );
   }
 
   return (

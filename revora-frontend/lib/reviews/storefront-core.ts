@@ -48,8 +48,7 @@ export interface StorefrontQueryOptions {
   summaryOnly?: boolean;
 }
 
-const DEFAULT_REVIEW_LIMIT = 30;
-const MAX_REVIEW_LIMIT = 30;
+const MAX_REQUESTED_REVIEW_LIMIT = 500;
 
 function reviewComment(review: StorefrontReviewRow) {
   return (review.translatedComment || review.comment || "").trim();
@@ -126,11 +125,6 @@ export function buildStorefrontReviewsPayload(
   const published = filterPublishedReviews(rows).map(mapStorefrontReview);
   const sort = options?.sort ?? "recent";
   const photosOnly = options?.photosOnly ?? false;
-  const limit = Math.min(
-    MAX_REVIEW_LIMIT,
-    options?.limit ?? DEFAULT_REVIEW_LIMIT
-  );
-
   let reviews = sortStorefrontReviews(published, sort);
 
   if (photosOnly) {
@@ -146,10 +140,19 @@ export function buildStorefrontReviewsPayload(
       )
     : 0;
 
+  const limit =
+    options?.limit && options.limit > 0
+      ? Math.min(options.limit, MAX_REQUESTED_REVIEW_LIMIT)
+      : undefined;
+
   return {
     count: published.length,
     averageRating,
-    reviews: options?.summaryOnly ? [] : reviews.slice(0, limit),
+    reviews: options?.summaryOnly
+      ? []
+      : limit
+        ? reviews.slice(0, limit)
+        : reviews,
   };
 }
 
@@ -174,7 +177,7 @@ export function parseStorefrontQueryOptions(searchParams: URLSearchParams) {
   const limit =
     parsedLimit === undefined
       ? undefined
-      : Math.min(MAX_REVIEW_LIMIT, parsedLimit);
+      : Math.min(MAX_REQUESTED_REVIEW_LIMIT, parsedLimit);
 
   return {
     limit,

@@ -180,8 +180,6 @@ async function publishReviewsInParallel(
   return results;
 }
 
-const STOREFRONT_JSON_REVIEW_LIMIT = 30;
-
 function buildStorefrontReviewsPayload(
   succeeded: PublishAttempt[],
   publishedCount: number,
@@ -190,10 +188,11 @@ function buildStorefrontReviewsPayload(
   return {
     count: publishedCount,
     averageRating: Number(averageScore.toFixed(1)),
-    reviews: succeeded.slice(0, STOREFRONT_JSON_REVIEW_LIMIT).map((item) => {
+    reviews: succeeded.map((item) => {
       const pictureUrls = parseStoredPictures(item.review.pictures);
 
       return {
+        id: item.review.id,
         authorName: item.review.authorName || "Customer",
         comment: reviewComment(item.review) || "Great product!",
         score: Math.min(5, Math.max(1, item.review.score ?? 5)),

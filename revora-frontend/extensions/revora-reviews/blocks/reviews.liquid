@@ -5,7 +5,7 @@
     data-shop="{{ shop.permanent_domain }}"
     data-product-id="{{ product.id }}"
     data-mode="full"
-    data-limit="{{ block.settings.max_reviews | default: 10 }}"
+    data-limit="{{ block.settings.max_reviews | default: 50 }}"
     data-i18n-count="{{ 'revora.reviews_count' | t: count: '__COUNT__' | escape }}"
     data-i18n-empty="{{ 'revora.no_reviews' | t | escape }}"
     data-i18n-customer="{{ 'revora.customer' | t | escape }}"
@@ -46,9 +46,9 @@
       "id": "max_reviews",
       "label": "t:blocks.reviews.settings.max_reviews.label",
       "min": 3,
-      "max": 30,
+      "max": 100,
       "step": 1,
-      "default": 10
+      "default": 50
     }
   ]
 }

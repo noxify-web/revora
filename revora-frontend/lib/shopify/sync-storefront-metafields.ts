@@ -17,7 +17,7 @@ export async function syncProductStorefrontMetafields(
   const payload = await getPublishedReviewsForProduct(
     session.shop,
     shopifyProductId,
-    { limit: 30, sort: "recent" }
+    { sort: "recent" }
   );
 
   const shopify = getShopify();

@@ -68,6 +68,7 @@ interface MainThemeResponse {
 export interface RevoraStorefrontWidgetStatus {
   checked: boolean;
   enabled: boolean;
+  scopeUpgradeRequired: boolean;
   themeName: string | null;
 }
 
@@ -278,6 +279,7 @@ export async function getRevoraStorefrontWidgetStatus(
       enabled: false,
       themeName: null,
       checked: false,
+      scopeUpgradeRequired: true,
     };
   }
 
@@ -293,7 +295,12 @@ export async function getRevoraStorefrontWidgetStatus(
 
     if (!mainTheme?.id) {
       console.warn("[theme-embed] no main theme found");
-      return { enabled: false, themeName: null, checked: true };
+      return {
+        enabled: false,
+        themeName: null,
+        checked: true,
+        scopeUpgradeRequired: false,
+      };
     }
 
     const filesResponse = await admin.request(THEME_FILES_QUERY, {
@@ -352,6 +359,7 @@ export async function getRevoraStorefrontWidgetStatus(
       enabled,
       themeName: mainTheme.name,
       checked: true,
+      scopeUpgradeRequired: false,
     };
   } catch (error) {
     if (isThemesAccessDeniedError(error)) {
@@ -360,10 +368,16 @@ export async function getRevoraStorefrontWidgetStatus(
         enabled: false,
         themeName: null,
         checked: false,
+        scopeUpgradeRequired: true,
       };
     }
 
     console.warn("[theme-embed] check failed", error);
-    return { enabled: false, themeName: null, checked: false };
+    return {
+      enabled: false,
+      themeName: null,
+      checked: false,
+      scopeUpgradeRequired: false,
+    };
   }
 }

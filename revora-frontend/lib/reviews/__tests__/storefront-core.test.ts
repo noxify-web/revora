@@ -82,6 +82,18 @@ describe("storefront review transforms", () => {
     ).toEqual(["1", "2"]);
   });
 
+  it("returns all published reviews when no limit is provided", () => {
+    const rows = Array.from({ length: 40 }, (_, index) => ({
+      ...sampleRows[0],
+      id: String(index + 1),
+      temuReviewId: String(index + 1),
+    }));
+
+    const payload = buildStorefrontReviewsPayload(rows);
+
+    expect(payload.reviews).toHaveLength(40);
+  });
+
   it("returns summary-only payload without review list", () => {
     const payload = buildStorefrontReviewsPayload(sampleRows, {
       summaryOnly: true,
