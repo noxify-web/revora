@@ -1,0 +1,11 @@
+{%- comment -%}
+  App-owned product metafields use the `app` Liquid namespace in theme app extensions,
+  not the GraphQL `$app` namespace string.
+{%- endcomment -%}
+{%- assign revora_reviews_json = product.metafields.app.revora_reviews_json.value -%}
+{%- if revora_reviews_json == blank -%}
+  {%- assign revora_reviews_json = product.metafields["$app"].revora_reviews_json.value -%}
+{%- endif -%}
+{%- if revora_reviews_json != blank -%}
+  <script type="application/json" data-revora-initial-reviews>{{ revora_reviews_json }}</script>
+{%- endif -%}

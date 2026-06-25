@@ -7,7 +7,11 @@ import {
   renderLoading,
   renderSummary,
 } from "./revora-widget-render";
-import type { SortOption, WidgetState } from "./revora-widget-types";
+import type {
+  ReviewsPayload,
+  SortOption,
+  WidgetState,
+} from "./revora-widget-types";
 
 declare global {
   interface Window {
@@ -26,6 +30,48 @@ function getStateMap() {
 
 function getReviewLimit(root: HTMLElement) {
   return Number.parseInt(root.dataset.limit || "10", 10) || 10;
+}
+
+function readInitialReviewsPayload(root: HTMLElement): ReviewsPayload | null {
+  const script = root.querySelector("script[data-revora-initial-reviews]");
+  if (!script?.textContent?.trim()) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(script.textContent) as ReviewsPayload;
+    if (!data || typeof data !== "object") {
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function hasInitialReviews(data: ReviewsPayload | null) {
+  return Boolean(
+    data &&
+      (Number(data.count) > 0 ||
+        (Array.isArray(data.reviews) && data.reviews.length > 0))
+  );
+}
+
+function createWidgetState(
+  data: ReviewsPayload,
+  sort: SortOption = "recent"
+): WidgetState {
+  return {
+    allReviews: Array.isArray(data.reviews) ? data.reviews : [],
+    averageRating: Number(data.averageRating) || 0,
+    count: Number(data.count) || 0,
+    sort,
+    photosOnly: false,
+    selectedScore: 5,
+    voted: new Set<string>(),
+    loading: false,
+  };
 }
 
 function loadFullWidgetReviews(root: HTMLElement, state: WidgetState) {
@@ -218,9 +264,23 @@ function initRoot(root: HTMLElement) {
   }
 
   injectStyles();
-  renderLoading(root, i18n);
 
   const summaryOnly = mode === "summary";
+  const initialPayload = readInitialReviewsPayload(root);
+  const bootstrapped = hasInitialReviews(initialPayload);
+
+  if (bootstrapped && initialPayload) {
+    if (summaryOnly) {
+      renderSummary(root, initialPayload, i18n);
+    } else {
+      const state = createWidgetState(initialPayload);
+      getStateMap().set(root, state);
+      bindWidgetEvents(root);
+      renderFullWidget(root, state);
+    }
+  } else {
+    renderLoading(root, i18n);
+  }
 
   fetchReviews(shop, productId, {
     limit: summaryOnly ? 1 : getReviewLimit(root),
@@ -228,27 +288,33 @@ function initRoot(root: HTMLElement) {
     sort: "recent",
   })
     .then((data) => {
+      const apiCount = Number(data.count) || 0;
+      const apiReviews = Array.isArray(data.reviews) ? data.reviews : [];
+
+      if (bootstrapped && apiCount === 0 && apiReviews.length === 0) {
+        return;
+      }
+
       if (summaryOnly) {
         renderSummary(root, data, i18n);
         return;
       }
 
-      const state: WidgetState = {
-        allReviews: Array.isArray(data.reviews) ? data.reviews : [],
-        averageRating: Number(data.averageRating) || 0,
-        count: Number(data.count) || 0,
-        sort: "recent",
-        photosOnly: false,
-        selectedScore: 5,
-        voted: new Set<string>(),
-        loading: false,
-      };
+      const existing = getStateMap().get(root);
+      const state = createWidgetState(data, existing?.sort ?? "recent");
+      state.photosOnly = existing?.photosOnly ?? false;
+      state.selectedScore = existing?.selectedScore ?? 5;
+      state.voted = existing?.voted ?? new Set<string>();
 
       getStateMap().set(root, state);
       bindWidgetEvents(root);
       renderFullWidget(root, state);
     })
     .catch(() => {
+      if (bootstrapped) {
+        return;
+      }
+
       if (mode === "summary") {
         root.innerHTML = "";
         return;

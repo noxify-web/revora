@@ -8,7 +8,9 @@
     data-i18n-count="{{ 'revora.reviews_count' | t: count: '__COUNT__' | escape }}"
     data-i18n-summary-link="{{ 'revora.summary_link' | t | escape }}"
     data-i18n-loading="{{ 'revora.loading_reviews' | t | escape }}"
-  ></div>
+  >
+    {% render 'revora-initial-reviews' %}
+  </div>
 
   <script src="{{ 'revora-widget.js' | asset_url }}" defer></script>
 {% endif %}

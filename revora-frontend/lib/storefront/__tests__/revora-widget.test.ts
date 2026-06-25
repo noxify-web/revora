@@ -37,6 +37,7 @@ describe("revora-widget storefront bundle", () => {
     expect(widgetSource).toContain("data-revora-review-form");
     expect(widgetSource).toContain("revora-reviews-summary");
     expect(widgetSource).toContain("/apps/revora/reviews");
+    expect(widgetSource).toContain("data-revora-initial-reviews");
     expect(widgetSource).not.toContain("fontSizeBase");
     expect(widgetSource).not.toContain("shadowPopover");
   });

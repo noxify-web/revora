@@ -26,7 +26,9 @@
     data-i18n-form-rating="{{ 'revora.form_rating' | t | escape }}"
     data-i18n-form-submit="{{ 'revora.form_submit' | t | escape }}"
     data-i18n-form-success="{{ 'revora.form_success' | t | escape }}"
-  ></div>
+  >
+    {% render 'revora-initial-reviews' %}
+  </div>
 
   <script src="{{ 'revora-widget.js' | asset_url }}" defer></script>
 {% endif %}

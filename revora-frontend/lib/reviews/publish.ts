@@ -2,6 +2,7 @@ import type { Session } from "@shopify/shopify-api";
 import { and, eq } from "drizzle-orm";
 
 import { refreshImportPublishCounts } from "@/lib/reviews/import-counts";
+import { syncProductStorefrontMetafields } from "@/lib/shopify/sync-storefront-metafields";
 import { db } from "@/src/db";
 import { importedReviews, reviewImports } from "@/src/db/schema";
 
@@ -54,6 +55,7 @@ export async function publishImportToStorefront(
   }
 
   await refreshImportPublishCounts(session.shop, importId);
+  await syncProductStorefrontMetafields(session, importRecord.shopifyProductId);
 
   return {
     importId,
